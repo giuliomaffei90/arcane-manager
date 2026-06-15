@@ -9,6 +9,7 @@ and shows an always-on-top overlay with the spell details.
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import multiprocessing
 import queue
@@ -27,13 +28,19 @@ try:
     import objc
     from AppKit import (
         NSApp,
+        NSAlternateKeyMask,
         NSApplication,
         NSApplicationActivationPolicyRegular,
         NSAlert,
         NSBackingStoreBuffered,
         NSBezierPath,
+        NSButton,
         NSColor,
+        NSCommandKeyMask,
+        NSControlKeyMask,
         NSCursor,
+        NSEvent,
+        NSEventMaskKeyDown,
         NSFont,
         NSFontAttributeName,
         NSForegroundColorAttributeName,
@@ -43,10 +50,12 @@ try:
         NSMenu,
         NSMenuItem,
         NSPanel,
+        NSProgressIndicator,
         NSScrollView,
         NSScreen,
         NSSpeechRecognizer,
         NSStatusBar,
+        NSShiftKeyMask,
         NSTrackingActiveAlways,
         NSTrackingArea,
         NSTrackingInVisibleRect,
@@ -72,6 +81,7 @@ try:
         NSObject,
         NSLocale,
         NSTimer,
+        NSUserDefaults,
     )
     from Speech import (
         SFSpeechAudioBufferRecognitionRequest,
@@ -104,12 +114,334 @@ BASE_DIR = resource_base_dir()
 DEFAULT_SPELLS_FILE = bundled_resource_path("spells.json")
 LOG_FILE = Path.home() / "Library" / "Logs" / "Arcane Whisperer" / "arcane_whisperer.log"
 APP_RETAINED_OBJECTS: list[Any] = []
+GLOBAL_HOTKEY_DELEGATE: Any = None
 MAX_SPELL_FILE_BYTES = 12 * 1024 * 1024
 MAX_SPELLS = 2500
 MAX_TEXT_FIELD_CHARS = 50000
 MAX_SHORT_FIELD_CHARS = 500
 MAX_ALIAS_CHARS = 140
 MAX_ALIASES_PER_SPELL = 80
+ALLOWED_WHISPER_LANGUAGES = {"en", "it"}
+WHISPER_REPO_PREFIX = "Systran/faster-whisper-"
+WHISPER_DOWNLOAD_PATTERNS = [
+    "config.json",
+    "model.bin",
+    "tokenizer.json",
+    "vocabulary.*",
+]
+TRANSCRIPT_NORMALIZATION_REPLACEMENTS = {
+    "appalla": "palla",
+    "parla": "palla",
+    "fuego": "fuoco",
+    "fuega": "fuoco",
+    "foco": "fuoco",
+    "focca": "fuoco",
+    "focco": "fuoco",
+    "focore": "fuoco",
+    "fogo": "fuoco",
+    "forgo": "fuoco",
+    "focor": "fuoco",
+    "focori": "fuoco",
+    "fuoco": "fuoco",
+    "retardata": "ritardata",
+    "riterdata": "ritardata",
+    "ritedata": "ritardata",
+    "tardata": "ritardata",
+    "ritardato": "ritardata",
+    "ritardo": "ritardata",
+    "return": "ritardata",
+    "focorita": "fuoco ritardata",
+    "focoritardata": "fuoco ritardata",
+    "ward": "word",
+    "wards": "word",
+    "words": "word",
+}
+
+
+class WhisperDownloadProgress:
+    total_bytes = 0
+    downloaded_bytes = 0
+    callback: Any = None
+    lock = threading.Lock()
+    _lock = threading.RLock()
+
+    def __init__(self, *args, **kwargs):
+        self.iterable = args[0] if args else None
+        self.unit = kwargs.get("unit", "")
+        self.total = kwargs.get("total", None)
+        self.n = 0
+        self.disable = kwargs.get("disable", False)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback):
+        self.close()
+        return False
+
+    def __iter__(self):
+        if self.iterable is None:
+            return iter(())
+        for item in self.iterable:
+            yield item
+            if self.unit != "B":
+                self.n += 1
+
+    def update(self, amount=1):
+        self.n += int(amount)
+        if self.unit != "B":
+            return
+        with self.lock:
+            self.__class__.downloaded_bytes += int(amount)
+            downloaded = min(self.__class__.downloaded_bytes, self.__class__.total_bytes)
+            total = max(1, self.__class__.total_bytes)
+        if self.__class__.callback is not None:
+            self.__class__.callback(downloaded, total)
+
+    def close(self):
+        pass
+
+    def set_description(self, *_args, **_kwargs):
+        pass
+
+    def refresh(self, *_args, **_kwargs):
+        pass
+
+    @classmethod
+    def get_lock(cls):
+        return cls._lock
+
+    @classmethod
+    def set_lock(cls, lock):
+        cls._lock = lock
+
+    @classmethod
+    def configure(cls, total_bytes: int, callback):
+        with cls.lock:
+            cls.total_bytes = max(1, int(total_bytes))
+            cls.downloaded_bytes = 0
+            cls.callback = callback
+
+    @classmethod
+    def reset(cls):
+        with cls.lock:
+            cls.total_bytes = 0
+            cls.downloaded_bytes = 0
+            cls.callback = None
+
+
+def whisper_repo_for_model(model_name: str) -> str:
+    if "/" in model_name:
+        return model_name
+    return f"{WHISPER_REPO_PREFIX}{model_name}"
+
+
+def format_bytes(value: int) -> str:
+    number = float(value)
+    for unit in ("B", "KB", "MB", "GB"):
+        if number < 1024 or unit == "GB":
+            return f"{number:.1f} {unit}" if unit != "B" else f"{int(number)} {unit}"
+        number /= 1024
+    return f"{number:.1f} GB"
+
+
+def four_char_code(value: str) -> int:
+    encoded = value.encode("macroman")
+    result = 0
+    for byte in encoded:
+        result = (result << 8) | byte
+    return result
+
+
+class CarbonEventHotKeyID(ctypes.Structure):
+    _fields_ = [("signature", ctypes.c_uint32), ("id", ctypes.c_uint32)]
+
+
+class CarbonEventTypeSpec(ctypes.Structure):
+    _fields_ = [("eventClass", ctypes.c_uint32), ("eventKind", ctypes.c_uint32)]
+
+
+CARBON_EVENT_HANDLER_TYPE = ctypes.CFUNCTYPE(
+    ctypes.c_int32,
+    ctypes.c_void_p,
+    ctypes.c_void_p,
+    ctypes.c_void_p,
+)
+CARBON_HOTKEY_SIGNATURE = four_char_code("AWHK")
+CARBON_EVENT_CLASS_KEYBOARD = four_char_code("keyb")
+CARBON_EVENT_HOTKEY_PRESSED = 5
+CARBON_CMD_KEY = 1 << 8
+CARBON_SHIFT_KEY = 1 << 9
+CARBON_OPTION_KEY = 1 << 11
+CARBON_CONTROL_KEY = 1 << 12
+SEARCH_HOTKEY_PREF = "SearchHotkey"
+DEFAULT_SEARCH_HOTKEY_KEY = " "
+DEFAULT_SEARCH_HOTKEY_KEY_CODE = 49
+DEFAULT_SEARCH_HOTKEY_MODIFIERS = int(NSCommandKeyMask | NSShiftKeyMask)
+SUPPORTED_HOTKEY_MODIFIERS = int(NSCommandKeyMask | NSShiftKeyMask | NSAlternateKeyMask | NSControlKeyMask)
+HOTKEY_KEY_CODE_BY_KEY = {
+    "a": 0,
+    "s": 1,
+    "d": 2,
+    "f": 3,
+    "h": 4,
+    "g": 5,
+    "z": 6,
+    "x": 7,
+    "c": 8,
+    "v": 9,
+    "b": 11,
+    "q": 12,
+    "w": 13,
+    "e": 14,
+    "r": 15,
+    "y": 16,
+    "t": 17,
+    "1": 18,
+    "2": 19,
+    "3": 20,
+    "4": 21,
+    "6": 22,
+    "5": 23,
+    "=": 24,
+    "9": 25,
+    "7": 26,
+    "-": 27,
+    "8": 28,
+    "0": 29,
+    "]": 30,
+    "o": 31,
+    "u": 32,
+    "[": 33,
+    "i": 34,
+    "p": 35,
+    "l": 37,
+    "j": 38,
+    "'": 39,
+    "k": 40,
+    ";": 41,
+    "\\": 42,
+    ",": 43,
+    "/": 44,
+    "n": 45,
+    "m": 46,
+    ".": 47,
+    " ": 49,
+}
+
+
+def carbon_modifier_flags(appkit_modifiers: int) -> int:
+    flags = 0
+    if appkit_modifiers & int(NSCommandKeyMask):
+        flags |= CARBON_CMD_KEY
+    if appkit_modifiers & int(NSShiftKeyMask):
+        flags |= CARBON_SHIFT_KEY
+    if appkit_modifiers & int(NSAlternateKeyMask):
+        flags |= CARBON_OPTION_KEY
+    if appkit_modifiers & int(NSControlKeyMask):
+        flags |= CARBON_CONTROL_KEY
+    return flags
+
+
+def load_carbon_framework():
+    carbon = ctypes.CDLL("/System/Library/Frameworks/Carbon.framework/Carbon")
+    carbon.GetApplicationEventTarget.restype = ctypes.c_void_p
+    carbon.InstallEventHandler.argtypes = [
+        ctypes.c_void_p,
+        CARBON_EVENT_HANDLER_TYPE,
+        ctypes.c_uint32,
+        ctypes.POINTER(CarbonEventTypeSpec),
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    carbon.InstallEventHandler.restype = ctypes.c_int32
+    carbon.RegisterEventHotKey.argtypes = [
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        CarbonEventHotKeyID,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    carbon.RegisterEventHotKey.restype = ctypes.c_int32
+    carbon.UnregisterEventHotKey.argtypes = [ctypes.c_void_p]
+    carbon.UnregisterEventHotKey.restype = ctypes.c_int32
+    return carbon
+
+
+@dataclass(frozen=True)
+class Hotkey:
+    modifiers: int
+    key: str
+    key_code: int
+
+
+def default_search_hotkey() -> Hotkey:
+    return Hotkey(DEFAULT_SEARCH_HOTKEY_MODIFIERS, DEFAULT_SEARCH_HOTKEY_KEY, DEFAULT_SEARCH_HOTKEY_KEY_CODE)
+
+
+def hotkey_key_display(key: str) -> str:
+    if key == " ":
+        return "Space"
+    return key.upper()
+
+
+def hotkey_display(hotkey: Hotkey) -> str:
+    parts = []
+    for mask, name in (
+        (NSCommandKeyMask, "Cmd"),
+        (NSShiftKeyMask, "Shift"),
+        (NSAlternateKeyMask, "Option"),
+        (NSControlKeyMask, "Ctrl"),
+    ):
+        if hotkey.modifiers & int(mask):
+            parts.append(name)
+    parts.append(hotkey_key_display(hotkey.key))
+    return "+".join(parts)
+
+
+def normalized_hotkey_key(value: Any) -> str:
+    key = str(value or "")
+    if key == " ":
+        return key
+    return key[:1].lower()
+
+
+def valid_hotkey(hotkey: Hotkey) -> bool:
+    if not hotkey.key or hotkey.key_code < 0:
+        return False
+    needs_primary_modifier = int(NSCommandKeyMask | NSAlternateKeyMask | NSControlKeyMask)
+    return bool(hotkey.modifiers & needs_primary_modifier)
+
+
+def key_code_for_key(key: str) -> int:
+    return HOTKEY_KEY_CODE_BY_KEY.get(key, -1)
+
+
+def load_search_hotkey() -> Hotkey:
+    defaults = NSUserDefaults.standardUserDefaults()
+    raw = defaults.stringForKey_(SEARCH_HOTKEY_PREF)
+    if raw:
+        try:
+            payload = json.loads(str(raw))
+            key = normalized_hotkey_key(payload.get("key", DEFAULT_SEARCH_HOTKEY_KEY))
+            hotkey = Hotkey(
+                int(payload.get("modifiers", DEFAULT_SEARCH_HOTKEY_MODIFIERS)) & SUPPORTED_HOTKEY_MODIFIERS,
+                key,
+                int(payload.get("key_code", key_code_for_key(key))),
+            )
+            if valid_hotkey(hotkey):
+                return hotkey
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+    return default_search_hotkey()
+
+
+def save_search_hotkey(hotkey: Hotkey):
+    payload = json.dumps({"modifiers": int(hotkey.modifiers), "key": hotkey.key, "key_code": int(hotkey.key_code)})
+    defaults = NSUserDefaults.standardUserDefaults()
+    defaults.setObject_forKey_(payload, SEARCH_HOTKEY_PREF)
+    defaults.synchronize()
 
 
 def normalize(text: str) -> str:
@@ -120,6 +452,23 @@ def normalize(text: str) -> str:
     for char in ascii_text:
         cleaned.append(char if char.isalnum() else " ")
     return " ".join("".join(cleaned).split())
+
+
+def normalize_transcript_for_matching(text: str) -> str:
+    words = normalize(text).split()
+    expanded_words = []
+    for word in words:
+        replacement = TRANSCRIPT_NORMALIZATION_REPLACEMENTS.get(word, word)
+        expanded_words.extend(replacement.split())
+
+    normalized_words = []
+    for index, word in enumerate(expanded_words):
+        previous_word = expanded_words[index - 1] if index > 0 else ""
+        next_word = expanded_words[index + 1] if index + 1 < len(expanded_words) else ""
+        if word in {"i", "e"} and previous_word == "fuoco" and next_word == "ritardata":
+            continue
+        normalized_words.append(word)
+    return " ".join(normalized_words)
 
 
 def clean_text(value: Any, max_chars: int = MAX_SHORT_FIELD_CHARS) -> str:
@@ -426,25 +775,69 @@ def contextual_strings_for_spells(spells: list[Spell]) -> list[str]:
 
 
 def find_spell_in_text(text: str, lookup: dict[str, Spell]) -> Spell | None:
-    normalized = f" {normalize(text)} "
+    exact_match = find_exact_spell_in_text(text, lookup)
+    if exact_match is not None:
+        return exact_match
+
+    return find_fuzzy_spell_in_text(normalize_transcript_for_matching(text), lookup)
+
+
+def find_exact_spell_in_text(text: str, lookup: dict[str, Spell]) -> Spell | None:
+    normalized = f" {normalize_transcript_for_matching(text)} "
     best_match: tuple[int, int, Spell] | None = None
     for alias, spell in lookup.items():
         needle = f" {alias} "
         index = normalized.rfind(needle)
         if index < 0:
             continue
-        candidate = (index, len(alias), spell)
+        candidate = (len(alias), index, spell)
         if best_match is None or candidate[:2] > best_match[:2]:
             best_match = candidate
     if best_match:
         return best_match[2]
+    return None
 
-    return find_fuzzy_spell_in_text(normalized.strip(), lookup)
+
+def search_spells(query: str, spells: list[Spell], limit: int = 8) -> list[Spell]:
+    normalized_query = normalize(query)
+    if not normalized_query:
+        return spells[:limit]
+
+    ranked: list[tuple[float, int, str, Spell]] = []
+    compact_query = normalized_query.replace(" ", "")
+    for spell in spells:
+        names = [spell.name, spell.italian_name, *spell.aliases]
+        best_score = 0.0
+        best_length = 9999
+        for name in names:
+            normalized_name = normalize(name)
+            if not normalized_name:
+                continue
+            compact_name = normalized_name.replace(" ", "")
+            if normalized_name == normalized_query:
+                score = 1.0
+            elif normalized_name.startswith(normalized_query):
+                score = 0.94
+            elif normalized_query in normalized_name:
+                score = 0.86
+            elif compact_query and compact_query in compact_name:
+                score = 0.82
+            else:
+                score = SequenceMatcher(None, normalized_query, normalized_name).ratio() * 0.78
+            if score > best_score or (score == best_score and len(normalized_name) < best_length):
+                best_score = score
+                best_length = len(normalized_name)
+
+        if best_score >= 0.45:
+            ranked.append((best_score, best_length, spell.name, spell))
+
+    ranked.sort(key=lambda item: (-item[0], item[1], item[2]))
+    return [spell for _score, _length, _name, spell in ranked[:limit]]
 
 
 def find_fuzzy_spell_in_text(normalized_text: str, lookup: dict[str, Spell]) -> Spell | None:
     words = normalized_text.split()
-    if not words:
+    if len(words) < 2:
         return None
 
     best_match: tuple[float, int, Spell, str, str] | None = None
@@ -458,8 +851,13 @@ def find_fuzzy_spell_in_text(normalized_text: str, lookup: dict[str, Spell]) -> 
                 continue
             for start in range(0, len(words) - size + 1):
                 candidate = " ".join(words[start : start + size])
+                if alias.startswith(candidate) and len(candidate) < len(alias):
+                    continue
+                shared_tokens = set(alias_words) & set(candidate.split())
+                if not shared_tokens:
+                    continue
                 score = SequenceMatcher(None, alias, candidate).ratio()
-                threshold = 0.80 if len(alias) >= 9 else 0.86
+                threshold = 0.88 if len(alias) >= 9 else 0.92
                 if score < threshold:
                     continue
                 ranked = (score, start, spell, alias, candidate)
@@ -468,9 +866,9 @@ def find_fuzzy_spell_in_text(normalized_text: str, lookup: dict[str, Spell]) -> 
 
         compact_alias = alias.replace(" ", "")
         compact_text = normalized_text.replace(" ", "")
-        if len(compact_alias) >= 8 and compact_text:
+        if len(compact_alias) >= 8 and len(words) >= 2 and compact_text:
             compact_score = SequenceMatcher(None, compact_alias, compact_text).ratio()
-            if compact_score >= 0.80:
+            if compact_score >= 0.90:
                 ranked = (compact_score, len(words), spell, alias, normalized_text)
                 if best_match is None or ranked[:2] > best_match[:2]:
                     best_match = ranked
@@ -479,6 +877,45 @@ def find_fuzzy_spell_in_text(normalized_text: str, lookup: dict[str, Spell]) -> 
         score, _start, spell, alias, candidate = best_match
         log(f"Fuzzy match: {spell.name} ({candidate!r} ~= {alias!r}, {score:.2f})")
         return spell
+    return None
+
+
+def transcript_looks_repetitive(text: str) -> bool:
+    words = normalize(text).split()
+    if len(words) < 10:
+        return False
+    unique_ratio = len(set(words)) / max(1, len(words))
+    most_common_count = max(words.count(word) for word in set(words))
+    if len(words) >= 7 and most_common_count >= 3:
+        return True
+    if len(words) >= 18 and unique_ratio < 0.35:
+        return True
+    return most_common_count >= 5
+
+
+def transcript_looks_incomplete(text: str) -> bool:
+    stripped = text.strip()
+    return stripped.endswith("...") or stripped.endswith("…")
+
+
+def should_ignore_whisper_transcript(text: str, language: str, probability: float, segments: list[Any]) -> str | None:
+    if language not in ALLOWED_WHISPER_LANGUAGES:
+        return f"language {language!r}"
+    if probability < 0.20:
+        return f"low language confidence {probability:.2f}"
+    if len(text) > 280:
+        return "overlong transcript"
+    if transcript_looks_repetitive(text):
+        return "repetitive transcript"
+
+    no_speech_values = [float(getattr(segment, "no_speech_prob", 0.0) or 0.0) for segment in segments]
+    if no_speech_values and min(no_speech_values) > 0.65:
+        return f"no-speech probability {min(no_speech_values):.2f}"
+
+    compression_values = [float(getattr(segment, "compression_ratio", 0.0) or 0.0) for segment in segments]
+    if compression_values and max(compression_values) > 2.8:
+        return f"compression ratio {max(compression_values):.2f}"
+
     return None
 
 
@@ -533,6 +970,9 @@ class OverlayController(NSObject):
     title_label: NSTextField
     italian_name_label: NSTextField
     meta_label: NSTextField
+    progress_bar: NSProgressIndicator
+    progress_label: NSTextField
+    progress_body_label: NSTextField
     dice_result_label: NSTextField
     scroll_view: NSScrollView
     scroll_content: FlippedView
@@ -550,6 +990,7 @@ class OverlayController(NSObject):
     timer: NSTimer | None
     hide_after: float
     mouse_inside: bool
+    keep_visible: bool
 
     def initWithHideAfter_(self, hide_after: float):
         self = objc.super(OverlayController, self).init()
@@ -559,6 +1000,7 @@ class OverlayController(NSObject):
         self.hide_after = hide_after
         self.timer = None
         self.mouse_inside = False
+        self.keep_visible = True
 
         screen = NSScreen.mainScreen().visibleFrame()
         width = 640
@@ -599,6 +1041,18 @@ class OverlayController(NSObject):
         self.italian_name_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.78, 0.78, 0.82, 1.0))
         self.meta_label = make_multiline(make_label("Say the name of a configured spell.", (24, 392, 592, 42), 13))
         self.meta_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(1.0, 0.82, 0.26, 1.0))
+
+        self.progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(24, 330, 592, 16))
+        self.progress_bar.setIndeterminate_(False)
+        self.progress_bar.setMinValue_(0.0)
+        self.progress_bar.setMaxValue_(100.0)
+        self.progress_bar.setDoubleValue_(0.0)
+        self.progress_bar.setHidden_(True)
+        self.progress_label = make_label("", (24, 302, 592, 20), 11)
+        self.progress_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.78, 0.78, 0.82, 1.0))
+        self.progress_label.setHidden_(True)
+        self.progress_body_label = make_multiline(make_label("", (24, 256, 592, 40), 13))
+        self.progress_body_label.setHidden_(True)
 
         self.dice_result_label = make_label("", (24, 364, 592, 20), 12, True)
         self.dice_result_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.58, 0.95, 0.28, 1.0))
@@ -646,6 +1100,9 @@ class OverlayController(NSObject):
         content.addSubview_(self.title_label)
         content.addSubview_(self.italian_name_label)
         content.addSubview_(self.meta_label)
+        content.addSubview_(self.progress_bar)
+        content.addSubview_(self.progress_label)
+        content.addSubview_(self.progress_body_label)
         content.addSubview_(self.dice_result_label)
         content.addSubview_(self.scroll_view)
         self.scroll_content.addSubview_(self.body_label)
@@ -678,7 +1135,8 @@ class OverlayController(NSObject):
     def mouseExited_(self, _event):
         self.mouse_inside = False
         self._cancel_hide_timer()
-        self.hide_(None)
+        if not self.keep_visible:
+            self.hide_(None)
 
     def _set_detail_controls_hidden(self, hidden: bool):
         for view in self.detail_views:
@@ -716,11 +1174,17 @@ class OverlayController(NSObject):
         self.scroll_view.reflectScrolledClipView_(self.scroll_view.contentView())
 
     def showMessage_meta_body_(self, title: str, meta: str, body: str):
+        self.keep_visible = True
+        self._cancel_hide_timer()
         self.title_label.setStringValue_(title)
         self.italian_name_label.setStringValue_("")
         self.dice_result_label.setStringValue_("")
         self.dice_result_label.setHidden_(True)
+        self.progress_bar.setHidden_(True)
+        self.progress_label.setHidden_(True)
+        self.progress_body_label.setHidden_(True)
         self.meta_label.setStringValue_(meta)
+        self.scroll_view.setHidden_(False)
         self.body_label.setString_(body)
         self.body_label.setDiceRanges_([])
         self.scroll_content.setFrame_(NSMakeRect(0, 0, 592, 332))
@@ -735,7 +1199,31 @@ class OverlayController(NSObject):
             payload.get("body", ""),
         )
 
+    def showProgress_(self, payload: dict[str, Any]):
+        self.keep_visible = True
+        self._cancel_hide_timer()
+        percent = float(payload.get("percent", 0.0))
+        self.title_label.setStringValue_(str(payload.get("title", "")))
+        self.italian_name_label.setStringValue_("")
+        self.meta_label.setStringValue_(str(payload.get("meta", "")))
+        self.dice_result_label.setStringValue_("")
+        self.dice_result_label.setHidden_(True)
+        self.progress_bar.setHidden_(False)
+        self.progress_bar.setDoubleValue_(max(0.0, min(100.0, percent)))
+        self.progress_label.setHidden_(False)
+        self.progress_label.setStringValue_(str(payload.get("detail", "")))
+        self.progress_body_label.setHidden_(False)
+        self.progress_body_label.setStringValue_(str(payload.get("body", "")))
+        self.scroll_view.setHidden_(True)
+        self.body_label.setString_("")
+        self.body_label.setDiceRanges_([])
+        self.scroll_content.setFrame_(NSMakeRect(0, 0, 592, 280))
+        self.body_label.setFrame_(NSMakeRect(0, 0, 560, 280))
+        self._set_detail_controls_hidden(True)
+        self.panel.orderFrontRegardless()
+
     def showSpell_(self, spell: Spell):
+        self.keep_visible = False
         title, meta, body = format_spell_for_overlay(spell)
         flags = component_flags(spell.components)
         attributed_body = attributed_spell_body(body)
@@ -744,6 +1232,10 @@ class OverlayController(NSObject):
         self.title_label.setStringValue_(title)
         self.dice_result_label.setStringValue_("")
         self.dice_result_label.setHidden_(True)
+        self.progress_bar.setHidden_(True)
+        self.progress_label.setHidden_(True)
+        self.progress_body_label.setHidden_(True)
+        self.scroll_view.setHidden_(False)
         italian_name = spell.italian_name.strip()
         if italian_name and normalize(italian_name) != normalize(spell.name):
             self.italian_name_label.setStringValue_(f"({italian_name})")
@@ -776,12 +1268,251 @@ class OverlayController(NSObject):
 
     def hide_(self, _timer):
         self.timer = None
+        if self.keep_visible:
+            return
         if self.mouse_inside:
             return
         self.panel.orderOut_(None)
 
     def windowWillClose_(self, _notification):
         NSApp.terminate_(None)
+
+
+class SpellSearchController(NSObject):
+    panel: NSPanel
+    search_field: NSTextField
+    hint_label: NSTextField
+    result_buttons: list[NSButton]
+    displayed_spells: list[Spell]
+    spells: list[Spell]
+    overlay: OverlayController
+
+    def initWithSpells_overlay_(self, spells, overlay):
+        self = objc.super(SpellSearchController, self).init()
+        if self is None:
+            return None
+
+        self.spells = list(spells)
+        self.overlay = overlay
+        self.displayed_spells = []
+        self.result_buttons = []
+
+        screen = NSScreen.mainScreen().visibleFrame()
+        width = 520
+        height = 370
+        x = screen.origin.x + (screen.size.width - width) / 2
+        y = screen.origin.y + (screen.size.height - height) / 2
+
+        style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskUtilityWindow
+        self.panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+            NSMakeRect(x, y, width, height),
+            style,
+            NSBackingStoreBuffered,
+            False,
+        )
+        self.panel.setTitle_("Search Spell")
+        self.panel.setFloatingPanel_(True)
+        self.panel.setHidesOnDeactivate_(False)
+        self.panel.setLevel_(24)
+        self.panel.setBackgroundColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.08, 0.08, 0.10, 0.97))
+
+        content = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, width, height))
+        title_label = make_label("Search spell", (24, 316, 472, 30), 20, True)
+        self.search_field = NSTextField.alloc().initWithFrame_(NSMakeRect(24, 276, 472, 30))
+        self.search_field.setFont_(NSFont.systemFontOfSize_(15))
+        self.search_field.setTarget_(self)
+        self.search_field.setAction_("submitSearch:")
+        self.search_field.setDelegate_(self)
+
+        self.hint_label = make_label("Type an English or Italian spell name, then press Enter.", (24, 246, 472, 20), 11)
+        self.hint_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.78, 0.78, 0.82, 1.0))
+
+        content.addSubview_(title_label)
+        content.addSubview_(self.search_field)
+        content.addSubview_(self.hint_label)
+
+        for index in range(8):
+            button = NSButton.alloc().initWithFrame_(NSMakeRect(24, 212 - index * 27, 472, 24))
+            button.setBordered_(False)
+            button.setAlignment_(0)
+            button.setFont_(NSFont.systemFontOfSize_(13))
+            button.setTarget_(self)
+            button.setAction_("selectResult:")
+            button.setTag_(index)
+            button.setHidden_(True)
+            self.result_buttons.append(button)
+            content.addSubview_(button)
+
+        self.panel.setContentView_(content)
+        self.updateResultsForQuery_("")
+        return self
+
+    def show_(self, _sender):
+        self.search_field.setStringValue_("")
+        self.updateResultsForQuery_("")
+        NSApp.activateIgnoringOtherApps_(True)
+        self.panel.makeKeyAndOrderFront_(None)
+        self.panel.makeFirstResponder_(self.search_field)
+
+    def controlTextDidChange_(self, notification):
+        field = notification.object()
+        self.updateResultsForQuery_(str(field.stringValue()))
+
+    def updateResultsForQuery_(self, query: str):
+        self.displayed_spells = search_spells(query, self.spells, len(self.result_buttons))
+        for index, button in enumerate(self.result_buttons):
+            if index >= len(self.displayed_spells):
+                button.setHidden_(True)
+                continue
+
+            spell = self.displayed_spells[index]
+            secondary = spell.italian_name.strip()
+            title = spell.name
+            if secondary and normalize(secondary) != normalize(spell.name):
+                title = f"{spell.name} ({secondary})"
+            button.setTitle_(title)
+            button.setHidden_(False)
+
+        if self.displayed_spells:
+            self.hint_label.setStringValue_("Press Enter to open the first result, or click a spell below.")
+        else:
+            self.hint_label.setStringValue_("No matching spells found.")
+
+    def submitSearch_(self, _sender):
+        if self.displayed_spells:
+            self.openSpell_(self.displayed_spells[0])
+
+    def selectResult_(self, sender):
+        index = int(sender.tag())
+        if 0 <= index < len(self.displayed_spells):
+            self.openSpell_(self.displayed_spells[index])
+
+    def openSpell_(self, spell: Spell):
+        self.panel.orderOut_(None)
+        self.overlay.showSpell_(spell)
+
+
+class PreferencesController(NSObject):
+    panel: NSPanel
+    app_delegate: Any
+    shortcut_label: NSTextField
+    hint_label: NSTextField
+    record_button: NSButton
+    reset_button: NSButton
+    recording: bool
+
+    def initWithAppDelegate_(self, app_delegate):
+        self = objc.super(PreferencesController, self).init()
+        if self is None:
+            return None
+
+        self.app_delegate = app_delegate
+        self.recording = False
+
+        screen = NSScreen.mainScreen().visibleFrame()
+        width = 420
+        height = 210
+        x = screen.origin.x + (screen.size.width - width) / 2
+        y = screen.origin.y + (screen.size.height - height) / 2
+
+        style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskUtilityWindow
+        self.panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+            NSMakeRect(x, y, width, height),
+            style,
+            NSBackingStoreBuffered,
+            False,
+        )
+        self.panel.setTitle_("Arcane Whisperer Preferences")
+        self.panel.setFloatingPanel_(True)
+        self.panel.setHidesOnDeactivate_(False)
+        self.panel.setLevel_(24)
+        self.panel.setBackgroundColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.08, 0.08, 0.10, 0.97))
+
+        content = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, width, height))
+        title_label = make_label("Preferences", (24, 154, 372, 28), 18, True)
+        search_label = make_label("Search hotkey", (24, 114, 120, 24), 13, True)
+        self.shortcut_label = make_label("", (154, 114, 242, 24), 13)
+        self.shortcut_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(1.0, 0.82, 0.26, 1.0))
+
+        self.hint_label = make_multiline(make_label("", (24, 76, 372, 34), 11))
+        self.hint_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.78, 0.78, 0.82, 1.0))
+
+        self.record_button = NSButton.alloc().initWithFrame_(NSMakeRect(24, 28, 170, 30))
+        self.record_button.setTitle_("Record Shortcut")
+        self.record_button.setTarget_(self)
+        self.record_button.setAction_("beginRecording:")
+
+        self.reset_button = NSButton.alloc().initWithFrame_(NSMakeRect(206, 28, 110, 30))
+        self.reset_button.setTitle_("Reset")
+        self.reset_button.setTarget_(self)
+        self.reset_button.setAction_("resetShortcut:")
+
+        close_button = NSButton.alloc().initWithFrame_(NSMakeRect(326, 28, 70, 30))
+        close_button.setTitle_("Close")
+        close_button.setTarget_(self)
+        close_button.setAction_("close:")
+
+        for view in (
+            title_label,
+            search_label,
+            self.shortcut_label,
+            self.hint_label,
+            self.record_button,
+            self.reset_button,
+            close_button,
+        ):
+            content.addSubview_(view)
+
+        self.panel.setContentView_(content)
+        self.updateDisplay()
+        return self
+
+    def show_(self, _sender):
+        self.recording = False
+        self.updateDisplay()
+        NSApp.activateIgnoringOtherApps_(True)
+        self.panel.makeKeyAndOrderFront_(None)
+
+    def beginRecording_(self, _sender):
+        self.recording = True
+        self.record_button.setTitle_("Recording...")
+        self.hint_label.setStringValue_("Press the new shortcut. Use Cmd, Option, or Ctrl plus a key.")
+
+    def resetShortcut_(self, _sender):
+        self.recording = False
+        self.app_delegate.setSearchHotkey_(default_search_hotkey())
+        self.updateDisplay()
+
+    def close_(self, _sender):
+        self.recording = False
+        self.panel.orderOut_(None)
+
+    def updateDisplay(self):
+        hotkey = self.app_delegate.search_hotkey
+        self.shortcut_label.setStringValue_(hotkey_display(hotkey))
+        self.record_button.setTitle_("Record Shortcut")
+        self.hint_label.setStringValue_("Default: Cmd+Shift+Space. Open this window again to change it later.")
+
+    def captureHotkeyEvent_(self, event) -> bool:
+        if not self.recording or not self.panel.isVisible():
+            return False
+
+        key = normalized_hotkey_key(event.charactersIgnoringModifiers() or "")
+        if key == "\x1b":
+            self.recording = False
+            self.updateDisplay()
+            return True
+
+        modifiers = int(event.modifierFlags()) & SUPPORTED_HOTKEY_MODIFIERS
+        hotkey = Hotkey(modifiers, key, int(event.keyCode()))
+        if not valid_hotkey(hotkey):
+            self.hint_label.setStringValue_("Shortcut not saved. Use Cmd, Option, or Ctrl plus a key.")
+            return True
+
+        self.recording = False
+        self.app_delegate.setSearchHotkey_(hotkey)
+        self.updateDisplay()
+        return True
 
 
 class CommandSpellListener(NSObject):
@@ -839,6 +1570,11 @@ class WhisperSpellListener:
         self.sample_rate = sample_rate
         self.window_seconds = window_seconds
         self.step_seconds = step_seconds
+        self.max_utterance_seconds = 5.0
+        self.end_silence_seconds = 0.7
+        self.min_utterance_seconds = 0.35
+        self.voice_peak_threshold = 0.018
+        self.voice_rms_threshold = 0.004
         self.audio_queue: queue.Queue[Any] = queue.Queue()
         self.stop_event = threading.Event()
         self.worker: threading.Thread | None = None
@@ -846,6 +1582,8 @@ class WhisperSpellListener:
         self.model: Any = None
         self.last_spell_id: str | None = None
         self.last_spell_at = 0.0
+        self.last_transcript_key = ""
+        self.repeated_transcript_count = 0
 
     def start(self):
         self.overlay.showMessage_meta_body_(
@@ -861,16 +1599,20 @@ class WhisperSpellListener:
             import numpy as np
             import sounddevice as sd
             from faster_whisper import WhisperModel
+            from huggingface_hub import snapshot_download
         except ImportError as exc:
             log(f"Missing Whisper dependency: {exc}")
             self.showStatus_("Missing dependencies", "Whisper", "Run .venv/bin/python -m pip install -r requirements.txt")
             return
 
         try:
-            model_source = BASE_DIR / "whisper_models" / self.model_name
-            if not model_source.exists():
-                model_source = Path(self.model_name)
+            model_source = self.ensureWhisperModel_(snapshot_download)
             log(f"Loading Whisper model: {model_source}")
+            self.showStatus_(
+                "Loading Whisper...",
+                f"Local Whisper: {self.model_name}",
+                "Preparing the speech model.",
+            )
             self.model = WhisperModel(str(model_source), device="cpu", compute_type="int8")
             self.showStatus_(
                 "Listening...",
@@ -894,11 +1636,16 @@ class WhisperSpellListener:
                 self.stream = stream
                 log(
                     f"Whisper backend started: model={self.model_name}, "
-                    f"sample_rate={self.sample_rate}, window={self.window_seconds}s."
+                    f"sample_rate={self.sample_rate}, utterance_mode=true."
                 )
-                rolling = np.zeros(0, dtype=np.float32)
-                last_transcribe_at = 0.0
-                max_samples = int(self.sample_rate * self.window_seconds)
+                pre_roll = np.zeros(0, dtype=np.float32)
+                utterance = np.zeros(0, dtype=np.float32)
+                speech_active = False
+                silence_samples = 0
+                max_utterance_samples = int(self.sample_rate * self.max_utterance_seconds)
+                pre_roll_samples = int(self.sample_rate * 0.25)
+                end_silence_samples = int(self.sample_rate * self.end_silence_seconds)
+                min_utterance_samples = int(self.sample_rate * self.min_utterance_seconds)
 
                 while not self.stop_event.is_set():
                     try:
@@ -906,28 +1653,125 @@ class WhisperSpellListener:
                     except queue.Empty:
                         continue
 
-                    rolling = np.concatenate((rolling, chunk))
-                    if rolling.size > max_samples:
-                        rolling = rolling[-max_samples:]
+                    peak = float(np.max(np.abs(chunk))) if chunk.size else 0.0
+                    rms = float(np.sqrt(np.mean(np.square(chunk)))) if chunk.size else 0.0
+                    has_voice = peak >= self.voice_peak_threshold or rms >= self.voice_rms_threshold
 
-                    now = time.monotonic()
-                    if rolling.size < int(self.sample_rate * 1.0):
-                        continue
-                    if now - last_transcribe_at < self.step_seconds:
+                    if not speech_active:
+                        pre_roll = np.concatenate((pre_roll, chunk))
+                        if pre_roll.size > pre_roll_samples:
+                            pre_roll = pre_roll[-pre_roll_samples:]
+                        if not has_voice:
+                            continue
+
+                        speech_active = True
+                        utterance = np.concatenate((pre_roll, chunk))
+                        pre_roll = np.zeros(0, dtype=np.float32)
+                        silence_samples = 0
+                        if self.debug:
+                            log("VOICE START", persist=False)
                         continue
 
-                    last_transcribe_at = now
-                    audio = rolling.copy()
-                    if float(np.max(np.abs(audio))) < 0.01:
+                    utterance = np.concatenate((utterance, chunk))
+                    if has_voice:
+                        silence_samples = 0
+                    else:
+                        silence_samples += chunk.size
+
+                    should_flush = silence_samples >= end_silence_samples or utterance.size >= max_utterance_samples
+                    if not should_flush:
                         continue
 
-                    self.transcribeAudio_(audio)
+                    audio = utterance.copy()
+                    speech_active = False
+                    utterance = np.zeros(0, dtype=np.float32)
+                    silence_samples = 0
+
+                    voiced_audio = audio[:-end_silence_samples] if audio.size > end_silence_samples else audio
+                    if voiced_audio.size < min_utterance_samples:
+                        if self.debug:
+                            log("IGNORED: utterance too short", persist=False)
+                        continue
+
+                    action = self.transcribeAudio_(voiced_audio)
+                    if action in {"matched", "clear"}:
+                        while not self.audio_queue.empty():
+                            try:
+                                self.audio_queue.get_nowait()
+                            except queue.Empty:
+                                break
         except Exception as exc:
             log(f"Whisper backend error: {exc}")
             self.showStatus_("Whisper error", "Multilingual backend", str(exc))
 
+    def ensureWhisperModel_(self, snapshot_download):
+        bundled_model = BASE_DIR / "whisper_models" / self.model_name
+        if (bundled_model / "model.bin").exists():
+            return bundled_model
+
+        explicit_path = Path(self.model_name).expanduser()
+        if (explicit_path / "model.bin").exists():
+            return explicit_path
+
+        repo_id = whisper_repo_for_model(self.model_name)
+        try:
+            dry_run = snapshot_download(
+                repo_id,
+                dry_run=True,
+                allow_patterns=WHISPER_DOWNLOAD_PATTERNS,
+            )
+            pending_bytes = sum(int(item.file_size or 0) for item in dry_run if getattr(item, "will_download", False))
+        except Exception as exc:
+            log(f"Could not inspect Whisper model download size: {exc}")
+            pending_bytes = 0
+
+        if pending_bytes <= 0:
+            self.showProgress_(
+                "Loading Whisper...",
+                f"Local Whisper: {self.model_name}",
+                "Model already available in the local cache.",
+                100.0,
+                "No download required.",
+            )
+            return Path(snapshot_download(repo_id, allow_patterns=WHISPER_DOWNLOAD_PATTERNS))
+
+        def progress_callback(downloaded: int, total: int):
+            percent = downloaded / max(1, total) * 100.0
+            self.showProgress_(
+                "Downloading Whisper model...",
+                f"Local Whisper: {self.model_name}",
+                "This happens only the first time you use this model.",
+                percent,
+                f"{format_bytes(downloaded)} / {format_bytes(total)}",
+            )
+
+        self.showProgress_(
+            "Downloading Whisper model...",
+            f"Local Whisper: {self.model_name}",
+            "This happens only the first time you use this model.",
+            0.0,
+            f"0 B / {format_bytes(pending_bytes)}",
+        )
+        WhisperDownloadProgress.configure(pending_bytes, progress_callback)
+        try:
+            model_path = snapshot_download(
+                repo_id,
+                allow_patterns=WHISPER_DOWNLOAD_PATTERNS,
+                tqdm_class=WhisperDownloadProgress,
+            )
+        finally:
+            WhisperDownloadProgress.reset()
+        self.showProgress_(
+            "Downloading Whisper model...",
+            f"Local Whisper: {self.model_name}",
+            "Download complete. Loading the model...",
+            100.0,
+            f"{format_bytes(pending_bytes)} / {format_bytes(pending_bytes)}",
+        )
+        return Path(model_path)
+
     def transcribeAudio_(self, audio):
-        segments, info = self.model.transcribe(
+        segment_iter, info = self.model.transcribe(
             audio,
             language=None,
             initial_prompt=self.prompt,
@@ -939,32 +1783,68 @@ class WhisperSpellListener:
             no_speech_threshold=0.6,
             log_prob_threshold=-1.0,
         )
+        segments = list(segment_iter)
         text = " ".join(segment.text.strip() for segment in segments).strip()
         if not text:
-            return
+            return "keep"
 
         language = getattr(info, "language", "?")
         probability = getattr(info, "language_probability", 0.0)
         if self.debug:
             log(f"TRANSCRIBED [{language} {probability:.2f}]: {text}", persist=False)
 
-        spell = find_spell_in_text(text, self.spell_lookup)
+        if transcript_looks_incomplete(text):
+            if self.debug:
+                log(f"IGNORED [{language} {probability:.2f}]: incomplete transcript", persist=False)
+            return "keep"
+
+        exact_spell = find_exact_spell_in_text(text, self.spell_lookup)
+        ignore_reason = should_ignore_whisper_transcript(text, language, probability, segments)
+        if ignore_reason is not None and exact_spell is None:
+            if self.debug:
+                log(f"IGNORED [{language} {probability:.2f}]: {ignore_reason}", persist=False)
+            return "clear"
+
+        transcript_key = normalize_transcript_for_matching(text)
+        if transcript_key == self.last_transcript_key:
+            self.repeated_transcript_count += 1
+        else:
+            self.last_transcript_key = transcript_key
+            self.repeated_transcript_count = 1
+
+        spell = exact_spell or find_spell_in_text(text, self.spell_lookup)
         if spell is None:
-            return
+            if self.repeated_transcript_count >= 3:
+                if self.debug:
+                    log(f"IGNORED [{language} {probability:.2f}]: repeated unmatched transcript", persist=False)
+                self.last_transcript_key = ""
+                self.repeated_transcript_count = 0
+                return "clear"
+            return "keep"
 
         now = time.monotonic()
-        if spell.id == self.last_spell_id and now - self.last_spell_at < 2.5:
-            return
+        if spell.id == self.last_spell_id and now - self.last_spell_at < 4.0:
+            return "clear"
 
         self.last_spell_id = spell.id
         self.last_spell_at = now
+        self.last_transcript_key = ""
+        self.repeated_transcript_count = 0
         log(f"Spell found: {spell.name} from Whisper language={language!r}.")
         self.overlay.performSelectorOnMainThread_withObject_waitUntilDone_("showSpell:", spell, False)
+        return "matched"
 
     def showStatus_(self, title: str, meta: str, body: str):
         self.overlay.performSelectorOnMainThread_withObject_waitUntilDone_(
             "showStatus:",
             {"title": title, "meta": meta, "body": body},
+            False,
+        )
+
+    def showProgress_(self, title: str, meta: str, body: str, percent: float, detail: str):
+        self.overlay.performSelectorOnMainThread_withObject_waitUntilDone_(
+            "showProgress:",
+            {"title": title, "meta": meta, "body": body, "percent": percent, "detail": detail},
             False,
         )
 
@@ -1383,11 +2263,32 @@ class SpeechSpellListener(NSObject):
             log(f"Post-spell reset error: {exc}")
 
 
+def carbon_hotkey_event_callback(_next_handler, _event, _user_data):
+    delegate = GLOBAL_HOTKEY_DELEGATE
+    if delegate is not None:
+        delegate.performSelectorOnMainThread_withObject_waitUntilDone_("showSearch:", None, False)
+    return 0
+
+
+CARBON_HOTKEY_CALLBACK = CARBON_EVENT_HANDLER_TYPE(carbon_hotkey_event_callback)
+
+
 class AppDelegate(NSObject):
     overlay: OverlayController
+    spells: list[Spell]
     spell_lookup: dict[str, Spell]
     contextual_strings: list[str]
     status_item: Any
+    search_menu_item: NSMenuItem
+    status_search_item: NSMenuItem
+    search_controller: SpellSearchController
+    preferences_controller: PreferencesController
+    search_hotkey: Hotkey
+    carbon: Any
+    carbon_hotkey_ref: Any
+    carbon_event_handler_ref: Any
+    local_hotkey_monitor: Any
+    local_hotkey_handler: Any
     simulate_command: str | None
     backend: str
     locale_identifiers: list[str]
@@ -1395,8 +2296,9 @@ class AppDelegate(NSObject):
     debug: bool
     listener: Any
 
-    def initWithSpellLookup_overlay_contextualStrings_simulate_backend_locales_whisperModel_debug_(
+    def initWithSpells_spellLookup_overlay_contextualStrings_simulate_backend_locales_whisperModel_debug_(
         self,
+        spells,
         spell_lookup,
         overlay,
         contextual_strings,
@@ -1409,6 +2311,7 @@ class AppDelegate(NSObject):
         self = objc.super(AppDelegate, self).init()
         if self is None:
             return None
+        self.spells = list(spells)
         self.spell_lookup = spell_lookup
         self.overlay = overlay
         self.contextual_strings = list(contextual_strings)
@@ -1419,11 +2322,27 @@ class AppDelegate(NSObject):
         self.debug = debug
         self.listener = None
         self.status_item = None
+        self.search_menu_item = None
+        self.status_search_item = None
+        self.search_controller = None
+        self.preferences_controller = None
+        self.search_hotkey = load_search_hotkey()
+        self.carbon = None
+        self.carbon_hotkey_ref = None
+        self.carbon_event_handler_ref = None
+        self.local_hotkey_monitor = None
+        self.local_hotkey_handler = None
         return self
 
     def applicationDidFinishLaunching_(self, _notification):
+        global GLOBAL_HOTKEY_DELEGATE
+        GLOBAL_HOTKEY_DELEGATE = self
+        self.search_controller = SpellSearchController.alloc().initWithSpells_overlay_(self.spells, self.overlay)
+        self.preferences_controller = PreferencesController.alloc().initWithAppDelegate_(self)
+        APP_RETAINED_OBJECTS.extend([self.search_controller, self.preferences_controller])
         self.installMainMenu()
         self.installStatusMenu()
+        self.installHotkeyMonitor()
 
         if self.simulate_command:
             self.handleCommand_(self.simulate_command)
@@ -1474,6 +2393,26 @@ class AppDelegate(NSObject):
         app_menu.addItem_(about_item)
         app_menu.addItem_(NSMenuItem.separatorItem())
 
+        search_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Search Spell...",
+            "showSearch:",
+            self.search_hotkey.key,
+        )
+        search_item.setTarget_(self)
+        search_item.setKeyEquivalentModifierMask_(self.search_hotkey.modifiers)
+        self.search_menu_item = search_item
+        app_menu.addItem_(search_item)
+        app_menu.addItem_(NSMenuItem.separatorItem())
+
+        preferences_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Preferences...",
+            "showPreferences:",
+            ",",
+        )
+        preferences_item.setTarget_(self)
+        app_menu.addItem_(preferences_item)
+        app_menu.addItem_(NSMenuItem.separatorItem())
+
         quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit Arcane Whisperer", "quit:", "q")
         quit_item.setTarget_(self)
         app_menu.addItem_(quit_item)
@@ -1498,10 +2437,117 @@ class AppDelegate(NSObject):
         menu.addItem_(about_item)
         menu.addItem_(NSMenuItem.separatorItem())
 
+        search_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            f"Search Spell... ({hotkey_display(self.search_hotkey)})",
+            "showSearch:",
+            "",
+        )
+        search_item.setTarget_(self)
+        self.status_search_item = search_item
+        menu.addItem_(search_item)
+        menu.addItem_(NSMenuItem.separatorItem())
+
+        preferences_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Preferences...",
+            "showPreferences:",
+            "",
+        )
+        preferences_item.setTarget_(self)
+        menu.addItem_(preferences_item)
+        menu.addItem_(NSMenuItem.separatorItem())
+
         quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit Arcane Whisperer", "quit:", "q")
         quit_item.setTarget_(self)
         menu.addItem_(quit_item)
         self.status_item.setMenu_(menu)
+
+    def installHotkeyMonitor(self):
+        self.local_hotkey_handler = lambda event: None if self.handleHotkeyEvent_(event) else event
+        self.local_hotkey_monitor = NSEvent.addLocalMonitorForEventsMatchingMask_handler_(
+            NSEventMaskKeyDown,
+            self.local_hotkey_handler,
+        )
+        APP_RETAINED_OBJECTS.extend([self.local_hotkey_handler, self.local_hotkey_monitor])
+        self.installCarbonHotkey()
+
+    def installCarbonHotkey(self):
+        try:
+            self.carbon = load_carbon_framework()
+            event_type = CarbonEventTypeSpec(CARBON_EVENT_CLASS_KEYBOARD, CARBON_EVENT_HOTKEY_PRESSED)
+            handler_ref = ctypes.c_void_p()
+            status = self.carbon.InstallEventHandler(
+                self.carbon.GetApplicationEventTarget(),
+                CARBON_HOTKEY_CALLBACK,
+                1,
+                ctypes.byref(event_type),
+                None,
+                ctypes.byref(handler_ref),
+            )
+            if status != 0:
+                log(f"Global hotkey handler installation failed with status {status}.")
+                return
+            self.carbon_event_handler_ref = handler_ref
+            APP_RETAINED_OBJECTS.extend([self.carbon, self.carbon_event_handler_ref, CARBON_HOTKEY_CALLBACK])
+            self.registerCarbonHotkey()
+        except Exception as exc:
+            log(f"Global hotkey setup failed: {exc}")
+
+    def registerCarbonHotkey(self):
+        if self.carbon is None:
+            return
+        self.unregisterCarbonHotkey()
+        hotkey_ref = ctypes.c_void_p()
+        status = self.carbon.RegisterEventHotKey(
+            ctypes.c_uint32(self.search_hotkey.key_code),
+            ctypes.c_uint32(carbon_modifier_flags(self.search_hotkey.modifiers)),
+            CarbonEventHotKeyID(CARBON_HOTKEY_SIGNATURE, 1),
+            self.carbon.GetApplicationEventTarget(),
+            0,
+            ctypes.byref(hotkey_ref),
+        )
+        if status != 0:
+            log(f"Global search hotkey registration failed for {hotkey_display(self.search_hotkey)} with status {status}.")
+            return
+        self.carbon_hotkey_ref = hotkey_ref
+        APP_RETAINED_OBJECTS.append(self.carbon_hotkey_ref)
+        log(f"Global search hotkey enabled: {hotkey_display(self.search_hotkey)}.")
+
+    def unregisterCarbonHotkey(self):
+        if self.carbon is None or self.carbon_hotkey_ref is None:
+            return
+        try:
+            self.carbon.UnregisterEventHotKey(self.carbon_hotkey_ref)
+        except Exception as exc:
+            log(f"Global hotkey unregister error: {exc}")
+        self.carbon_hotkey_ref = None
+
+    def handleHotkeyEvent_(self, event) -> bool:
+        if self.preferences_controller is not None and self.preferences_controller.captureHotkeyEvent_(event):
+            return True
+
+        modifiers = int(event.modifierFlags()) & SUPPORTED_HOTKEY_MODIFIERS
+        key = str(event.charactersIgnoringModifiers() or "").lower()
+        if modifiers == self.search_hotkey.modifiers and int(event.keyCode()) == self.search_hotkey.key_code:
+            self.showSearch_(None)
+            return True
+        return False
+
+    def showSearch_(self, _sender):
+        self.search_controller.show_(None)
+
+    def showPreferences_(self, _sender):
+        self.preferences_controller.show_(None)
+
+    def setSearchHotkey_(self, hotkey: Hotkey):
+        self.search_hotkey = hotkey
+        save_search_hotkey(hotkey)
+        self.registerCarbonHotkey()
+        if self.search_menu_item is not None:
+            self.search_menu_item.setKeyEquivalent_(hotkey.key)
+            self.search_menu_item.setKeyEquivalentModifierMask_(hotkey.modifiers)
+        if self.status_search_item is not None:
+            self.status_search_item.setTitle_(f"Search Spell... ({hotkey_display(hotkey)})")
+        log(f"Search hotkey set to {hotkey_display(hotkey)}.")
 
     def showAbout_(self, _sender):
         alert = NSAlert.alloc().init()
@@ -1522,6 +2568,7 @@ class AppDelegate(NSObject):
             self.overlay.showSpell_(spell)
 
     def applicationWillTerminate_(self, _notification):
+        self.unregisterCarbonHotkey()
         if self.listener is not None and hasattr(self.listener, "stopRecognition"):
             self.listener.stopRecognition()
 
@@ -1529,6 +2576,7 @@ class AppDelegate(NSObject):
         return False
 
     def quit_(self, _sender):
+        self.unregisterCarbonHotkey()
         if self.listener is not None and hasattr(self.listener, "stopRecognition"):
             self.listener.stopRecognition()
         NSApp.terminate_(None)
@@ -1591,7 +2639,8 @@ def main(argv: list[str] | None = None) -> int:
     app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
 
     overlay = OverlayController.alloc().initWithHideAfter_(args.hide_after)
-    delegate = AppDelegate.alloc().initWithSpellLookup_overlay_contextualStrings_simulate_backend_locales_whisperModel_debug_(
+    delegate = AppDelegate.alloc().initWithSpells_spellLookup_overlay_contextualStrings_simulate_backend_locales_whisperModel_debug_(
+        spells,
         lookup,
         overlay,
         contextual_strings,

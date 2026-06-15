@@ -6,8 +6,6 @@ cd "$ROOT_DIR"
 
 PYTHON_BIN="${PYTHON_BIN:-/opt/homebrew/bin/python3.13}"
 APP_NAME="Arcane Whisperer"
-MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-base/snapshots"
-MODEL_DIR="${MODEL_DIR:-}"
 
 if [ ! -x "$PYTHON_BIN" ]; then
   PYTHON_BIN="$(command -v python3)"
@@ -24,21 +22,7 @@ else
   .venv/bin/python -m pip install -r requirements.txt pyinstaller
 fi
 
-if [ -z "$MODEL_DIR" ]; then
-  MODEL_BIN="$(find "$MODEL_CACHE" -maxdepth 2 -name model.bin -path '*faster-whisper-base*' -print -quit 2>/dev/null || true)"
-  if [ -n "$MODEL_BIN" ]; then
-    MODEL_DIR="$(dirname "$MODEL_BIN")"
-  fi
-fi
-
-if [ -z "$MODEL_DIR" ] || [ ! -f "$MODEL_DIR/model.bin" ]; then
-  echo "Whisper base model was not found in the Hugging Face cache."
-  echo "Run Arcane Whisperer once, or set MODEL_DIR=/path/to/faster-whisper-base snapshot."
-  exit 1
-fi
-
-rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_build.log tmp_whisper_base
-ln -s "$MODEL_DIR" tmp_whisper_base
+rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_build.log
 
 .venv/bin/pyinstaller \
   --noconfirm \
@@ -47,8 +31,9 @@ ln -s "$MODEL_DIR" tmp_whisper_base
   --osx-bundle-identifier "local.arcanewhisperer.overlay" \
   --icon "assets/ArcaneWhisperer.icns" \
   --add-data=spells.json:resources \
-  --add-data=tmp_whisper_base:whisper_models/base \
   --collect-all faster_whisper \
+  --collect-all huggingface_hub \
+  --collect-all tqdm \
   --collect-all ctranslate2 \
   --collect-all av \
   --collect-all sounddevice \
@@ -62,8 +47,6 @@ ln -s "$MODEL_DIR" tmp_whisper_base
   --hidden-import AVFoundation \
   --hidden-import Speech \
   SpellAudio.py > pyinstaller_build.log 2>&1
-
-rm -f tmp_whisper_base
 
 PLIST="dist/$APP_NAME.app/Contents/Info.plist"
 for key in NSMicrophoneUsageDescription NSSpeechRecognitionUsageDescription LSUIElement; do
