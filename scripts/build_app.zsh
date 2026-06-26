@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
 PYTHON_BIN="${PYTHON_BIN:-/opt/homebrew/bin/python3.13}"
-APP_NAME="Arcane Whisperer"
+APP_NAME="Arcane Manager"
 
 if [ ! -x "$PYTHON_BIN" ]; then
   PYTHON_BIN="$(command -v python3)"
@@ -28,10 +28,13 @@ rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_b
   --noconfirm \
   --windowed \
   --name "$APP_NAME" \
-  --osx-bundle-identifier "local.arcanewhisperer.overlay" \
-  --icon "assets/ArcaneWhisperer.icns" \
+  --osx-bundle-identifier "local.arcanemanager.overlay" \
+  --icon "assets/ArcaneManager.icns" \
   --add-data=spells.json:resources \
   --add-data=bestiary_srd.json:resources \
+  --add-data=assets/icons:resources/assets/icons \
+  --add-data=assets/dice_roller:resources/assets/dice_roller \
+  --add-data=assets/three-dice:resources/assets/three-dice \
   --collect-all faster_whisper \
   --collect-all huggingface_hub \
   --collect-all tqdm \
@@ -41,10 +44,14 @@ rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_b
   --collect-all numpy \
   --collect-all pyobjc_core \
   --collect-all pyobjc_framework_Cocoa \
+  --collect-all WebKit \
+  --collect-all JavaScriptCore \
   --collect-all pyobjc_framework_AVFoundation \
   --collect-all pyobjc_framework_Speech \
   --hidden-import objc \
   --hidden-import Cocoa \
+  --hidden-import WebKit \
+  --hidden-import JavaScriptCore \
   --hidden-import AVFoundation \
   --hidden-import Speech \
   SpellAudio.py > pyinstaller_build.log 2>&1
@@ -57,8 +64,8 @@ done
 /usr/libexec/PlistBuddy -c "Set :CFBundleName $APP_NAME" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :NSHighResolutionCapable true" "$PLIST" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$PLIST"
-/usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Arcane Whisperer uses the microphone to listen for spell names during your session." "$PLIST"
-/usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string Arcane Whisperer uses speech recognition to transcribe spell names." "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Arcane Manager uses the microphone to listen for spell names during your session." "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string Arcane Manager uses speech recognition to transcribe spell names." "$PLIST"
 
 codesign --force --deep --sign - "dist/$APP_NAME.app"
 cp -R "dist/$APP_NAME.app" .

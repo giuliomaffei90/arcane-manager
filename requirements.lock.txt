@@ -46,6 +46,7 @@ pyobjc-framework-CoreAudio==12.2
 pyobjc-framework-CoreMedia==12.2
 pyobjc-framework-Quartz==12.2
 pyobjc-framework-Speech==12.2
+pyobjc-framework-WebKit==12.2
 PyYAML==6.0.3
 requests==2.34.2
 rich==15.0.0

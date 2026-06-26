@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macOS Arcane Whisperer spell listener.
+macOS Arcane Manager spell listener.
 
 Listens for configured spell names with macOS' native speech framework
 and shows an always-on-top overlay with the spell details.
@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import functools
+import http.server
 import json
 import multiprocessing
 import queue
@@ -49,6 +51,8 @@ try:
         NSFont,
         NSFontAttributeName,
         NSForegroundColorAttributeName,
+        NSImage,
+        NSImageView,
         NSStringDrawingUsesFontLeading,
         NSStringDrawingUsesLineFragmentOrigin,
         NSMakeRect,
@@ -73,17 +77,28 @@ try:
         NSWindow,
         NSWindowCollectionBehaviorCanJoinAllSpaces,
         NSWindowCollectionBehaviorFullScreenAuxiliary,
+        NSWindowStyleMaskBorderless,
         NSWindowStyleMaskClosable,
         NSWindowStyleMaskResizable,
         NSWindowStyleMaskTitled,
         NSWindowStyleMaskUtilityWindow,
         NSTextField,
+        NSCompositingOperationSourceOver,
     )
     from AVFoundation import AVAudioEngine
+    from WebKit import (
+        WKUserContentController,
+        WKUserScript,
+        WKUserScriptInjectionTimeAtDocumentStart,
+        WKWebView,
+        WKWebViewConfiguration,
+    )
     from Foundation import (
         NSMutableAttributedString,
         NSBundle,
         NSString,
+        NSURL,
+        NSURLRequest,
         NSMakePoint,
         NSMakeRange,
         NSMakeSize,
@@ -122,10 +137,16 @@ def bundled_resource_path(name: str) -> Path:
 BASE_DIR = resource_base_dir()
 DEFAULT_SPELLS_FILE = bundled_resource_path("spells.json")
 DEFAULT_BESTIARY_FILE = bundled_resource_path("bestiary_srd.json")
-LOG_FILE = Path.home() / "Library" / "Logs" / "Arcane Whisperer" / "arcane_whisperer.log"
+DEFAULT_DICE_ROLLER_HTML = bundled_resource_path("assets/dice_roller/index.html")
+DEFAULT_ICON_DIR = bundled_resource_path("assets/icons")
+LOG_FILE = Path.home() / "Library" / "Logs" / "Arcane Manager" / "arcane_manager.log"
 APP_RETAINED_OBJECTS: list[Any] = []
 GLOBAL_HOTKEY_DELEGATE: Any = None
 DICE_ROLL_ANIMATOR: Any = None
+THREE_D_DICE_ROLLER: Any = None
+DICE_ASSET_SERVER: Any = None
+DICE_ASSET_SERVER_THREAD: threading.Thread | None = None
+DICE_ASSET_SERVER_URL = ""
 MAX_SPELL_FILE_BYTES = 12 * 1024 * 1024
 MAX_SPELLS = 2500
 MAX_TEXT_FIELD_CHARS = 50000
@@ -323,6 +344,12 @@ CLASS_ICONS = {
     "Wizard": "✧",
 }
 MONSTER_ICON = "☠"
+CLASS_ICON_FILES = {
+    class_name: f"{class_name.lower()}.png"
+    for class_name in CLASS_OPTIONS
+}
+MONSTER_ICON_FILE = "monster.png"
+ICON_IMAGE_CACHE: dict[str, Any] = {}
 DEFAULT_SEARCH_HOTKEY_KEY = " "
 DEFAULT_SEARCH_HOTKEY_KEY_CODE = 49
 DEFAULT_SEARCH_HOTKEY_MODIFIERS = int(NSCommandKeyMask | NSShiftKeyMask)
@@ -778,6 +805,7 @@ def component_material(components: str) -> str:
 
 
 DICE_PATTERN = re.compile(r"\b(\d+)d(\d+)(?:\s*([+-])\s*(\d+))?\b", flags=re.I)
+DICE_FORMULA_PATTERN = re.compile(r"^\s*\d+d\d+(?:\s*\+\s*\d+d\d+)*(?:\s*[+-]\s*\d+)?\s*$", flags=re.I)
 
 
 def dice_ranges_for_body(body: str) -> list[tuple[int, int, str]]:
@@ -854,6 +882,42 @@ def format_dice_roll(result: DiceRollResult) -> str:
         sign = "+" if result.modifier > 0 else "-"
         roll_details = f"{roll_details} {sign} {abs(result.modifier)}"
     return f"Rolled {result.expression}: {result.total} ({roll_details})"
+
+
+def roll_dice_formula(expression: str) -> str:
+    normalized = re.sub(r"\s+", "", expression.strip())
+    if DICE_PATTERN.fullmatch(normalized):
+        return format_dice_roll(roll_dice(normalized))
+    if not DICE_FORMULA_PATTERN.fullmatch(normalized):
+        raise ValueError(f"Invalid dice expression: {expression}")
+
+    token_pattern = re.compile(r"([+-]?)(?:(\d+)d(\d+)|(\d+))", flags=re.I)
+    consumed = ""
+    total = 0
+    groups: list[str] = []
+    modifier = 0
+    for match in token_pattern.finditer(normalized):
+        consumed += match.group(0)
+        sign = -1 if match.group(1) == "-" else 1
+        if match.group(3):
+            if sign < 0:
+                raise ValueError(f"Invalid dice expression: {expression}")
+            count = int(match.group(2))
+            sides = int(match.group(3))
+            if count < 1 or count > 40 or sides < 2 or sides > 1000:
+                raise ValueError(f"Unsupported dice expression: {expression}")
+            rolls = [random.randint(1, sides) for _ in range(count)]
+            total += sum(rolls)
+            groups.append(f"{count}d{sides}: {', '.join(str(value) for value in rolls)}")
+        else:
+            modifier += sign * int(match.group(4))
+    if consumed != normalized or not groups:
+        raise ValueError(f"Invalid dice expression: {expression}")
+    total += modifier
+    modifier_text = ""
+    if modifier:
+        modifier_text = f" {'+' if modifier > 0 else '-'} {abs(modifier)}"
+    return f"Rolled {normalized}: {total} ({'; '.join(groups)}{modifier_text})"
 
 
 def roll_dice_expression(expression: str) -> str:
@@ -1309,6 +1373,212 @@ def show_dice_roll_animation(result: DiceRollResult):
     DICE_ROLL_ANIMATOR.showRoll_(result)
 
 
+class DiceAssetRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, _format, *_args):
+        return
+
+    def list_directory(self, _path):
+        self.send_error(404, "No directory listing")
+        return None
+
+
+def start_dice_asset_server() -> str:
+    global DICE_ASSET_SERVER, DICE_ASSET_SERVER_THREAD, DICE_ASSET_SERVER_URL
+    if DICE_ASSET_SERVER_URL:
+        return DICE_ASSET_SERVER_URL
+
+    asset_root = DEFAULT_DICE_ROLLER_HTML.parent.parent
+    if not asset_root.exists():
+        raise FileNotFoundError(f"Dice asset root not found: {asset_root}")
+
+    handler = functools.partial(DiceAssetRequestHandler, directory=str(asset_root))
+    DICE_ASSET_SERVER = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    DICE_ASSET_SERVER.daemon_threads = True
+    host, port = DICE_ASSET_SERVER.server_address
+    DICE_ASSET_SERVER_URL = f"http://{host}:{port}"
+    DICE_ASSET_SERVER_THREAD = threading.Thread(
+        target=DICE_ASSET_SERVER.serve_forever,
+        name="ArcaneManagerDiceAssets",
+        daemon=True,
+    )
+    DICE_ASSET_SERVER_THREAD.start()
+    log(f"3D dice asset server started: {DICE_ASSET_SERVER_URL}")
+    return DICE_ASSET_SERVER_URL
+
+
+class Dice3DRollerController(NSObject):
+    panel: NSPanel
+    web_view: WKWebView
+    ready: bool
+    pending_expression: str
+    result_target: Any
+    hide_timer: NSTimer | None
+
+    def initWithHTMLPath_(self, html_path):
+        self = objc.super(Dice3DRollerController, self).init()
+        if self is None:
+            return None
+        self.ready = False
+        self.pending_expression = ""
+        self.result_target = None
+        self.hide_timer = None
+
+        screen = NSScreen.mainScreen().visibleFrame()
+        width = screen.size.width
+        height = screen.size.height
+        style = NSWindowStyleMaskBorderless
+        self.panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+            NSMakeRect(screen.origin.x, screen.origin.y, width, height),
+            style,
+            NSBackingStoreBuffered,
+            False,
+        )
+        self.panel.setTitle_("Arcane Manager Dice")
+        self.panel.setFloatingPanel_(True)
+        self.panel.setHidesOnDeactivate_(False)
+        self.panel.setLevel_(24)
+        self.panel.setOpaque_(False)
+        self.panel.setBackgroundColor_(NSColor.clearColor())
+        self.panel.setCollectionBehavior_(
+            NSWindowCollectionBehaviorCanJoinAllSpaces
+            | NSWindowCollectionBehaviorFullScreenAuxiliary
+        )
+
+        user_content = WKUserContentController.alloc().init()
+        user_content.addScriptMessageHandler_name_(self, "diceRoll")
+        error_script = """
+        window.addEventListener('error', function(event) {
+          try {
+            window.webkit.messageHandlers.diceRoll.postMessage({
+              type: 'error',
+              text: event.message + ' at ' + event.filename + ':' + event.lineno + ':' + event.colno
+            });
+          } catch (_) {}
+        });
+        window.addEventListener('unhandledrejection', function(event) {
+          try {
+            var reason = event.reason && event.reason.message ? event.reason.message : String(event.reason);
+            window.webkit.messageHandlers.diceRoll.postMessage({ type: 'error', text: reason });
+          } catch (_) {}
+        });
+        """
+        user_script = WKUserScript.alloc().initWithSource_injectionTime_forMainFrameOnly_(
+            error_script,
+            WKUserScriptInjectionTimeAtDocumentStart,
+            False,
+        )
+        user_content.addUserScript_(user_script)
+        config = WKWebViewConfiguration.alloc().init()
+        config.setUserContentController_(user_content)
+        self.web_view = WKWebView.alloc().initWithFrame_configuration_(NSMakeRect(0, 0, width, height), config)
+        self.web_view.setNavigationDelegate_(self)
+        self.web_view.setValue_forKey_(False, "drawsBackground")
+        self.panel.setContentView_(self.web_view)
+
+        path = Path(str(html_path))
+        if path.exists():
+            base_url = start_dice_asset_server()
+            request = NSURLRequest.requestWithURL_(NSURL.URLWithString_(f"{base_url}/dice_roller/index.html"))
+            self.web_view.loadRequest_(request)
+        else:
+            log(f"3D dice roller HTML not found: {path}")
+        self.panel.orderOut_(None)
+        return self
+
+    def webView_didFinishNavigation_(self, _web_view, _navigation):
+        return
+
+    def webView_didFailNavigation_withError_(self, _web_view, _navigation, error):
+        log(f"3D dice web view navigation failed: {error}")
+
+    def webView_didFailProvisionalNavigation_withError_(self, _web_view, _navigation, error):
+        log(f"3D dice web view provisional navigation failed: {error}")
+
+    def showRoll_target_(self, expression: str, target):
+        self.result_target = target
+        self.pending_expression = str(expression).strip()
+        if self.hide_timer is not None:
+            self.hide_timer.invalidate()
+            self.hide_timer = None
+        self.panel.orderFrontRegardless()
+        if self.ready:
+            self.evaluateRollExpression(self.pending_expression)
+
+    @objc.python_method
+    def evaluateRollExpression(self, expression: str):
+        script = (
+            "if (window.arcanePrepareRoll) { window.arcanePrepareRoll(); }"
+            f"window.arcaneRoll({json.dumps(expression)});"
+        )
+        self.web_view.evaluateJavaScript_completionHandler_(script, None)
+
+    def userContentController_didReceiveScriptMessage_(self, _user_content_controller, message):
+        body = message.body()
+        if hasattr(body, "items"):
+            payload = dict(body)
+        elif hasattr(body, "objectForKey_"):
+            payload = {
+                key: body.objectForKey_(key)
+                for key in ("type", "notation", "values", "modifier", "diceTotal", "total", "text")
+                if body.objectForKey_(key) is not None
+            }
+        else:
+            payload = {}
+        message_type = str(payload.get("type", ""))
+        if message_type == "ready":
+            self.ready = True
+            if self.pending_expression:
+                self.evaluateRollExpression(self.pending_expression)
+            return
+        if message_type == "error":
+            text = str(payload.get("text", "3D dice roll failed."))
+            log(f"3D dice error: {text}")
+            if self.result_target is not None:
+                self.result_target.displayDiceRollResult_(text)
+            self.scheduleHideTimer()
+            return
+        if message_type == "hide":
+            if self.hide_timer is not None:
+                self.hide_timer.invalidate()
+                self.hide_timer = None
+            self.panel.orderOut_(None)
+            return
+        if message_type != "complete":
+            return
+
+        text = str(payload.get("text", "Dice roll complete."))
+        if self.result_target is not None:
+            self.result_target.displayDiceRollResult_(text)
+        self.scheduleHideTimer()
+
+    @objc.python_method
+    def scheduleHideTimer(self):
+        if self.hide_timer is not None:
+            self.hide_timer.invalidate()
+        self.hide_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            12.0,
+            self,
+            "hide:",
+            None,
+            False,
+        )
+
+    def hide_(self, _timer):
+        self.hide_timer = None
+        self.panel.orderOut_(None)
+
+
+def show_3d_dice_roll(expression: str, target) -> bool:
+    global THREE_D_DICE_ROLLER
+    if not DEFAULT_DICE_ROLLER_HTML.exists():
+        return False
+    if THREE_D_DICE_ROLLER is None:
+        THREE_D_DICE_ROLLER = Dice3DRollerController.alloc().initWithHTMLPath_(str(DEFAULT_DICE_ROLLER_HTML))
+        APP_RETAINED_OBJECTS.append(THREE_D_DICE_ROLLER)
+    THREE_D_DICE_ROLLER.showRoll_target_(str(expression), target)
+    return True
+
+
 def contextual_strings_for_spells(spells: list[Spell]) -> list[str]:
     strings: list[str] = []
     for spell in spells:
@@ -1471,7 +1741,7 @@ def whisper_prompt_for_spells(spell_names: list[str]) -> str:
 
 
 def log(message: str, persist: bool = True):
-    line = f"[Arcane Whisperer] {message}"
+    line = f"[Arcane Manager] {message}"
     print(line, flush=True)
     if not persist:
         return
@@ -1530,6 +1800,35 @@ def draw_text(text: str, x: float, y: float, size: float = 13, color=None, bold:
         NSForegroundColorAttributeName: color or NSColor.whiteColor(),
     }
     NSString.stringWithString_(str(text)).drawAtPoint_withAttributes_(NSMakePoint(x, y), attributes)
+
+
+def icon_image(name: str):
+    filename = name
+    if name in CLASS_ICON_FILES:
+        filename = CLASS_ICON_FILES[name]
+    elif name == "Monster":
+        filename = MONSTER_ICON_FILE
+    path = DEFAULT_ICON_DIR / filename
+    key = str(path)
+    if key not in ICON_IMAGE_CACHE:
+        image = NSImage.alloc().initWithContentsOfFile_(key) if path.exists() else None
+        ICON_IMAGE_CACHE[key] = image
+    return ICON_IMAGE_CACHE.get(key)
+
+
+def draw_icon(name: str, rect):
+    image = icon_image(name)
+    if image is None:
+        return False
+    image.drawInRect_fromRect_operation_fraction_respectFlipped_hints_(
+        rect,
+        NSMakeRect(0, 0, 0, 0),
+        NSCompositingOperationSourceOver,
+        1.0,
+        True,
+        None,
+    )
+    return True
 
 
 def draw_rounded_rect(rect, fill, stroke=None, radius: float = 8, stroke_width: float = 1):
@@ -1723,16 +2022,20 @@ class CombatTrackerView(NSView):
             )
             draw_text(str(initiative), left + 36, row_y + 17, 17, white, True)
             if combatant.get("kind") == "Monster":
-                icon = MONSTER_ICON
-                icon_color = pink
+                icon_name = "Monster"
+                fallback_icon = MONSTER_ICON
+                fallback_color = pink
                 subtitle = "Monstrosity" if not combatant.get("cr") else f"CR {combatant.get('cr')}"
                 self.name_rects.append((NSMakeRect(name_x, row_y + 8, name_w, 36), index))
             else:
                 class_name = str(combatant.get("class") or "Fighter")
-                icon = CLASS_ICONS.get(class_name, "◆")
-                icon_color = white
+                icon_name = class_name
+                fallback_icon = CLASS_ICONS.get(class_name, "◆")
+                fallback_color = white
                 subtitle = class_name
-            draw_text(icon, left + 92, row_y + 15, 22, icon_color, True)
+            icon_rect = NSMakeRect(left + 84, row_y + 13, 26, 26)
+            if not draw_icon(icon_name, icon_rect):
+                draw_text(fallback_icon, left + 92, row_y + 15, 22, fallback_color, True)
             display_name = ellipsize(str(combatant.get("name") or "Unnamed"), max_name_chars)
             draw_text(display_name, name_x, row_y + 10, 14, white, True)
             draw_text(subtitle[:22], name_x, row_y + 30, 12, muted, False)
@@ -1778,11 +2081,13 @@ class MainWindowController(NSObject):
     content_view: NSView
     initiative_tab_button: NSButton
     spells_tab_button: NSButton
+    dice_tab_button: NSButton
     sidebar_panel: NSView
     sidebar_scroll: NSScrollView
     sidebar_content: NSView
     combat_panel: NSView
     spell_panel: NSView
+    dice_panel: NSView
     sidebar_logo_label: NSTextField
     sidebar_footer_label: NSTextField
     creatures: list[Creature]
@@ -1818,6 +2123,10 @@ class MainWindowController(NSObject):
     delete_party_button: NSButton
     start_fight_button: NSButton
     party_member_labels: list[NSTextField]
+    party_member_icon_views: list[NSImageView]
+    party_member_name_labels: list[NSTextField]
+    party_member_class_labels: list[NSTextField]
+    party_member_ac_labels: list[NSTextField]
     notes_view: NSTextView
     monster_label: NSTextField
     monster_search_field: NSTextField
@@ -1828,9 +2137,18 @@ class MainWindowController(NSObject):
     spell_result_buttons: list[NSButton]
     spell_detail_scroll: NSScrollView
     spell_detail_view: DiceTextView
+    dice_title_label: NSTextField
+    dice_hint_label: NSTextField
+    dice_formula_label: NSTextField
+    dice_result_label: NSTextField
+    dice_roll_button: NSButton
+    dice_clear_button: NSButton
+    dice_preset_buttons: list[NSButton]
+    dice_pool: dict[int, int]
     displayed_spells: list[Spell]
     initiative_views: list[Any]
     spell_views: list[Any]
+    dice_views: list[Any]
     current_tab: str
     previous_turn_button: NSButton
     next_turn_button: NSButton
@@ -1855,9 +2173,16 @@ class MainWindowController(NSObject):
         self.monster_result_buttons = []
         self.displayed_spells = []
         self.spell_result_buttons = []
+        self.dice_preset_buttons = []
+        self.dice_pool = {4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0}
         self.party_member_labels = []
+        self.party_member_icon_views = []
+        self.party_member_name_labels = []
+        self.party_member_class_labels = []
+        self.party_member_ac_labels = []
         self.initiative_views = []
         self.spell_views = []
+        self.dice_views = []
         self.current_tab = "initiative"
         self.current_turn_index = 0
         self.round_number = 1
@@ -1882,7 +2207,7 @@ class MainWindowController(NSObject):
             NSBackingStoreBuffered,
             False,
         )
-        self.window.setTitle_("Arcane Whisperer")
+        self.window.setTitle_("Arcane Manager")
         self.window.setMinSize_(NSMakeSize(1060, 660))
         self.window.setDelegate_(self)
         self.window.setBackgroundColor_(ui_color(0.05, 0.05, 0.055, 1.0))
@@ -1891,6 +2216,7 @@ class MainWindowController(NSObject):
         style_layer(self.content_view, ui_color(0.05, 0.05, 0.055, 1.0), None, 0)
         self.initiative_tab_button = self._make_button("Initiative Tracker", (20, height - 38, 150, 30), "showInitiativeTab:")
         self.spells_tab_button = self._make_button("Spells", (178, height - 38, 86, 30), "showSpellsTab:")
+        self.dice_tab_button = self._make_button("Dice Roller", (272, height - 38, 112, 30), "showDiceTab:")
         self.sidebar_panel = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
         style_layer(self.sidebar_panel, ui_color(0.075, 0.075, 0.078, 1.0), None, 0)
         self.sidebar_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
@@ -1904,6 +2230,8 @@ class MainWindowController(NSObject):
         style_layer(self.combat_panel, ui_color(0.015, 0.015, 0.017, 1.0), ui_color(0.12, 0.12, 0.13, 1.0), 14, 1)
         self.spell_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
         style_layer(self.spell_panel, ui_color(0.015, 0.015, 0.017, 1.0), ui_color(0.12, 0.12, 0.13, 1.0), 14, 1)
+        self.dice_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
+        style_layer(self.dice_panel, ui_color(0.015, 0.015, 0.017, 1.0), ui_color(0.12, 0.12, 0.13, 1.0), 14, 1)
 
         self.notes_title = make_label("Initiative Tracker", (0, 0, 220, 28), 18, True)
         self.notes_hint = make_label("Combat Round Tracker", (0, 0, 220, 20), 12)
@@ -1938,10 +2266,23 @@ class MainWindowController(NSObject):
         self.party_status_label.setTextColor_(ui_color(0.68, 0.68, 0.70, 1.0))
 
         for _index in range(6):
+            icon_view = NSImageView.alloc().initWithFrame_(NSMakeRect(0, 0, 20, 20))
+            icon_view.setHidden_(True)
+            self.party_member_icon_views.append(icon_view)
             label = make_label("", (0, 0, 100, 38), 13, True)
             label.setHidden_(True)
             style_layer(label, ui_color(0.12, 0.12, 0.125, 1.0), ui_color(0.23, 0.23, 0.24, 1.0), 8, 1)
             self.party_member_labels.append(label)
+            name_label = make_label("", (0, 0, 80, 20), 13, True)
+            class_label = make_label("", (0, 0, 80, 20), 12, True)
+            ac_label = make_label("", (0, 0, 56, 20), 12, True)
+            for row_label in (name_label, class_label, ac_label):
+                row_label.setUsesSingleLineMode_(True)
+                row_label.setLineBreakMode_(4)
+                row_label.setHidden_(True)
+            self.party_member_name_labels.append(name_label)
+            self.party_member_class_labels.append(class_label)
+            self.party_member_ac_labels.append(ac_label)
 
         self.monster_label = make_label("Creatures", (0, 0, 100, 24), 16, True)
         self.monster_search_field = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 260, 26))
@@ -1985,6 +2326,24 @@ class MainWindowController(NSObject):
         self.spell_detail_view.setRollTarget_(self)
         self.spell_detail_scroll.setDocumentView_(self.spell_detail_view)
 
+        self.dice_title_label = make_label("Dice Roller", (0, 0, 240, 32), 24, True)
+        self.dice_hint_label = make_label("Click dice to build a pool. Example: three d4 clicks and two d6 clicks becomes 3d4+2d6.", (0, 0, 720, 24), 13)
+        self.dice_hint_label.setTextColor_(ui_color(0.72, 0.72, 0.75, 1.0))
+        self.dice_control_labels = []
+        self.dice_clear_button = self._make_button("Clear", (0, 0, 100, 34), "clearDicePool:")
+        self.dice_roll_button = self._make_button("Roll Dice", (0, 0, 130, 34), "rollCustomDice:")
+        self.dice_formula_label = make_label("Click a die", (0, 0, 520, 42), 30, True)
+        self.dice_formula_label.setAlignment_(1)
+        self.dice_formula_label.setTextColor_(ui_color(0.58, 0.95, 0.28, 1.0))
+        self.dice_result_label = make_label("", (0, 0, 520, 24), 13, True)
+        self.dice_result_label.setAlignment_(1)
+        self.dice_result_label.setTextColor_(ui_color(0.72, 0.72, 0.75, 1.0))
+        self.dice_presets = (4, 6, 8, 10, 12, 20)
+        for sides in self.dice_presets:
+            button = self._make_button(f"d{sides}", (0, 0, 76, 58), "addDieToPool:")
+            button.setTag_(sides)
+            self.dice_preset_buttons.append(button)
+
         self.previous_turn_button = self._make_button("Previous", (0, 0, 110, 34), "previousTurn:")
         self.next_turn_button = self._make_button("Next", (0, 0, 100, 34), "nextTurn:")
         self.clear_tracker_button = self._make_button("Finish Combat", (0, 0, 130, 34), "clearTracker:")
@@ -2007,8 +2366,10 @@ class MainWindowController(NSObject):
         self.content_view.addSubview_(self.sidebar_scroll)
         self.content_view.addSubview_(self.combat_panel)
         self.content_view.addSubview_(self.spell_panel)
+        self.content_view.addSubview_(self.dice_panel)
         self.content_view.addSubview_(self.initiative_tab_button)
         self.content_view.addSubview_(self.spells_tab_button)
+        self.content_view.addSubview_(self.dice_tab_button)
         for view in (
             self.notes_title,
             self.notes_hint,
@@ -2029,6 +2390,15 @@ class MainWindowController(NSObject):
             self.sidebar_content.addSubview_(view)
         for label in self.party_member_labels:
             self.sidebar_content.addSubview_(label)
+        for icon_view in self.party_member_icon_views:
+            self.sidebar_content.addSubview_(icon_view)
+        for labels in (
+            self.party_member_name_labels,
+            self.party_member_class_labels,
+            self.party_member_ac_labels,
+        ):
+            for label in labels:
+                self.sidebar_content.addSubview_(label)
         for button in self.monster_result_buttons:
             self.sidebar_content.addSubview_(button)
         for view in (
@@ -2043,6 +2413,17 @@ class MainWindowController(NSObject):
         for view in (self.spell_search_field, self.spell_roll_label, self.spell_detail_scroll):
             self.content_view.addSubview_(view)
         for button in self.spell_result_buttons:
+            self.content_view.addSubview_(button)
+        for view in (
+            self.dice_title_label,
+            self.dice_hint_label,
+            self.dice_formula_label,
+            self.dice_result_label,
+            self.dice_clear_button,
+            self.dice_roll_button,
+        ):
+            self.content_view.addSubview_(view)
+        for button in self.dice_preset_buttons:
             self.content_view.addSubview_(button)
 
         self.initiative_views = [
@@ -2063,12 +2444,23 @@ class MainWindowController(NSObject):
             self.spell_detail_scroll,
             *self.spell_result_buttons,
         ]
+        self.dice_views = [
+            self.dice_panel,
+            self.dice_title_label,
+            self.dice_hint_label,
+            self.dice_formula_label,
+            self.dice_result_label,
+            self.dice_clear_button,
+            self.dice_roll_button,
+            *self.dice_preset_buttons,
+        ]
 
         self.window.setContentView_(self.content_view)
         self.layoutMainWindow()
         self.refreshPartyPopup()
         self.searchMonsters_(None)
         self.refreshSpellResults()
+        self.refreshDiceFormula_(None)
         self.refreshTracker()
         self.applyCurrentTab()
         return self
@@ -2089,6 +2481,7 @@ class MainWindowController(NSObject):
         tab_y = height - 38
         self.initiative_tab_button.setFrame_(NSMakeRect(20, tab_y, 150, 30))
         self.spells_tab_button.setFrame_(NSMakeRect(178, tab_y, 86, 30))
+        self.dice_tab_button.setFrame_(NSMakeRect(272, tab_y, 112, 30))
         content_height = height - 54
         sidebar_width = min(370, max(320, int(width * 0.29)))
         outer_gap = 20
@@ -2130,6 +2523,21 @@ class MainWindowController(NSObject):
         card_width = sidebar_width - sidebar_margin * 2
         for index, label in enumerate(self.party_member_labels):
             label.setFrame_(NSMakeRect(sidebar_margin, y - index * 42, card_width, 36))
+        for index, icon_view in enumerate(self.party_member_icon_views):
+            icon_view.setFrame_(NSMakeRect(sidebar_margin + 12, y - index * 42 + 8, 20, 20))
+        ac_w = 68
+        class_w = min(104, max(76, int(card_width * 0.27)))
+        icon_column_w = 42
+        column_gap = 8
+        row_name_x = sidebar_margin + icon_column_w
+        row_ac_x = sidebar_margin + card_width - ac_w - 10
+        row_class_x = row_ac_x - class_w - column_gap
+        row_name_w = max(62, row_class_x - row_name_x - column_gap)
+        for index in range(len(self.party_member_labels)):
+            row_y = y - index * 42 + 9
+            self.party_member_name_labels[index].setFrame_(NSMakeRect(row_name_x, row_y, row_name_w, 20))
+            self.party_member_class_labels[index].setFrame_(NSMakeRect(row_class_x, row_y, class_w, 20))
+            self.party_member_ac_labels[index].setFrame_(NSMakeRect(row_ac_x, row_y, ac_w, 20))
         y -= visible_party_rows * 42 + 8
         self.party_status_label.setFrame_(NSMakeRect(sidebar_margin, y, card_width, 38))
         y -= 42
@@ -2180,6 +2588,36 @@ class MainWindowController(NSObject):
         self.spell_detail_scroll.setFrame_(NSMakeRect(detail_x, spell_y, detail_width, spell_height - 38))
         self.spell_detail_view.setFrame_(NSMakeRect(0, 0, detail_width - 24, max(spell_height - 38, self.spell_detail_view.frame().size.height)))
 
+        dice_panel_frame = self.dice_panel.frame()
+        if dice_panel_frame.size.width <= 1:
+            self.dice_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
+            dice_panel_frame = self.dice_panel.frame()
+        self.dice_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
+        dice_panel_frame = self.dice_panel.frame()
+        dice_center_x = dice_panel_frame.origin.x + dice_panel_frame.size.width / 2
+        dice_top = dice_panel_frame.origin.y + dice_panel_frame.size.height - 78
+        self.dice_title_label.setFrame_(NSMakeRect(dice_panel_frame.origin.x + 44, dice_top, 320, 34))
+        self.dice_hint_label.setFrame_(NSMakeRect(dice_panel_frame.origin.x + 44, dice_top - 28, min(640, dice_panel_frame.size.width - 88), 24))
+
+        controls_width = 620
+        controls_x = dice_center_x - controls_width / 2
+        controls_y = dice_top - 116
+
+        die_button_w = 82
+        die_button_gap = 14
+        die_total_width = len(self.dice_preset_buttons) * die_button_w + (len(self.dice_preset_buttons) - 1) * die_button_gap
+        die_x = dice_center_x - die_total_width / 2
+        for index, button in enumerate(self.dice_preset_buttons):
+            button.setFrame_(NSMakeRect(die_x + index * (die_button_w + die_button_gap), controls_y, die_button_w, 58))
+
+        formula_width = min(680, dice_panel_frame.size.width - 88)
+        self.dice_formula_label.setFrame_(NSMakeRect(dice_center_x - formula_width / 2, controls_y - 92, formula_width, 46))
+        self.dice_result_label.setFrame_(NSMakeRect(dice_center_x - formula_width / 2, controls_y - 126, formula_width, 24))
+
+        action_y = controls_y - 184
+        self.dice_clear_button.setFrame_(NSMakeRect(dice_center_x - 136, action_y, 116, 34))
+        self.dice_roll_button.setFrame_(NSMakeRect(dice_center_x + 20, action_y, 136, 34))
+
     def windowDidResize_(self, _notification):
         self.layoutMainWindow()
 
@@ -2197,13 +2635,22 @@ class MainWindowController(NSObject):
         self.applyCurrentTab()
         self.refreshSpellResults()
 
+    def showDiceTab_(self, _sender):
+        self.current_tab = "dice"
+        self.applyCurrentTab()
+        self.refreshDiceFormula_(None)
+
     def applyCurrentTab(self):
         show_initiative = self.current_tab == "initiative"
+        show_spells = self.current_tab == "spells"
+        show_dice = self.current_tab == "dice"
         for view in self.initiative_views:
             view.setHidden_(not show_initiative)
         self.monster_search_button.setHidden_(True)
         for view in self.spell_views:
-            view.setHidden_(show_initiative)
+            view.setHidden_(not show_spells)
+        for view in self.dice_views:
+            view.setHidden_(not show_dice)
         style_layer(
             self.initiative_tab_button,
             ui_color(0.20, 0.20, 0.22, 1.0) if show_initiative else ui_color(0.10, 0.10, 0.11, 1.0),
@@ -2213,7 +2660,14 @@ class MainWindowController(NSObject):
         )
         style_layer(
             self.spells_tab_button,
-            ui_color(0.20, 0.20, 0.22, 1.0) if not show_initiative else ui_color(0.10, 0.10, 0.11, 1.0),
+            ui_color(0.20, 0.20, 0.22, 1.0) if show_spells else ui_color(0.10, 0.10, 0.11, 1.0),
+            ui_color(0.30, 0.30, 0.32, 1.0),
+            8,
+            1,
+        )
+        style_layer(
+            self.dice_tab_button,
+            ui_color(0.20, 0.20, 0.22, 1.0) if show_dice else ui_color(0.10, 0.10, 0.11, 1.0),
             ui_color(0.30, 0.30, 0.32, 1.0),
             8,
             1,
@@ -2226,6 +2680,50 @@ class MainWindowController(NSObject):
             self.searchMonsters_(None)
         elif field == self.spell_search_field:
             self.refreshSpellResults()
+
+    def currentDiceExpression(self) -> str:
+        parts = []
+        for sides in self.dice_presets:
+            count = int(self.dice_pool.get(int(sides), 0))
+            if count <= 0:
+                continue
+            parts.append(f"{count}d{sides}")
+        return "+".join(parts)
+
+    def refreshDiceFormula_(self, _sender):
+        expression = self.currentDiceExpression()
+        self.dice_formula_label.setStringValue_(expression or "Click a die")
+        for button in self.dice_preset_buttons:
+            sides = int(button.tag())
+            count = int(self.dice_pool.get(sides, 0))
+            button.setTitle_(f"d{sides} x{count}" if count else f"d{sides}")
+        self.dice_roll_button.setEnabled_(bool(expression))
+        self.dice_clear_button.setEnabled_(bool(expression))
+
+    def addDieToPool_(self, sender):
+        sides = int(sender.tag())
+        total = sum(int(value) for value in self.dice_pool.values())
+        if total >= 40:
+            return
+        if sides not in self.dice_pool:
+            return
+        self.dice_pool[sides] = int(self.dice_pool.get(sides, 0)) + 1
+        self.dice_result_label.setStringValue_("")
+        self.refreshDiceFormula_(None)
+
+    def clearDicePool_(self, _sender):
+        for sides in list(self.dice_pool):
+            self.dice_pool[sides] = 0
+        self.dice_result_label.setStringValue_("")
+        self.refreshDiceFormula_(None)
+
+    def rollCustomDice_(self, _sender):
+        self.refreshDiceFormula_(None)
+        expression = self.currentDiceExpression()
+        if not expression:
+            self.dice_result_label.setStringValue_("Choose at least one die.")
+            return
+        self.rollDice_(expression)
 
     def loadParties(self) -> list[dict[str, Any]]:
         raw = NSUserDefaults.standardUserDefaults().stringForKey_(PARTIES_PREF)
@@ -2269,16 +2767,34 @@ class MainWindowController(NSObject):
             party["characters"] = characters
         visible_characters = [character for character in characters if isinstance(character, dict)]
         for index, label in enumerate(self.party_member_labels):
+            icon_view = self.party_member_icon_views[index] if index < len(self.party_member_icon_views) else None
+            row_labels = (
+                self.party_member_name_labels[index],
+                self.party_member_class_labels[index],
+                self.party_member_ac_labels[index],
+            )
             if index >= len(visible_characters):
                 label.setHidden_(True)
+                if icon_view is not None:
+                    icon_view.setHidden_(True)
+                for row_label in row_labels:
+                    row_label.setHidden_(True)
                 continue
             character = visible_characters[index]
             name = str(character.get("name") or "Unnamed")
             class_name = str(character.get("class") or "Fighter")
-            icon = CLASS_ICONS.get(class_name, "◆")
             ac = str(character.get("ac") or "?")
-            label.setStringValue_(f"  {icon}  {name[:15].ljust(15)}  {class_name[:9].ljust(9)}  AC: {ac[:4]}")
+            label.setStringValue_("")
             label.setHidden_(False)
+            if icon_view is not None:
+                image = icon_image(class_name)
+                icon_view.setImage_(image)
+                icon_view.setHidden_(image is None)
+            self.party_member_name_labels[index].setStringValue_(name)
+            self.party_member_class_labels[index].setStringValue_(class_name)
+            self.party_member_ac_labels[index].setStringValue_(f"AC: {ac[:4]}")
+            for row_label in row_labels:
+                row_label.setHidden_(False)
         if len(visible_characters) > len(self.party_member_labels):
             self.party_status_label.setStringValue_(f"+ {len(visible_characters) - len(self.party_member_labels)} more member(s)")
         elif visible_characters:
@@ -2302,7 +2818,7 @@ class MainWindowController(NSObject):
         party_name = str(self.parties[index].get("name") or "Unnamed Party")
         alert = NSAlert.alloc().init()
         alert.setMessageText_(f"Delete {party_name}?")
-        alert.setInformativeText_("This removes the party from Arcane Whisperer. Current combatants already in the tracker are not changed.")
+        alert.setInformativeText_("This removes the party from Arcane Manager. Current combatants already in the tracker are not changed.")
         alert.addButtonWithTitle_("Delete")
         alert.addButtonWithTitle_("Cancel")
         NSApp.activateIgnoringOtherApps_(True)
@@ -2947,15 +3463,32 @@ class MainWindowController(NSObject):
         self.refreshTracker()
 
     def rollDice_(self, expression):
+        expression = str(expression).strip()
+        if not (DICE_PATTERN.fullmatch(expression) or DICE_FORMULA_PATTERN.fullmatch(expression)):
+            result = f"Invalid dice expression: {expression}"
+            self.displayDiceRollResult_(result)
+            return
+        self.displayDiceRollResult_(f"Rolling {expression}...")
+        if show_3d_dice_roll(expression, self):
+            return
         try:
-            roll_result = roll_dice(str(expression))
-            result = format_dice_roll(roll_result)
-            show_dice_roll_animation(roll_result)
+            result = roll_dice_formula(expression)
+            if DICE_PATTERN.fullmatch(expression):
+                show_dice_roll_animation(roll_dice(expression))
         except ValueError as exc:
             result = str(exc)
+        self.displayDiceRollResult_(result)
+
+    def displayDiceRollResult_(self, result):
+        if self.dice_result_label is not None and self.current_tab == "dice":
+            self.dice_result_label.setStringValue_(result)
         if self.spell_roll_label is not None and not self.spell_roll_label.isHidden():
             self.spell_roll_label.setStringValue_(result)
-        if self.monster_sheet_roll_label is not None:
+        if (
+            self.monster_sheet_roll_label is not None
+            and self.monster_sheet_panel is not None
+            and self.monster_sheet_panel.isVisible()
+        ):
             self.monster_sheet_roll_label.setStringValue_(result)
 
     def openSpell_(self, spell):
@@ -3017,7 +3550,7 @@ class OverlayController(NSObject):
             NSBackingStoreBuffered,
             False,
         )
-        self.panel.setTitle_("Arcane Whisperer")
+        self.panel.setTitle_("Arcane Manager")
         self.panel.setFloatingPanel_(True)
         self.panel.setHidesOnDeactivate_(False)
         self.panel.setBecomesKeyOnlyIfNeeded_(True)
@@ -3260,12 +3793,22 @@ class OverlayController(NSObject):
         self._schedule_hide_timer()
 
     def rollDice_(self, expression: str):
+        expression = str(expression).strip()
+        if not (DICE_PATTERN.fullmatch(expression) or DICE_FORMULA_PATTERN.fullmatch(expression)):
+            self.displayDiceRollResult_(f"Invalid dice expression: {expression}")
+            return
+        self.displayDiceRollResult_(f"Rolling {expression}...")
+        if show_3d_dice_roll(expression, self):
+            return
         try:
-            roll_result = roll_dice(str(expression))
-            result = format_dice_roll(roll_result)
-            show_dice_roll_animation(roll_result)
+            result = roll_dice_formula(expression)
+            if DICE_PATTERN.fullmatch(expression):
+                show_dice_roll_animation(roll_dice(expression))
         except ValueError as exc:
             result = str(exc)
+        self.displayDiceRollResult_(result)
+
+    def displayDiceRollResult_(self, result):
         self.dice_result_label.setStringValue_(result)
         self.dice_result_label.setHidden_(False)
         self.panel.orderFrontRegardless()
@@ -3440,7 +3983,7 @@ class PreferencesController(NSObject):
             NSBackingStoreBuffered,
             False,
         )
-        self.panel.setTitle_("Arcane Whisperer Preferences")
+        self.panel.setTitle_("Arcane Manager Preferences")
         self.panel.setFloatingPanel_(True)
         self.panel.setHidesOnDeactivate_(False)
         self.panel.setLevel_(24)
@@ -4026,14 +4569,14 @@ class SpeechSpellListener(NSObject):
     def start(self):
         if not NSBundle.mainBundle().objectForInfoDictionaryKey_("NSSpeechRecognitionUsageDescription"):
             message = (
-                "The Speech backend must be launched from Arcane Whisperer.app, not directly "
+                "The Speech backend must be launched from Arcane Manager.app, not directly "
                 "from the Python binary. macOS requires the NSSpeechRecognitionUsageDescription key."
             )
             log(message)
             self.overlay.showMessage_meta_body_(
                 "App launch required",
                 "Speech Recognition permission",
-                "Close this window and open Arcane Whisperer.app or use ArcaneWhisperer.command, "
+                "Close this window and open Arcane Manager.app or use ArcaneManager.command, "
                 "which launches the correct app bundle.",
             )
             return
@@ -4576,7 +5119,7 @@ class AppDelegate(NSObject):
 
         app_menu = NSMenu.alloc().init()
         about_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "About Arcane Whisperer",
+            "About Arcane Manager",
             "showAbout:",
             "",
         )
@@ -4613,7 +5156,7 @@ class AppDelegate(NSObject):
         app_menu.addItem_(preferences_item)
         app_menu.addItem_(NSMenuItem.separatorItem())
 
-        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit Arcane Whisperer", "quit:", "q")
+        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit Arcane Manager", "quit:", "q")
         quit_item.setTarget_(self)
         app_menu.addItem_(quit_item)
 
@@ -4625,11 +5168,11 @@ class AppDelegate(NSObject):
         button = self.status_item.button()
         if button is not None:
             button.setTitle_("AW")
-            button.setToolTip_("Arcane Whisperer")
+            button.setToolTip_("Arcane Manager")
 
         menu = NSMenu.alloc().init()
         about_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "About Arcane Whisperer",
+            "About Arcane Manager",
             "showAbout:",
             "",
         )
@@ -4665,7 +5208,7 @@ class AppDelegate(NSObject):
         menu.addItem_(preferences_item)
         menu.addItem_(NSMenuItem.separatorItem())
 
-        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit Arcane Whisperer", "quit:", "q")
+        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit Arcane Manager", "quit:", "q")
         quit_item.setTarget_(self)
         menu.addItem_(quit_item)
         self.status_item.setMenu_(menu)
@@ -4777,10 +5320,10 @@ class AppDelegate(NSObject):
 
     def showAbout_(self, _sender):
         alert = NSAlert.alloc().init()
-        alert.setMessageText_("Arcane Whisperer")
+        alert.setMessageText_("Arcane Manager")
         alert.setInformativeText_(
             "A voice-powered spell overlay for Dungeons & Dragons 5e.\n\n"
-            "Say a spell name in English or Italian and Arcane Whisperer shows "
+            "Say a spell name in English or Italian and Arcane Manager shows "
             "its casting details without interrupting your game.\n\n"
             "Developed by Giulio Maffei and Francesco Di Castri."
         )
@@ -4809,7 +5352,7 @@ class AppDelegate(NSObject):
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Arcane Whisperer spell listener for macOS.")
+    parser = argparse.ArgumentParser(description="Arcane Manager spell listener for macOS.")
     parser.add_argument(
         "--spells",
         default=str(DEFAULT_SPELLS_FILE),

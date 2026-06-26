@@ -1,0 +1,9 @@
+Portions of the 3D dice geometry and physics approach are adapted from:
+
+Obsidian-TTRPG-Community/dice-roller
+https://github.com/Obsidian-TTRPG-Community/dice-roller
+
+The upstream project declares the MIT license in package.json:
+https://github.com/Obsidian-TTRPG-Community/dice-roller/blob/main/package.json
+
+Copyright belongs to the upstream authors.

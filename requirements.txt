@@ -1,4 +1,5 @@
 pyobjc-framework-Cocoa>=12.2
+pyobjc-framework-WebKit>=12.2
 pyobjc-framework-AVFoundation>=12.2
 pyobjc-framework-Speech>=12.2
 faster-whisper>=1.2.1

@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arcane Manager Dice</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --red: #b90f0b;
+      --green: #12d29a;
+      --text: #f6f4ef;
+      --muted: #bbb9b5;
+      --panel: rgba(11, 11, 13, 0.76);
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+      user-select: none;
+    }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.08);
+      cursor: default;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #result {
+      position: fixed;
+      left: 50%;
+      bottom: 5vh;
+      min-width: min(34rem, calc(100vw - 4rem));
+      max-width: calc(100vw - 4rem);
+      transform: translateX(-50%) translateY(0.35rem);
+      padding: 0.9rem 1.15rem;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 1.15rem;
+      background: var(--panel);
+      box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.42);
+      color: var(--text);
+      text-align: center;
+      opacity: 0;
+      transition: opacity 160ms ease, transform 160ms ease;
+      pointer-events: auto;
+    }
+
+    #result.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #formula {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1.2;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #rolls {
+      margin-top: 0.18rem;
+      color: var(--text);
+      font-size: clamp(0.98rem, 1.5vw, 1.18rem);
+      font-weight: 700;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #total {
+      margin-top: 0.35rem;
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 850;
+      letter-spacing: -0.04em;
+      line-height: 0.98;
+      color: var(--green);
+    }
+
+    #fallback {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.5);
+      font-size: 2rem;
+      font-weight: 800;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="result">
+    <div id="formula">Ready</div>
+    <div id="rolls">Click a dice expression</div>
+    <div id="total">Result: -</div>
+  </div>
+  <div id="fallback">3D dice could not start.</div>
+
+  <script type="module">
+    import * as THREE from "/three-dice/vendor/three.module.js";
+    import {
+      Body,
+      ContactMaterial,
+      ConvexPolyhedron,
+      Material,
+      NaiveBroadphase,
+      Plane,
+      Quaternion,
+      Vec3,
+      World,
+    } from "/three-dice/vendor/cannon-es.js";
+
+    const bridge = window.webkit?.messageHandlers?.diceRoll;
+    const stage = document.getElementById("stage");
+    const resultEl = document.getElementById("result");
+    const formulaEl = document.getElementById("formula");
+    const rollsEl = document.getElementById("rolls");
+    const totalEl = document.getElementById("total");
+    const fallbackEl = document.getElementById("fallback");
+
+    const RED = "#b90f0b";
+    const WHITE = "#fff8ef";
+    const FRAME_RATE = 1 / 60;
+    const MATERIAL_OPTIONS = {
+      specular: 0x5a1712,
+      color: 0xffffff,
+      shininess: 70,
+      flatShading: true,
+    };
+
+    let renderer;
+    let scene;
+    let camera;
+    let world;
+    let diceMaterial;
+    let deskMaterial;
+    let barrierMaterial;
+    let desk;
+    let animationId = 0;
+    let activeRoll = null;
+    let lastPhysicsTime = 0;
+    let cleanupTimer = 0;
+    let resultDismissible = false;
+
+    function post(payload) {
+      try {
+        bridge?.postMessage(payload);
+      } catch (_) {
+        // Local browser debugging runs without the macOS WebKit bridge.
+      }
+    }
+
+    function fail(message) {
+      fallbackEl.style.display = "flex";
+      fallbackEl.textContent = message;
+      post({ type: "error", text: message });
+    }
+
+    function parseNotation(rawNotation) {
+      const notation = String(rawNotation || "").trim().replace(/\s+/g, "");
+      if (!notation) throw new Error("Invalid dice expression.");
+      const tokenPattern = /([+-]?)(?:(\d*)d(\d+)|(\d+))/gi;
+      const terms = [];
+      let modifier = 0;
+      let consumed = "";
+      let match;
+      while ((match = tokenPattern.exec(notation)) !== null) {
+        const sign = match[1] === "-" ? -1 : 1;
+        consumed += match[0];
+        if (match[3]) {
+          const count = Number(match[2] || 1);
+          const sides = Number(match[3]);
+          if (count < 1 || count > 40 || sides < 2 || sides > 1000) {
+            throw new Error(`Unsupported dice expression: ${notation}`);
+          }
+          if (sign < 0) {
+            throw new Error("Negative dice pools are not supported.");
+          }
+          terms.push({ count, sides, sign });
+        } else if (match[4]) {
+          modifier += sign * Number(match[4]);
+        }
+      }
+      if (consumed !== notation || !terms.length) {
+        throw new Error(`Invalid dice expression: ${notation}`);
+      }
+      const count = terms.reduce((sum, term) => sum + term.count, 0);
+      return { notation, terms, count, modifier };
+    }
+
+    function modifierText(modifier) {
+      if (!modifier) return "";
+      return modifier > 0 ? ` + ${modifier}` : ` - ${Math.abs(modifier)}`;
+    }
+
+    function randomInt(max) {
+      return Math.floor(Math.random() * max) + 1;
+    }
+
+    function rollHiddenResults(count, sides, sign = 1) {
+      return Array.from({ length: count }, () => ({ sides, value: randomInt(sides), sign }));
+    }
+
+    function getSpec(sides) {
+      if (sides === 4) {
+        return {
+          sides: 4,
+          mass: 300,
+          tab: -0.1,
+          af: (Math.PI * 7) / 6,
+          chamfer: 0.96,
+          scaleFactor: 1.2,
+          margin: 1,
+          vertices: [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]],
+          faces: [[1, 0, 2, 1], [0, 1, 3, 2], [0, 3, 2, 3], [1, 2, 3, 4]],
+        };
+      }
+      if (sides === 6) {
+        return {
+          sides: 6,
+          mass: 300,
+          tab: 0.1,
+          af: Math.PI / 4,
+          chamfer: 0.96,
+          scaleFactor: 0.9,
+          margin: 1,
+          vertices: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]],
+          faces: [[0, 3, 2, 1, 1], [1, 2, 6, 5, 2], [0, 1, 5, 4, 3], [3, 7, 6, 2, 4], [0, 4, 7, 3, 5], [4, 5, 6, 7, 6]],
+        };
+      }
+      if (sides === 8) {
+        return {
+          sides: 8,
+          mass: 340,
+          tab: 0,
+          af: -Math.PI / 8,
+          chamfer: 0.965,
+          scaleFactor: 1,
+          margin: 1.2,
+          vertices: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]],
+          faces: [[0, 2, 4, 1], [0, 4, 3, 2], [0, 3, 5, 3], [0, 5, 2, 4], [1, 3, 4, 5], [1, 4, 2, 6], [1, 2, 5, 7], [1, 5, 3, 8]],
+        };
+      }
+      if (sides === 10) {
+        const vertices = [];
+        for (let i = 0, b = 0; i < 10; i += 1, b += (Math.PI * 2) / 10) {
+          vertices.push([Math.cos(b), Math.sin(b), 0.105 * (i % 2 ? 1 : -1)]);
+        }
+        vertices.push([0, 0, -1], [0, 0, 1]);
+        return {
+          sides: 10,
+          mass: 350,
+          tab: 0,
+          af: (-Math.PI * 6) / 5,
+          chamfer: 0.945,
+          scaleFactor: 0.9,
+          margin: 1,
+          vertices,
+          faces: [[5, 7, 11, 1], [4, 2, 10, 2], [1, 3, 11, 3], [0, 8, 10, 4], [7, 9, 11, 5], [8, 6, 10, 6], [9, 1, 11, 7], [2, 0, 10, 8], [3, 5, 11, 9], [6, 4, 10, 10], [1, 0, 2, -1], [1, 2, 3, -1], [3, 2, 4, -1], [3, 4, 5, -1], [5, 4, 6, -1], [5, 6, 7, -1], [7, 6, 8, -1], [7, 8, 9, -1], [9, 8, 0, -1], [9, 0, 1, -1]],
+        };
+      }
+      if (sides === 12) {
+        const p = (1 + Math.sqrt(5)) / 2;
+        const q = 1 / p;
+        return {
+          sides: 12,
+          mass: 350,
+          tab: 0.2,
+          af: -Math.PI / 8,
+          chamfer: 0.968,
+          scaleFactor: 0.9,
+          margin: 1,
+          vertices: [[0, q, p], [0, q, -p], [0, -q, p], [0, -q, -p], [p, 0, q], [p, 0, -q], [-p, 0, q], [-p, 0, -q], [q, p, 0], [q, -p, 0], [-q, p, 0], [-q, -p, 0], [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1], [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1]],
+          faces: [[2, 14, 4, 12, 0, 1], [15, 9, 11, 19, 3, 2], [16, 10, 17, 7, 6, 3], [6, 7, 19, 11, 18, 4], [6, 18, 2, 0, 16, 5], [18, 11, 9, 14, 2, 6], [1, 17, 10, 8, 13, 7], [1, 13, 5, 15, 3, 8], [13, 8, 12, 4, 5, 9], [5, 4, 14, 9, 15, 10], [0, 12, 8, 10, 16, 11], [3, 19, 7, 17, 1, 12]],
+        };
+      }
+      const t = (1 + Math.sqrt(5)) / 2;
+      return {
+        sides: 20,
+        mass: 400,
+        tab: -0.2,
+        af: -Math.PI / 8,
+        chamfer: 0.955,
+        scaleFactor: 1,
+        margin: 1,
+        vertices: [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]],
+        faces: [[0, 11, 5, 1], [0, 5, 1, 2], [0, 1, 7, 3], [0, 7, 10, 4], [0, 10, 11, 5], [1, 5, 9, 6], [5, 11, 4, 7], [11, 10, 2, 8], [10, 7, 6, 9], [7, 1, 8, 10], [3, 9, 4, 11], [3, 4, 2, 12], [3, 2, 6, 13], [3, 6, 8, 14], [3, 8, 9, 15], [4, 9, 5, 16], [2, 4, 11, 17], [6, 2, 10, 18], [8, 6, 7, 19], [9, 8, 1, 20]],
+      };
+    }
+
+    function normalizeVertices(vertices) {
+      return vertices.map((vertex) => new THREE.Vector3(...vertex).normalize());
+    }
+
+    function getChamferGeometry(vectors, spec) {
+      const chamferVectors = [];
+      const chamferFaces = [];
+      const cornerFaces = Array.from({ length: vectors.length }, () => []);
+      for (let i = 0; i < spec.faces.length; i += 1) {
+        const faceDef = spec.faces[i];
+        const faceLength = faceDef.length - 1;
+        const centerPoint = new THREE.Vector3();
+        const face = new Array(faceLength);
+        for (let j = 0; j < faceLength; j += 1) {
+          const vector = vectors[faceDef[j]].clone();
+          centerPoint.add(vector);
+          cornerFaces[faceDef[j]].push((face[j] = chamferVectors.push(vector) - 1));
+        }
+        centerPoint.divideScalar(faceLength);
+        for (let j = 0; j < faceLength; j += 1) {
+          const vector = chamferVectors[face[j]];
+          vector.subVectors(vector, centerPoint).multiplyScalar(spec.chamfer).addVectors(vector, centerPoint);
+        }
+        face.push(faceDef[faceLength]);
+        chamferFaces.push(face);
+      }
+
+      for (let i = 0; i < spec.faces.length - 1; i += 1) {
+        for (let j = i + 1; j < spec.faces.length; j += 1) {
+          const pairs = [];
+          let last = -1;
+          for (let m = 0; m < spec.faces[i].length - 1; m += 1) {
+            const n = spec.faces[j].indexOf(spec.faces[i][m]);
+            if (n >= 0 && n < spec.faces[j].length - 1) {
+              if (last >= 0 && m !== last + 1) pairs.unshift([i, m], [j, n]);
+              else pairs.push([i, m], [j, n]);
+              last = m;
+            }
+          }
+          if (pairs.length === 4) {
+            chamferFaces.push([
+              chamferFaces[pairs[0][0]][pairs[0][1]],
+              chamferFaces[pairs[1][0]][pairs[1][1]],
+              chamferFaces[pairs[3][0]][pairs[3][1]],
+              chamferFaces[pairs[2][0]][pairs[2][1]],
+              -1,
+            ]);
+          }
+        }
+      }
+
+      for (let i = 0; i < cornerFaces.length; i += 1) {
+        const corner = cornerFaces[i];
+        const face = [corner[0]];
+        let count = corner.length - 1;
+        while (count) {
+          for (let m = spec.faces.length; m < chamferFaces.length; m += 1) {
+            let index = chamferFaces[m].indexOf(face[face.length - 1]);
+            if (index >= 0 && index < 4) {
+              index = index - 1 === -1 ? 3 : index - 1;
+              const nextVertex = chamferFaces[m][index];
+              if (corner.indexOf(nextVertex) >= 0) {
+                face.push(nextVertex);
+                break;
+              }
+            }
+          }
+          count -= 1;
+        }
+        face.push(-1);
+        chamferFaces.push(face);
+      }
+      return { vectors: chamferVectors, faces: chamferFaces };
+    }
+
+    function makeGeometry(vertices, faces, spec, radius) {
+      const scaledVertices = vertices.map((vertex) => vertex.clone().multiplyScalar(radius));
+      const geometry = new THREE.BufferGeometry();
+      const positions = [];
+      const normals = [];
+      const uvs = [];
+      const cb = new THREE.Vector3();
+      const ab = new THREE.Vector3();
+      let faceFirstVertexIndex = 0;
+
+      for (let i = 0; i < faces.length; i += 1) {
+        const face = faces[i];
+        const faceLength = face.length - 1;
+        const angle = (Math.PI * 2) / faceLength;
+        const materialIndex = face[faceLength] < 0 ? 0 : face[faceLength];
+        for (let j = 0; j < faceLength - 2; j += 1) {
+          positions.push(...scaledVertices[face[0]].toArray());
+          positions.push(...scaledVertices[face[j + 1]].toArray());
+          positions.push(...scaledVertices[face[j + 2]].toArray());
+
+          cb.subVectors(scaledVertices[face[j + 2]], scaledVertices[face[j + 1]]);
+          ab.subVectors(scaledVertices[face[0]], scaledVertices[face[j + 1]]);
+          cb.cross(ab).normalize();
+          normals.push(...cb.toArray(), ...cb.toArray(), ...cb.toArray());
+
+          uvs.push((Math.cos(spec.af) + 1 + spec.tab) / 2 / (1 + spec.tab), (Math.sin(spec.af) + 1 + spec.tab) / 2 / (1 + spec.tab));
+          uvs.push((Math.cos(angle * (j + 1) + spec.af) + 1 + spec.tab) / 2 / (1 + spec.tab), (Math.sin(angle * (j + 1) + spec.af) + 1 + spec.tab) / 2 / (1 + spec.tab));
+          uvs.push((Math.cos(angle * (j + 2) + spec.af) + 1 + spec.tab) / 2 / (1 + spec.tab), (Math.sin(angle * (j + 2) + spec.af) + 1 + spec.tab) / 2 / (1 + spec.tab));
+        }
+
+        const vertexCount = (faceLength - 2) * 3;
+        for (let j = 0; j < vertexCount / 3; j += 1) {
+          geometry.addGroup(faceFirstVertexIndex, 3, materialIndex);
+          faceFirstVertexIndex += 3;
+        }
+      }
+
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+      geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.computeBoundingSphere();
+      return geometry;
+    }
+
+    function makeShape(vectors, spec, radius) {
+      const vertices = vectors.map((vector) => new Vec3(vector.x * radius, vector.y * radius, vector.z * radius));
+      const faces = spec.faces.map((face) => face.slice(0, face.length - 1));
+      return new ConvexPolyhedron({ vertices, faces });
+    }
+
+    function textureForLabel(label, sides, radius) {
+      const textureSize = Math.max(128, 2 ** Math.floor(Math.log(radius * 2.8) / Math.log(2))) * 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = textureSize;
+      canvas.height = textureSize;
+      const ctx = canvas.getContext("2d", { alpha: true });
+      ctx.clearRect(0, 0, textureSize, textureSize);
+      ctx.fillStyle = RED;
+      ctx.fillRect(0, 0, textureSize, textureSize);
+
+      const glow = ctx.createRadialGradient(textureSize * 0.32, textureSize * 0.25, 0, textureSize * 0.45, textureSize * 0.42, textureSize * 0.75);
+      glow.addColorStop(0, "rgba(255, 255, 255, 0.18)");
+      glow.addColorStop(0.55, "rgba(255, 255, 255, 0.04)");
+      glow.addColorStop(1, "rgba(0, 0, 0, 0.24)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, textureSize, textureSize);
+
+      if (!label) {
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      let fontSize = textureSize / 2.25;
+      if (String(label).length >= 2) fontSize *= 0.72;
+      ctx.font = `850 ${fontSize}px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      if (sides === 10) {
+        ctx.translate(textureSize / 2, textureSize / 2);
+        ctx.rotate((60 * Math.PI) / 180);
+        ctx.translate(-textureSize / 2, -textureSize / 2);
+      }
+      ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+      ctx.shadowBlur = textureSize * 0.025;
+      ctx.shadowOffsetY = textureSize * 0.015;
+      ctx.fillStyle = WHITE;
+      ctx.fillText(String(label), textureSize / 2, textureSize / 2 + textureSize * 0.02);
+      if (label === 6 || label === 9) {
+        ctx.font = `850 ${fontSize * 0.45}px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.fillText(".", textureSize / 2 + fontSize * 0.36, textureSize / 2 + fontSize * 0.24);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      texture.anisotropy = 4;
+      return texture;
+    }
+
+    function makeMaterials(sides, radius) {
+      const materials = [new THREE.MeshPhongMaterial({ ...MATERIAL_OPTIONS, map: textureForLabel("", sides, radius) })];
+      for (let value = 1; value <= sides; value += 1) {
+        materials.push(new THREE.MeshPhongMaterial({ ...MATERIAL_OPTIONS, map: textureForLabel(value, sides, radius) }));
+      }
+      return materials;
+    }
+
+    function makeDie(sides, index, count, sign = 1) {
+      const displaySides = [4, 6, 8, 10, 12, 20].includes(sides) ? sides : 20;
+      const spec = getSpec(displaySides);
+      const scaler = count > 12 ? 0.68 : count > 6 ? 0.78 : 0.86;
+      const radius = 50 * spec.scaleFactor * scaler;
+      const vectors = normalizeVertices(spec.vertices);
+      const chamfered = getChamferGeometry(vectors, spec);
+      const geometry = makeGeometry(chamfered.vectors, chamfered.faces, spec, radius);
+      const shape = makeShape(vectors, spec, radius);
+      const body = new Body({ mass: spec.mass, shape, material: diceMaterial });
+      const mesh = new THREE.Mesh(geometry, makeMaterials(displaySides, radius));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      world.addBody(body);
+
+      const die = {
+        mesh,
+        body,
+        sides: displaySides,
+        formulaSides: sides,
+        sign,
+        stopped: false,
+        iterations: 0,
+      };
+      throwDie(die, index, count);
+      return die;
+    }
+
+    function throwDie(die, index, count) {
+      const width = window.innerWidth / 2;
+      const height = window.innerHeight / 2;
+      const side = index % 4;
+      const jitter = 0.68 + Math.random() * 0.28;
+      let x = (Math.random() * 2 - 1) * width * 0.45;
+      let y = (Math.random() * 2 - 1) * height * 0.45;
+      if (side === 0) x = -width * jitter;
+      if (side === 1) x = width * jitter;
+      if (side === 2) y = -height * jitter;
+      if (side === 3) y = height * jitter;
+      const centerPull = 2.2 + Math.random() * 1.3;
+      die.body.position.set(x, y, 250 + Math.random() * 180 + index * 6);
+      die.body.quaternion.setFromAxisAngle(new Vec3(Math.random(), Math.random(), Math.random()), Math.random() * Math.PI * 2);
+      die.body.velocity.set(
+        -x * centerPull + (Math.random() * 2 - 1) * 260,
+        -y * centerPull + (Math.random() * 2 - 1) * 260,
+        -80 - Math.random() * 160,
+      );
+      die.body.angularVelocity.set(
+        (Math.random() * 2 - 1) * 38,
+        (Math.random() * 2 - 1) * 38,
+        (Math.random() * 2 - 1) * 28,
+      );
+      die.body.linearDamping = 0.16;
+      die.body.angularDamping = 0.16;
+    }
+
+    function upsideFace(die) {
+      const up = new THREE.Vector3(0, 0, die.sides === 4 ? -1 : 1);
+      const normals = die.mesh.geometry.getAttribute("normal").array;
+      const quaternion = new THREE.Quaternion(
+        die.body.quaternion.x,
+        die.body.quaternion.y,
+        die.body.quaternion.z,
+        die.body.quaternion.w,
+      );
+      let closestAngle = Math.PI * 2;
+      let closestFace = null;
+      let closestLocalNormal = null;
+      for (let i = 0; i < die.mesh.geometry.groups.length; i += 1) {
+        const face = die.mesh.geometry.groups[i];
+        if (face.materialIndex === 0) continue;
+        const startVertex = i * 9;
+        const localNormal = new THREE.Vector3(normals[startVertex], normals[startVertex + 1], normals[startVertex + 2]).normalize();
+        const angle = localNormal.clone().applyQuaternion(quaternion).angleTo(up);
+        if (angle < closestAngle) {
+          closestAngle = angle;
+          closestFace = face;
+          closestLocalNormal = localNormal;
+        }
+      }
+      return {
+        value: closestFace ? closestFace.materialIndex : 1,
+        angle: closestAngle,
+        localNormal: closestLocalNormal,
+        up,
+      };
+    }
+
+    function settleDieOnFace(die, face) {
+      if (!face.localNormal) return;
+      const currentQuaternion = new THREE.Quaternion(
+        die.body.quaternion.x,
+        die.body.quaternion.y,
+        die.body.quaternion.z,
+        die.body.quaternion.w,
+      );
+      const currentNormal = face.localNormal.clone().applyQuaternion(currentQuaternion).normalize();
+      const correction = new THREE.Quaternion().setFromUnitVectors(currentNormal, face.up.clone().normalize());
+      const settledQuaternion = correction.multiply(currentQuaternion).normalize();
+      die.body.quaternion.set(
+        settledQuaternion.x,
+        settledQuaternion.y,
+        settledQuaternion.z,
+        settledQuaternion.w,
+      );
+      die.mesh.quaternion.copy(settledQuaternion);
+      if (face.angle > 0.42) {
+        die.body.position.z += 3;
+        die.mesh.position.z = die.body.position.z;
+      }
+    }
+
+    function initWorld() {
+      world = new World({ gravity: new Vec3(0, 0, -9.82 * 220) });
+      world.broadphase = new NaiveBroadphase();
+      world.allowSleep = true;
+      diceMaterial = new Material("dice");
+      deskMaterial = new Material("desk");
+      barrierMaterial = new Material("barrier");
+      world.addContactMaterial(new ContactMaterial(deskMaterial, diceMaterial, {
+        friction: 0.08,
+        restitution: 0.46,
+        contactEquationRelaxation: 3,
+        contactEquationStiffness: 1e8,
+      }));
+      world.addContactMaterial(new ContactMaterial(barrierMaterial, diceMaterial, {
+        friction: 0.02,
+        restitution: 0.72,
+        contactEquationRelaxation: 3,
+        contactEquationStiffness: 1e8,
+      }));
+      world.addContactMaterial(new ContactMaterial(diceMaterial, diceMaterial, {
+        friction: 0.12,
+        restitution: 0.5,
+        contactEquationRelaxation: 3,
+        contactEquationStiffness: 1e8,
+      }));
+
+      const ground = new Body({ allowSleep: false, mass: 0, shape: new Plane(), material: deskMaterial });
+      ground.position.set(0, 0, 0);
+      world.addBody(ground);
+      buildWalls();
+      lastPhysicsTime = 0;
+    }
+
+    function addWall(axis, angle, x, y) {
+      const wall = new Body({ allowSleep: false, mass: 0, shape: new Plane(), material: barrierMaterial });
+      wall.quaternion.setFromAxisAngle(axis, angle);
+      wall.position.set(x, y, 0);
+      world.addBody(wall);
+    }
+
+    function buildWalls() {
+      const width = window.innerWidth / 2;
+      const height = window.innerHeight / 2;
+      addWall(new Vec3(1, 0, 0), Math.PI / 2, 0, height * 0.95);
+      addWall(new Vec3(1, 0, 0), -Math.PI / 2, 0, -height * 0.95);
+      addWall(new Vec3(0, 1, 0), -Math.PI / 2, width * 0.95, 0);
+      addWall(new Vec3(0, 1, 0), Math.PI / 2, -width * 0.95, 0);
+    }
+
+    function initScene() {
+      scene = new THREE.Scene();
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
+      renderer.setClearColor(0x000000, 0);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      stage.appendChild(renderer.domElement);
+
+      camera = new THREE.PerspectiveCamera(20, 1, 1, 10000);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+      const light = new THREE.SpotLight(0xffffff, 0.34);
+      light.position.set(-window.innerWidth * 0.42, window.innerHeight * 0.42, Math.max(window.innerWidth, window.innerHeight) * 1.6);
+      light.target.position.set(0, 0, 0);
+      light.distance = Math.max(window.innerWidth, window.innerHeight) * 4;
+      light.angle = Math.PI / 4;
+      light.castShadow = true;
+      light.shadow.mapSize.width = 1024;
+      light.shadow.mapSize.height = 1024;
+      light.shadow.bias = 0.001;
+      scene.add(light);
+      scene.add(light.target);
+
+      const shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.48 });
+      desk = new THREE.Mesh(new THREE.PlaneGeometry(window.innerWidth * 4, window.innerHeight * 4), shadowMaterial);
+      desk.receiveShadow = true;
+      scene.add(desk);
+      resize();
+    }
+
+    function resize() {
+      if (!renderer || !camera) return;
+      const width = Math.max(1, window.innerWidth);
+      const height = Math.max(1, window.innerHeight);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      const worldHeight = height / 2;
+      camera.position.set(0, 0, worldHeight / Math.tan((10 * Math.PI) / 180));
+      camera.lookAt(new THREE.Vector3(0, 0, 0));
+      camera.near = 1;
+      camera.far = camera.position.z * 1.35;
+      camera.updateProjectionMatrix();
+    }
+
+    function clearDice() {
+      if (cleanupTimer) {
+        window.clearTimeout(cleanupTimer);
+        cleanupTimer = 0;
+      }
+      if (!activeRoll) return;
+      for (const die of activeRoll.dice) {
+        scene.remove(die.mesh);
+        world.removeBody(die.body);
+        die.mesh.geometry.dispose();
+        for (const material of die.mesh.material) {
+          material.map?.dispose();
+          material.dispose();
+        }
+      }
+      activeRoll = null;
+      renderer?.render(scene, camera);
+    }
+
+    function dismissRoller() {
+      resultDismissible = false;
+      resultEl.classList.remove("visible");
+      clearDice();
+      post({ type: "hide" });
+    }
+
+    function scheduleDiceCleanup() {
+      if (cleanupTimer) window.clearTimeout(cleanupTimer);
+      cleanupTimer = window.setTimeout(() => {
+        if (activeRoll?.completed) clearDice();
+      }, 2200);
+    }
+
+    function displayRolling(roll) {
+      resultDismissible = false;
+      resultEl.classList.add("visible");
+      formulaEl.textContent = roll.notation;
+      rollsEl.textContent = "Rolling...";
+      totalEl.textContent = "...";
+    }
+
+    function displayComplete(roll) {
+      const diceTotal = roll.results.reduce((sum, result) => sum + result.sign * result.value, 0);
+      const total = diceTotal + roll.modifier;
+      formulaEl.textContent = roll.notation;
+      const grouped = roll.terms
+        .map((term) => {
+          const values = roll.results
+            .filter((result) => result.sides === term.sides && result.sign === term.sign)
+            .slice(0, term.count)
+            .map((result) => result.value);
+          return `${term.count}d${term.sides}: [${values.join(", ")}]`;
+        })
+        .join(" + ");
+      rollsEl.textContent = `${grouped}${modifierText(roll.modifier)}`;
+      totalEl.textContent = String(total);
+      resultDismissible = true;
+      const rollDetails = roll.terms
+        .map((term) => {
+          const values = roll.results
+            .filter((result) => result.sides === term.sides && result.sign === term.sign)
+            .slice(0, term.count)
+            .map((result) => result.value);
+          return `${term.count}d${term.sides}: ${values.join(", ")}`;
+        })
+        .join("; ");
+      const mod = roll.modifier ? `${roll.modifier > 0 ? " + " : " - "}${Math.abs(roll.modifier)}` : "";
+      post({
+        type: "complete",
+        notation: roll.notation,
+        values: roll.results.map((result) => result.sign * result.value),
+        modifier: roll.modifier,
+        diceTotal,
+        total,
+        text: `Rolled ${roll.notation}: ${total} (${rollDetails}${mod})`,
+      });
+      scheduleDiceCleanup();
+    }
+
+    function finishRoll() {
+      if (!activeRoll || activeRoll.completed) return;
+      activeRoll.completed = true;
+      activeRoll.results = activeRoll.dice.map((die) => {
+        const face = upsideFace(die);
+        settleDieOnFace(die, face);
+        return {
+          sides: die.formulaSides,
+          value: die.formulaSides === die.sides ? face.value : Math.min(face.value, die.formulaSides),
+          sign: die.sign,
+        };
+      }).concat(activeRoll.hiddenResults || []);
+      activeRoll.dice.forEach((die) => {
+        die.body.velocity.set(0, 0, 0);
+        die.body.angularVelocity.set(0, 0, 0);
+        die.body.sleep();
+        die.mesh.position.set(die.body.position.x, die.body.position.y, die.body.position.z);
+        die.mesh.quaternion.set(die.body.quaternion.x, die.body.quaternion.y, die.body.quaternion.z, die.body.quaternion.w);
+      });
+      renderer.render(scene, camera);
+      displayComplete(activeRoll);
+    }
+
+    function isSettled(roll, now) {
+      const elapsed = now - roll.startedAt;
+      if (elapsed < 1600) return false;
+      if (elapsed > 4200) return true;
+      return roll.dice.every((die) => die.body.velocity.length() < 24 && die.body.angularVelocity.length() < 2.2);
+    }
+
+    function animate(now) {
+      if (world) {
+        if (!lastPhysicsTime) {
+          world.step(FRAME_RATE);
+        } else {
+          world.step(FRAME_RATE, Math.min(0.05, (now / 1000) - lastPhysicsTime), 3);
+        }
+        lastPhysicsTime = now / 1000;
+      }
+
+      if (activeRoll) {
+        for (const die of activeRoll.dice) {
+          die.mesh.position.set(die.body.position.x, die.body.position.y, die.body.position.z);
+          die.mesh.quaternion.set(die.body.quaternion.x, die.body.quaternion.y, die.body.quaternion.z, die.body.quaternion.w);
+        }
+        if (isSettled(activeRoll, now)) finishRoll();
+      }
+
+      renderer.render(scene, camera);
+      animationId = requestAnimationFrame(animate);
+    }
+
+    function startRoll(rawNotation) {
+      const roll = parseNotation(rawNotation);
+      clearDice();
+      displayRolling(roll);
+      initWorld();
+      const diceSpecs = [];
+      const hiddenResults = [];
+      for (const term of roll.terms) {
+        for (let index = 0; index < term.count; index += 1) {
+          if (diceSpecs.length < 18) diceSpecs.push({ sides: term.sides, sign: term.sign });
+          else hiddenResults.push(...rollHiddenResults(1, term.sides, term.sign));
+        }
+      }
+      const dice = diceSpecs.map((spec, index) => makeDie(spec.sides, index, diceSpecs.length, spec.sign));
+      activeRoll = {
+        ...roll,
+        results: [],
+        hiddenResults,
+        dice,
+        startedAt: performance.now(),
+        completed: false,
+      };
+    }
+
+    function init() {
+      if (!window.WebGLRenderingContext) {
+        fail("WebGL is not available on this Mac.");
+        return;
+      }
+      initScene();
+      initWorld();
+      window.addEventListener("resize", () => {
+        resize();
+        initWorld();
+      });
+      window.arcaneDiceReady = true;
+      window.arcanePrepareRoll = () => {
+        resultDismissible = false;
+        clearDice();
+        resultEl.classList.remove("visible");
+      };
+      window.arcaneRoll = (notation) => {
+        try {
+          startRoll(notation);
+        } catch (error) {
+          post({ type: "error", text: error?.message || String(error) });
+        }
+      };
+      animationId = requestAnimationFrame(animate);
+      document.addEventListener("pointerdown", (event) => {
+        if (!resultDismissible) return;
+        if (resultEl.contains(event.target)) return;
+        dismissRoller();
+      });
+      post({ type: "ready" });
+    }
+
+    try {
+      init();
+    } catch (error) {
+      fail(error?.message || String(error));
+    }
+  </script>
+</body>
+</html>

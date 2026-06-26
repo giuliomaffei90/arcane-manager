@@ -8,8 +8,9 @@ dist/
 *.spec
 pyinstaller_build.log
 
-Arcane Whisperer.app/
-Arcane Whisperer.zip
-tmp_whisper_base
+*.app/
+*.zip
+*.dmg
+tmp_whisper_*
 
 *.log
