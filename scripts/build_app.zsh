@@ -31,6 +31,7 @@ rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_b
   --osx-bundle-identifier "local.arcanewhisperer.overlay" \
   --icon "assets/ArcaneWhisperer.icns" \
   --add-data=spells.json:resources \
+  --add-data=bestiary_srd.json:resources \
   --collect-all faster_whisper \
   --collect-all huggingface_hub \
   --collect-all tqdm \
