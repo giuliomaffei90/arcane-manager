@@ -58,7 +58,7 @@ If the app gets stuck or cannot be closed from the menu:
 Run directly from the local environment:
 
 ```bash
-.venv/bin/python SpellAudio.py --backend command
+.venv/bin/python SpellAudio.py
 ```
 
 ## Data

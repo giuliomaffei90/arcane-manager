@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-macOS Arcane Manager spell listener.
+Arcane Manager for macOS.
 
-Listens for configured spell names with macOS' native speech framework
-and shows an always-on-top overlay with the spell details.
+A local Dungeons & Dragons table assistant with an initiative tracker,
+spell reference, bestiary lookup, and dice roller.
 """
 
 from __future__ import annotations
@@ -13,13 +13,10 @@ import ctypes
 import functools
 import http.server
 import json
-import multiprocessing
-import queue
 import random
 import re
 import sys
 import threading
-import time
 import unicodedata
 import warnings
 from dataclasses import dataclass
@@ -39,12 +36,9 @@ try:
         NSBackingStoreBuffered,
         NSBezierPath,
         NSButton,
-        NSButtonTypeSwitch,
         NSColor,
         NSCommandKeyMask,
         NSControlKeyMask,
-        NSControlStateValueOff,
-        NSControlStateValueOn,
         NSCursor,
         NSEvent,
         NSEventMaskKeyDown,
@@ -63,7 +57,6 @@ try:
         NSProgressIndicator,
         NSScrollView,
         NSScreen,
-        NSSpeechRecognizer,
         NSStatusBar,
         NSShiftKeyMask,
         NSTrackingActiveAlways,
@@ -85,7 +78,6 @@ try:
         NSTextField,
         NSCompositingOperationSourceOver,
     )
-    from AVFoundation import AVAudioEngine
     from WebKit import (
         WKUserContentController,
         WKUserScript,
@@ -95,7 +87,6 @@ try:
     )
     from Foundation import (
         NSMutableAttributedString,
-        NSBundle,
         NSString,
         NSURL,
         NSURLRequest,
@@ -103,16 +94,8 @@ try:
         NSMakeRange,
         NSMakeSize,
         NSObject,
-        NSLocale,
         NSTimer,
         NSUserDefaults,
-    )
-    from Speech import (
-        SFSpeechAudioBufferRecognitionRequest,
-        SFSpeechRecognizer,
-        SFSpeechRecognizerAuthorizationStatusAuthorized,
-        SFSpeechRecognizerAuthorizationStatusDenied,
-        SFSpeechRecognizerAuthorizationStatusRestricted,
     )
 except ImportError as exc:  # pragma: no cover - helpful startup error
     raise SystemExit(
@@ -153,14 +136,6 @@ MAX_TEXT_FIELD_CHARS = 50000
 MAX_SHORT_FIELD_CHARS = 500
 MAX_ALIAS_CHARS = 140
 MAX_ALIASES_PER_SPELL = 80
-ALLOWED_WHISPER_LANGUAGES = {"en", "it"}
-WHISPER_REPO_PREFIX = "Systran/faster-whisper-"
-WHISPER_DOWNLOAD_PATTERNS = [
-    "config.json",
-    "model.bin",
-    "tokenizer.json",
-    "vocabulary.*",
-]
 TRANSCRIPT_NORMALIZATION_REPLACEMENTS = {
     "appalla": "palla",
     "parla": "palla",
@@ -188,93 +163,6 @@ TRANSCRIPT_NORMALIZATION_REPLACEMENTS = {
     "wards": "word",
     "words": "word",
 }
-
-
-class WhisperDownloadProgress:
-    total_bytes = 0
-    downloaded_bytes = 0
-    callback: Any = None
-    lock = threading.Lock()
-    _lock = threading.RLock()
-
-    def __init__(self, *args, **kwargs):
-        self.iterable = args[0] if args else None
-        self.unit = kwargs.get("unit", "")
-        self.total = kwargs.get("total", None)
-        self.n = 0
-        self.disable = kwargs.get("disable", False)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, _exc_type, _exc, _traceback):
-        self.close()
-        return False
-
-    def __iter__(self):
-        if self.iterable is None:
-            return iter(())
-        for item in self.iterable:
-            yield item
-            if self.unit != "B":
-                self.n += 1
-
-    def update(self, amount=1):
-        self.n += int(amount)
-        if self.unit != "B":
-            return
-        with self.lock:
-            self.__class__.downloaded_bytes += int(amount)
-            downloaded = min(self.__class__.downloaded_bytes, self.__class__.total_bytes)
-            total = max(1, self.__class__.total_bytes)
-        if self.__class__.callback is not None:
-            self.__class__.callback(downloaded, total)
-
-    def close(self):
-        pass
-
-    def set_description(self, *_args, **_kwargs):
-        pass
-
-    def refresh(self, *_args, **_kwargs):
-        pass
-
-    @classmethod
-    def get_lock(cls):
-        return cls._lock
-
-    @classmethod
-    def set_lock(cls, lock):
-        cls._lock = lock
-
-    @classmethod
-    def configure(cls, total_bytes: int, callback):
-        with cls.lock:
-            cls.total_bytes = max(1, int(total_bytes))
-            cls.downloaded_bytes = 0
-            cls.callback = callback
-
-    @classmethod
-    def reset(cls):
-        with cls.lock:
-            cls.total_bytes = 0
-            cls.downloaded_bytes = 0
-            cls.callback = None
-
-
-def whisper_repo_for_model(model_name: str) -> str:
-    if "/" in model_name:
-        return model_name
-    return f"{WHISPER_REPO_PREFIX}{model_name}"
-
-
-def format_bytes(value: int) -> str:
-    number = float(value)
-    for unit in ("B", "KB", "MB", "GB"):
-        if number < 1024 or unit == "GB":
-            return f"{number:.1f} {unit}" if unit != "B" else f"{int(number)} {unit}"
-        number /= 1024
-    return f"{number:.1f} GB"
 
 
 def four_char_code(value: str) -> int:
@@ -307,12 +195,7 @@ CARBON_SHIFT_KEY = 1 << 9
 CARBON_OPTION_KEY = 1 << 11
 CARBON_CONTROL_KEY = 1 << 12
 SEARCH_HOTKEY_PREF = "SearchHotkey"
-REQUIRE_WAKE_WORD_PREF = "RequireWakeWord"
 PARTIES_PREF = "InitiativeParties"
-WAKE_WORD = "spell"
-WAKE_WORD_ALIASES = {"spell", "spel", "spells"}
-WAKE_LISTEN_SECONDS = 6.0
-VOICE_FEATURES_ENABLED = False
 CLASS_OPTIONS = [
     "Artificer",
     "Barbarian",
@@ -519,16 +402,6 @@ def save_search_hotkey(hotkey: Hotkey):
     defaults.synchronize()
 
 
-def load_require_wake_word() -> bool:
-    return bool(NSUserDefaults.standardUserDefaults().boolForKey_(REQUIRE_WAKE_WORD_PREF))
-
-
-def save_require_wake_word(enabled: bool):
-    defaults = NSUserDefaults.standardUserDefaults()
-    defaults.setBool_forKey_(bool(enabled), REQUIRE_WAKE_WORD_PREF)
-    defaults.synchronize()
-
-
 def normalize(text: str) -> str:
     """Normalize spoken commands and aliases for reliable lookup."""
     folded = unicodedata.normalize("NFKD", text.lower())
@@ -554,14 +427,6 @@ def normalize_transcript_for_matching(text: str) -> str:
             continue
         normalized_words.append(word)
     return " ".join(normalized_words)
-
-
-def text_after_wake_word(text: str) -> str | None:
-    words = normalize_transcript_for_matching(text).split()
-    for index, word in enumerate(words):
-        if word in WAKE_WORD_ALIASES:
-            return " ".join(words[index + 1 :])
-    return None
 
 
 def clean_text(value: Any, max_chars: int = MAX_SHORT_FIELD_CHARS) -> str:
@@ -1579,14 +1444,6 @@ def show_3d_dice_roll(expression: str, target) -> bool:
     return True
 
 
-def contextual_strings_for_spells(spells: list[Spell]) -> list[str]:
-    strings: list[str] = []
-    for spell in spells:
-        strings.extend(spell.aliases)
-        strings.append(spell.name)
-    return list(dict.fromkeys(item for item in strings if item))
-
-
 def find_spell_in_text(text: str, lookup: dict[str, Spell]) -> Spell | None:
     exact_match = find_exact_spell_in_text(text, lookup)
     if exact_match is not None:
@@ -1693,53 +1550,6 @@ def find_fuzzy_spell_in_text(normalized_text: str, lookup: dict[str, Spell]) -> 
     return None
 
 
-def transcript_looks_repetitive(text: str) -> bool:
-    words = normalize(text).split()
-    if len(words) < 10:
-        return False
-    unique_ratio = len(set(words)) / max(1, len(words))
-    most_common_count = max(words.count(word) for word in set(words))
-    if len(words) >= 7 and most_common_count >= 3:
-        return True
-    if len(words) >= 18 and unique_ratio < 0.35:
-        return True
-    return most_common_count >= 5
-
-
-def transcript_looks_incomplete(text: str) -> bool:
-    stripped = text.strip()
-    return stripped.endswith("...") or stripped.endswith("…")
-
-
-def should_ignore_whisper_transcript(text: str, language: str, probability: float, segments: list[Any]) -> str | None:
-    if language not in ALLOWED_WHISPER_LANGUAGES:
-        return f"language {language!r}"
-    if probability < 0.20:
-        return f"low language confidence {probability:.2f}"
-    if len(text) > 280:
-        return "overlong transcript"
-    if transcript_looks_repetitive(text):
-        return "repetitive transcript"
-
-    no_speech_values = [float(getattr(segment, "no_speech_prob", 0.0) or 0.0) for segment in segments]
-    if no_speech_values and min(no_speech_values) > 0.65:
-        return f"no-speech probability {min(no_speech_values):.2f}"
-
-    compression_values = [float(getattr(segment, "compression_ratio", 0.0) or 0.0) for segment in segments]
-    if compression_values and max(compression_values) > 2.8:
-        return f"compression ratio {max(compression_values):.2f}"
-
-    return None
-
-
-def whisper_prompt_for_spells(spell_names: list[str]) -> str:
-    names = ", ".join(spell_names[:120])
-    return (
-        "This audio may contain Dungeons and Dragons spell names in Italian or English. "
-        f"Possible spell names include: {names}."
-    )
-
-
 def log(message: str, persist: bool = True):
     line = f"[Arcane Manager] {message}"
     print(line, flush=True)
@@ -1754,11 +1564,6 @@ def log(message: str, persist: bool = True):
         LOG_FILE.chmod(0o600)
     except OSError:
         pass
-
-
-def parse_locales(locales: str) -> list[str]:
-    parsed = [part.strip() for part in locales.split(",") if part.strip()]
-    return list(dict.fromkeys(parsed)) or ["it-IT", "en-US"]
 
 
 def make_label(text: str, frame: tuple[int, int, int, int], size: float, bold: bool = False):
@@ -3956,7 +3761,6 @@ class PreferencesController(NSObject):
     panel: NSPanel
     app_delegate: Any
     shortcut_label: NSTextField
-    wake_word_button: NSButton
     hint_label: NSTextField
     record_button: NSButton
     reset_button: NSButton
@@ -3995,13 +3799,7 @@ class PreferencesController(NSObject):
         self.shortcut_label = make_label("", (154, 172, 242, 24), 13)
         self.shortcut_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(1.0, 0.82, 0.26, 1.0))
 
-        self.wake_word_button = NSButton.alloc().initWithFrame_(NSMakeRect(20, 128, 376, 28))
-        self.wake_word_button.setButtonType_(NSButtonTypeSwitch)
-        self.wake_word_button.setTitle_(f'Require "{WAKE_WORD.capitalize()}" before voice matches')
-        self.wake_word_button.setTarget_(self)
-        self.wake_word_button.setAction_("toggleWakeWord:")
-
-        self.hint_label = make_multiline(make_label("", (24, 76, 372, 44), 11))
+        self.hint_label = make_multiline(make_label("", (24, 102, 372, 44), 11))
         self.hint_label.setTextColor_(NSColor.colorWithCalibratedRed_green_blue_alpha_(0.78, 0.78, 0.82, 1.0))
 
         self.record_button = NSButton.alloc().initWithFrame_(NSMakeRect(24, 28, 170, 30))
@@ -4023,7 +3821,6 @@ class PreferencesController(NSObject):
             title_label,
             search_label,
             self.shortcut_label,
-            self.wake_word_button,
             self.hint_label,
             self.record_button,
             self.reset_button,
@@ -4051,11 +3848,6 @@ class PreferencesController(NSObject):
         self.app_delegate.setSearchHotkey_(default_search_hotkey())
         self.updateDisplay()
 
-    def toggleWakeWord_(self, sender):
-        enabled = int(sender.state()) == int(NSControlStateValueOn)
-        self.app_delegate.setRequireWakeWord_(enabled)
-        self.updateDisplay()
-
     def close_(self, _sender):
         self.recording = False
         self.panel.orderOut_(None)
@@ -4063,13 +3855,8 @@ class PreferencesController(NSObject):
     def updateDisplay(self):
         hotkey = self.app_delegate.search_hotkey
         self.shortcut_label.setStringValue_(hotkey_display(hotkey))
-        self.wake_word_button.setState_(
-            NSControlStateValueOn if self.app_delegate.require_wake_word else NSControlStateValueOff
-        )
         self.record_button.setTitle_("Record Shortcut")
-        self.hint_label.setStringValue_(
-            f'Default shortcut: Cmd+Shift+Space. When wake word mode is enabled, say "{WAKE_WORD.capitalize()} fireball".'
-        )
+        self.hint_label.setStringValue_("Default shortcut: Cmd+Shift+Space.")
 
     def captureHotkeyEvent_(self, event) -> bool:
         if not self.recording or not self.panel.isVisible():
@@ -4093,887 +3880,6 @@ class PreferencesController(NSObject):
         return True
 
 
-class CommandSpellListener(NSObject):
-    recognizer: NSSpeechRecognizer
-    spell_lookup: dict[str, Spell]
-    overlay: OverlayController
-
-    def initWithSpellLookup_overlay_(self, spell_lookup, overlay):
-        self = objc.super(CommandSpellListener, self).init()
-        if self is None:
-            return None
-        self.spell_lookup = spell_lookup
-        self.overlay = overlay
-        return self
-
-    def start(self):
-        commands = sorted({alias for spell in self.spell_lookup.values() for alias in spell.aliases})
-        self.recognizer = NSSpeechRecognizer.alloc().init()
-        self.recognizer.setCommands_(commands)
-        self.recognizer.setListensInForegroundOnly_(False)
-        self.recognizer.setBlocksOtherRecognizers_(False)
-        self.recognizer.setDelegate_(self)
-        self.recognizer.startListening()
-        log(f"Command backend started with {len(commands)} aliases.")
-        self.overlay.showMessage_meta_body_(
-            "Listening...",
-            "macOS command backend",
-            "Say one of the aliases configured in spells.json.",
-        )
-
-    def speechRecognizer_didRecognizeCommand_(self, _recognizer, command):
-        log(f"Recognized command: {command}")
-        spell = self.spell_lookup.get(normalize(str(command)))
-        if spell is not None:
-            self.overlay.showSpell_(spell)
-
-
-class WhisperSpellListener:
-    def __init__(
-        self,
-        spells: list[Spell],
-        spell_lookup: dict[str, Spell],
-        overlay: OverlayController,
-        choice_target: Any,
-        model_name: str,
-        prompt: str,
-        debug: bool,
-        sample_rate: int = 16000,
-        window_seconds: float = 3.5,
-        step_seconds: float = 1.2,
-    ):
-        self.spells = list(spells)
-        self.spell_lookup = spell_lookup
-        self.overlay = overlay
-        self.choice_target = choice_target
-        self.model_name = model_name
-        self.prompt = prompt
-        self.debug = debug
-        self.sample_rate = sample_rate
-        self.window_seconds = window_seconds
-        self.step_seconds = step_seconds
-        self.max_utterance_seconds = 5.0
-        self.end_silence_seconds = 0.7
-        self.min_utterance_seconds = 0.35
-        self.voice_peak_threshold = 0.018
-        self.voice_rms_threshold = 0.004
-        self.audio_queue: queue.Queue[Any] = queue.Queue()
-        self.stop_event = threading.Event()
-        self.worker: threading.Thread | None = None
-        self.stream: Any = None
-        self.model: Any = None
-        self.last_spell_id: str | None = None
-        self.last_spell_at = 0.0
-        self.last_transcript_key = ""
-        self.repeated_transcript_count = 0
-        self.require_wake_word = False
-        self.wake_listen_until = 0.0
-
-    def start(self):
-        body = (
-            f'Say "{WAKE_WORD.capitalize()}" followed by a spell name, for example "{WAKE_WORD.capitalize()} fireball".'
-            if self.require_wake_word
-            else "You can say spell names in Italian or English."
-        )
-        self.overlay.showMessage_meta_body_(
-            "Loading Whisper...",
-            "Local multilingual backend",
-            body,
-        )
-        self.worker = threading.Thread(target=self.run, name="WhisperSpellListener", daemon=True)
-        self.worker.start()
-
-    def run(self):
-        try:
-            import numpy as np
-            import sounddevice as sd
-            from faster_whisper import WhisperModel
-            from huggingface_hub import snapshot_download
-        except ImportError as exc:
-            log(f"Missing Whisper dependency: {exc}")
-            self.showStatus_("Missing dependencies", "Whisper", "Run .venv/bin/python -m pip install -r requirements.txt")
-            return
-
-        try:
-            model_source = self.ensureWhisperModel_(snapshot_download)
-            log(f"Loading Whisper model: {model_source}")
-            self.showStatus_(
-                "Loading Whisper...",
-                f"Local Whisper: {self.model_name}",
-                "Preparing the speech model.",
-            )
-            self.model = WhisperModel(str(model_source), device="cpu", compute_type="int8")
-            if self.require_wake_word:
-                listening_body = (
-                    f'Say "{WAKE_WORD.capitalize()}" followed by a spell name. '
-                    f'Examples: "{WAKE_WORD.capitalize()} fireball", "{WAKE_WORD.capitalize()} palla di fuoco".'
-                )
-            else:
-                listening_body = (
-                    "You can say spell names in Italian or English. "
-                    "Examples: palla di fuoco, fireball, cure wounds."
-                )
-            self.showStatus_("Listening...", f"Local Whisper: {self.model_name}", listening_body)
-
-            def audio_callback(indata, _frames, _time_info, status):
-                if status:
-                    log(f"Audio input status: {status}")
-                mono = indata[:, 0].copy()
-                self.audio_queue.put(mono)
-
-            with sd.InputStream(
-                channels=1,
-                samplerate=self.sample_rate,
-                dtype="float32",
-                blocksize=int(self.sample_rate * 0.25),
-                callback=audio_callback,
-            ) as stream:
-                self.stream = stream
-                log(
-                    f"Whisper backend started: model={self.model_name}, "
-                    f"sample_rate={self.sample_rate}, utterance_mode=true."
-                )
-                pre_roll = np.zeros(0, dtype=np.float32)
-                utterance = np.zeros(0, dtype=np.float32)
-                speech_active = False
-                silence_samples = 0
-                max_utterance_samples = int(self.sample_rate * self.max_utterance_seconds)
-                pre_roll_samples = int(self.sample_rate * 0.25)
-                end_silence_samples = int(self.sample_rate * self.end_silence_seconds)
-                min_utterance_samples = int(self.sample_rate * self.min_utterance_seconds)
-
-                while not self.stop_event.is_set():
-                    try:
-                        chunk = self.audio_queue.get(timeout=0.2)
-                    except queue.Empty:
-                        continue
-
-                    peak = float(np.max(np.abs(chunk))) if chunk.size else 0.0
-                    rms = float(np.sqrt(np.mean(np.square(chunk)))) if chunk.size else 0.0
-                    has_voice = peak >= self.voice_peak_threshold or rms >= self.voice_rms_threshold
-
-                    if not speech_active:
-                        pre_roll = np.concatenate((pre_roll, chunk))
-                        if pre_roll.size > pre_roll_samples:
-                            pre_roll = pre_roll[-pre_roll_samples:]
-                        if not has_voice:
-                            continue
-
-                        speech_active = True
-                        utterance = np.concatenate((pre_roll, chunk))
-                        pre_roll = np.zeros(0, dtype=np.float32)
-                        silence_samples = 0
-                        if self.debug:
-                            log("VOICE START", persist=False)
-                        continue
-
-                    utterance = np.concatenate((utterance, chunk))
-                    if has_voice:
-                        silence_samples = 0
-                    else:
-                        silence_samples += chunk.size
-
-                    should_flush = silence_samples >= end_silence_samples or utterance.size >= max_utterance_samples
-                    if not should_flush:
-                        continue
-
-                    audio = utterance.copy()
-                    speech_active = False
-                    utterance = np.zeros(0, dtype=np.float32)
-                    silence_samples = 0
-
-                    voiced_audio = audio[:-end_silence_samples] if audio.size > end_silence_samples else audio
-                    if voiced_audio.size < min_utterance_samples:
-                        if self.debug:
-                            log("IGNORED: utterance too short", persist=False)
-                        continue
-
-                    action = self.transcribeAudio_(voiced_audio)
-                    if action in {"matched", "clear"}:
-                        while not self.audio_queue.empty():
-                            try:
-                                self.audio_queue.get_nowait()
-                            except queue.Empty:
-                                break
-        except Exception as exc:
-            log(f"Whisper backend error: {exc}")
-            self.showStatus_("Whisper error", "Multilingual backend", str(exc))
-
-    def ensureWhisperModel_(self, snapshot_download):
-        bundled_model = BASE_DIR / "whisper_models" / self.model_name
-        if (bundled_model / "model.bin").exists():
-            return bundled_model
-
-        explicit_path = Path(self.model_name).expanduser()
-        if (explicit_path / "model.bin").exists():
-            return explicit_path
-
-        repo_id = whisper_repo_for_model(self.model_name)
-        try:
-            dry_run = snapshot_download(
-                repo_id,
-                dry_run=True,
-                allow_patterns=WHISPER_DOWNLOAD_PATTERNS,
-            )
-            pending_bytes = sum(int(item.file_size or 0) for item in dry_run if getattr(item, "will_download", False))
-        except Exception as exc:
-            log(f"Could not inspect Whisper model download size: {exc}")
-            pending_bytes = 0
-
-        if pending_bytes <= 0:
-            self.showProgress_(
-                "Loading Whisper...",
-                f"Local Whisper: {self.model_name}",
-                "Model already available in the local cache.",
-                100.0,
-                "No download required.",
-            )
-            return Path(snapshot_download(repo_id, allow_patterns=WHISPER_DOWNLOAD_PATTERNS))
-
-        def progress_callback(downloaded: int, total: int):
-            percent = downloaded / max(1, total) * 100.0
-            self.showProgress_(
-                "Downloading Whisper model...",
-                f"Local Whisper: {self.model_name}",
-                "This happens only the first time you use this model.",
-                percent,
-                f"{format_bytes(downloaded)} / {format_bytes(total)}",
-            )
-
-        self.showProgress_(
-            "Downloading Whisper model...",
-            f"Local Whisper: {self.model_name}",
-            "This happens only the first time you use this model.",
-            0.0,
-            f"0 B / {format_bytes(pending_bytes)}",
-        )
-        WhisperDownloadProgress.configure(pending_bytes, progress_callback)
-        try:
-            model_path = snapshot_download(
-                repo_id,
-                allow_patterns=WHISPER_DOWNLOAD_PATTERNS,
-                tqdm_class=WhisperDownloadProgress,
-            )
-        finally:
-            WhisperDownloadProgress.reset()
-        self.showProgress_(
-            "Downloading Whisper model...",
-            f"Local Whisper: {self.model_name}",
-            "Download complete. Loading the model...",
-            100.0,
-            f"{format_bytes(pending_bytes)} / {format_bytes(pending_bytes)}",
-        )
-        return Path(model_path)
-
-    def transcribeAudio_(self, audio):
-        segment_iter, info = self.model.transcribe(
-            audio,
-            language=None,
-            initial_prompt=self.prompt,
-            beam_size=1,
-            temperature=0.0,
-            condition_on_previous_text=False,
-            vad_filter=True,
-            vad_parameters={"min_silence_duration_ms": 450},
-            no_speech_threshold=0.6,
-            log_prob_threshold=-1.0,
-        )
-        segments = list(segment_iter)
-        text = " ".join(segment.text.strip() for segment in segments).strip()
-        if not text:
-            return "keep"
-
-        language = getattr(info, "language", "?")
-        probability = getattr(info, "language_probability", 0.0)
-        if self.debug:
-            log(f"TRANSCRIBED [{language} {probability:.2f}]: {text}", persist=False)
-
-        if transcript_looks_incomplete(text):
-            if self.debug:
-                log(f"IGNORED [{language} {probability:.2f}]: incomplete transcript", persist=False)
-            return "keep"
-
-        match_text = text
-        if self.require_wake_word:
-            wake_text = text_after_wake_word(text)
-            now = time.monotonic()
-            if wake_text is not None:
-                self.wake_listen_until = now + WAKE_LISTEN_SECONDS
-                self.showWakeListening_(wake_text)
-                match_text = wake_text
-            elif now < self.wake_listen_until:
-                match_text = text
-            else:
-                if self.debug:
-                    log(f"IGNORED [{language} {probability:.2f}]: missing wake word", persist=False)
-                return "clear"
-            if not match_text:
-                if self.debug:
-                    log(f"IGNORED [{language} {probability:.2f}]: wake word without spell name", persist=False)
-                return "clear"
-
-        exact_spell = find_exact_spell_in_text(match_text, self.spell_lookup)
-        ignore_reason = should_ignore_whisper_transcript(text, language, probability, segments)
-        if ignore_reason is not None and exact_spell is None:
-            if self.debug:
-                log(f"IGNORED [{language} {probability:.2f}]: {ignore_reason}", persist=False)
-            return "clear"
-
-        transcript_key = normalize_transcript_for_matching(match_text)
-        if transcript_key == self.last_transcript_key:
-            self.repeated_transcript_count += 1
-        else:
-            self.last_transcript_key = transcript_key
-            self.repeated_transcript_count = 1
-
-        if self.require_wake_word and exact_spell is None:
-            self.showChoices_(match_text, text)
-            self.last_transcript_key = ""
-            self.repeated_transcript_count = 0
-            return "clear"
-
-        spell = exact_spell or find_spell_in_text(match_text, self.spell_lookup)
-        if spell is None:
-            if self.repeated_transcript_count >= 3:
-                if self.debug:
-                    log(f"IGNORED [{language} {probability:.2f}]: repeated unmatched transcript", persist=False)
-                self.last_transcript_key = ""
-                self.repeated_transcript_count = 0
-                return "clear"
-            return "keep"
-
-        now = time.monotonic()
-        if spell.id == self.last_spell_id and now - self.last_spell_at < 4.0:
-            return "clear"
-
-        self.last_spell_id = spell.id
-        self.last_spell_at = now
-        self.last_transcript_key = ""
-        self.repeated_transcript_count = 0
-        log(f"Spell found: {spell.name} from Whisper language={language!r}.")
-        self.overlay.performSelectorOnMainThread_withObject_waitUntilDone_("showSpell:", spell, False)
-        return "matched"
-
-    def showWakeListening_(self, match_text: str):
-        body = (
-            f'I heard "{match_text}". Looking for an exact spell match.'
-            if match_text
-            else f'Say the spell name now. I will listen for {int(WAKE_LISTEN_SECONDS)} seconds.'
-        )
-        self.showStatus_(f"{WAKE_WORD.capitalize()} heard", "Wake word active", body)
-
-    def showChoices_(self, query: str, heard: str):
-        candidates = search_spells(query, self.spells, 8)
-        if not candidates:
-            self.showStatus_(
-                "No exact spell match",
-                "Wake word active",
-                f'I heard "{heard}". Try saying the spell name again.',
-            )
-            return
-        if self.choice_target is not None:
-            self.choice_target.performSelectorOnMainThread_withObject_waitUntilDone_(
-                "showVoiceChoices:",
-                {"query": query, "heard": heard},
-                False,
-            )
-
-    def showStatus_(self, title: str, meta: str, body: str):
-        self.overlay.performSelectorOnMainThread_withObject_waitUntilDone_(
-            "showStatus:",
-            {"title": title, "meta": meta, "body": body},
-            False,
-        )
-
-    def showProgress_(self, title: str, meta: str, body: str, percent: float, detail: str):
-        self.overlay.performSelectorOnMainThread_withObject_waitUntilDone_(
-            "showProgress:",
-            {"title": title, "meta": meta, "body": body, "percent": percent, "detail": detail},
-            False,
-        )
-
-    def stopRecognition(self):
-        self.stop_event.set()
-        if self.stream is not None:
-            try:
-                self.stream.abort()
-            except Exception:
-                pass
-
-
-class SpeechSpellListener(NSObject):
-    audio_engine: AVAudioEngine | None
-    recognition_requests: dict[str, SFSpeechAudioBufferRecognitionRequest]
-    recognition_tasks: dict[str, Any]
-    recognizers: dict[str, SFSpeechRecognizer]
-    overlay: OverlayController
-    choice_target: Any
-    spells: list[Spell]
-    spell_lookup: dict[str, Spell]
-    contextual_strings: list[str]
-    locale_identifiers: list[str]
-    last_spell_id: str | None
-    last_spell_at: float
-    last_callback_at: float
-    restart_timer: NSTimer | None
-    refresh_timer: NSTimer | None
-    watchdog_timer: NSTimer | None
-    locale_restart_timers: dict[str, NSTimer]
-    task_serial: int
-    task_serials: dict[str, int]
-    is_stopping: bool
-    tap_installed: bool
-    debug: bool
-    require_wake_word: bool
-    wake_listen_until: float
-
-    def initWithSpells_spellLookup_overlay_choiceTarget_contextualStrings_locales_debug_(
-        self,
-        spells,
-        spell_lookup,
-        overlay,
-        choice_target,
-        contextual_strings,
-        locale_identifiers,
-        debug,
-    ):
-        self = objc.super(SpeechSpellListener, self).init()
-        if self is None:
-            return None
-        self.spells = list(spells)
-        self.spell_lookup = spell_lookup
-        self.overlay = overlay
-        self.choice_target = choice_target
-        self.contextual_strings = list(contextual_strings)
-        self.locale_identifiers = list(locale_identifiers)
-        self.last_spell_id = None
-        self.last_spell_at = 0.0
-        self.last_callback_at = 0.0
-        self.audio_engine = None
-        self.recognition_requests = {}
-        self.recognition_tasks = {}
-        self.recognizers = {}
-        self.restart_timer = None
-        self.refresh_timer = None
-        self.watchdog_timer = None
-        self.locale_restart_timers = {}
-        self.task_serial = 0
-        self.task_serials = {}
-        self.is_stopping = False
-        self.tap_installed = False
-        self.debug = debug
-        self.require_wake_word = False
-        self.wake_listen_until = 0.0
-        return self
-
-    def start(self):
-        if not NSBundle.mainBundle().objectForInfoDictionaryKey_("NSSpeechRecognitionUsageDescription"):
-            message = (
-                "The Speech backend must be launched from Arcane Manager.app, not directly "
-                "from the Python binary. macOS requires the NSSpeechRecognitionUsageDescription key."
-            )
-            log(message)
-            self.overlay.showMessage_meta_body_(
-                "App launch required",
-                "Speech Recognition permission",
-                "Close this window and open Arcane Manager.app or use ArcaneManager.command, "
-                "which launches the correct app bundle.",
-            )
-            return
-
-        log("Requesting Speech Recognition permission.")
-        self.overlay.showMessage_meta_body_(
-            "Requesting permissions...",
-            "Microphone and speech recognition",
-            "If macOS shows a speech recognition prompt, allow access. "
-            "Microphone permission alone is not enough for this backend.",
-        )
-        SFSpeechRecognizer.requestAuthorization_(self.authorizationHandler_)
-
-    def authorizationHandler_(self, status):
-        if status == SFSpeechRecognizerAuthorizationStatusAuthorized:
-            self.performSelectorOnMainThread_withObject_waitUntilDone_("startAudio:", None, False)
-            return
-
-        if status == SFSpeechRecognizerAuthorizationStatusDenied:
-            reason = "Speech Recognition permission denied."
-        elif status == SFSpeechRecognizerAuthorizationStatusRestricted:
-            reason = "Speech Recognition is unavailable on this Mac or account."
-        else:
-            reason = "Speech Recognition permission was not granted."
-
-        log(reason)
-        self.performSelectorOnMainThread_withObject_waitUntilDone_("showPermissionError:", reason, False)
-
-    def showPermissionError_(self, reason: str):
-        self.overlay.showMessage_meta_body_(
-            "Cannot listen",
-            reason,
-            "Open System Settings > Privacy & Security > Speech Recognition "
-            "and enable permission for Python/Terminal. Check Microphone too.",
-        )
-
-    def startAudio_(self, _sender):
-        unavailable_locales = []
-        for locale_identifier in self.locale_identifiers:
-            locale = NSLocale.localeWithLocaleIdentifier_(locale_identifier)
-            recognizer = SFSpeechRecognizer.alloc().initWithLocale_(locale)
-            if recognizer is None or not recognizer.isAvailable():
-                unavailable_locales.append(locale_identifier)
-                continue
-            self.recognizers[locale_identifier] = recognizer
-
-        if not self.recognizers:
-            self.overlay.showMessage_meta_body_(
-                "Recognizer unavailable",
-                f"Requested locales: {', '.join(self.locale_identifiers)}",
-                "Check that Dictation/Siri are available in macOS settings.",
-            )
-            return
-        if unavailable_locales:
-            log(f"Unavailable Speech locales: {', '.join(unavailable_locales)}")
-
-        try:
-            self.beginRecognition()
-        except Exception as exc:
-            log(f"Speech backend startup error: {exc}")
-            self.overlay.showMessage_meta_body_(
-                "Listening startup error",
-                "Speech backend",
-                str(exc),
-            )
-
-    def beginRecognition(self):
-        self.is_stopping = False
-        self.startAudioEngine()
-        self.startRecognitionTask_("start")
-        self.startWatchdog()
-
-        log(f"Speech backend started with locales {', '.join(self.recognizers)}.")
-        if self.require_wake_word:
-            body = (
-                f'Say "{WAKE_WORD.capitalize()}" followed by a spell name. '
-                f'Examples: "{WAKE_WORD.capitalize()} fireball" or "{WAKE_WORD.capitalize()} palla di fuoco".'
-            )
-        else:
-            body = (
-                "Say the name of a spell, even inside a sentence. "
-                "Examples: 'lancio palla di fuoco' or 'I cast fireball'."
-            )
-        self.overlay.showMessage_meta_body_("Listening...", f"Speech backend, locales {', '.join(self.recognizers)}", body)
-
-    def startAudioEngine(self):
-        if self.audio_engine is None:
-            self.audio_engine = AVAudioEngine.alloc().init()
-
-        input_node = self.audio_engine.inputNode()
-        audio_format = input_node.outputFormatForBus_(0)
-
-        if not self.tap_installed:
-            def tap_block(buffer, _when):
-                for request in list(self.recognition_requests.values()):
-                    request.appendAudioPCMBuffer_(buffer)
-
-            input_node.installTapOnBus_bufferSize_format_block_(0, 1024, audio_format, tap_block)
-            self.tap_installed = True
-
-        if not self.audio_engine.isRunning():
-            self.audio_engine.prepare()
-            ok, error = self.audio_engine.startAndReturnError_(None)
-            if not ok:
-                raise RuntimeError(error or "AVAudioEngine did not start.")
-
-    def startRecognitionTask_(self, reason: str):
-        self.startRecognitionTasksForLocales_reason_(list(self.recognizers), reason)
-
-    def startRecognitionTasksForLocales_reason_(self, locale_identifiers, reason: str):
-        for locale_identifier in locale_identifiers:
-            self.cancelRecognitionTaskForLocale_(locale_identifier)
-
-        opened_locales = []
-        for locale_identifier in locale_identifiers:
-            recognizer = self.recognizers.get(locale_identifier)
-            if recognizer is None:
-                continue
-
-            serial = self.task_serials.get(locale_identifier, 0) + 1
-            self.task_serials[locale_identifier] = serial
-
-            recognition_request = SFSpeechAudioBufferRecognitionRequest.alloc().init()
-            recognition_request.setShouldReportPartialResults_(True)
-            recognition_request.setContextualStrings_(self.contextual_strings)
-
-            if recognizer.supportsOnDeviceRecognition():
-                recognition_request.setRequiresOnDeviceRecognition_(False)
-
-            def result_handler(result, error, locale_identifier=locale_identifier):
-                if serial != self.task_serials.get(locale_identifier) or self.is_stopping:
-                    return
-
-                self.last_callback_at = time.monotonic()
-
-                if result is not None:
-                    text = str(result.bestTranscription().formattedString())
-                    if self.debug:
-                        log(f"Transcribed [{locale_identifier}]: {text}", persist=False)
-                    self.handleTranscript_(text)
-
-                if error is not None:
-                    log(f"Speech task ended [{locale_identifier}] ({reason}): {error}")
-                    self.performSelectorOnMainThread_withObject_waitUntilDone_(
-                        "scheduleLocaleRestart:",
-                        locale_identifier,
-                        False,
-                    )
-
-            self.recognition_requests[locale_identifier] = recognition_request
-            self.recognition_tasks[locale_identifier] = recognizer.recognitionTaskWithRequest_resultHandler_(
-                recognition_request,
-                result_handler,
-            )
-            opened_locales.append(locale_identifier)
-
-        if opened_locales:
-            log(f"Opened Speech tasks: {reason} ({', '.join(sorted(opened_locales))}).")
-        else:
-            log(f"No Speech tasks opened for: {reason}.")
-            self.overlay.showMessage_meta_body_(
-                "No active recognizer",
-                "Speech backend",
-                "Could not open Speech tasks for the configured locales.",
-            )
-            return
-
-        if self.refresh_timer is not None:
-            self.refresh_timer.invalidate()
-        self.refresh_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            50.0,
-            self,
-            "refreshRecognitionTask:",
-            None,
-            False,
-        )
-
-    def cancelRecognitionTask(self):
-        if getattr(self, "restart_timer", None) is not None:
-            self.restart_timer.invalidate()
-            self.restart_timer = None
-        if getattr(self, "refresh_timer", None) is not None:
-            self.refresh_timer.invalidate()
-            self.refresh_timer = None
-        for timer in list(self.locale_restart_timers.values()):
-            timer.invalidate()
-        self.locale_restart_timers = {}
-
-        for locale_identifier in list(self.recognition_requests):
-            self.cancelRecognitionTaskForLocale_(locale_identifier)
-
-    def cancelRecognitionTaskForLocale_(self, locale_identifier: str):
-        timer = self.locale_restart_timers.pop(locale_identifier, None)
-        if timer is not None:
-            timer.invalidate()
-
-        self.task_serials[locale_identifier] = self.task_serials.get(locale_identifier, 0) + 1
-
-        request = self.recognition_requests.pop(locale_identifier, None)
-        if request is not None:
-            request.endAudio()
-        task = self.recognition_tasks.pop(locale_identifier, None)
-        if task is not None:
-            task.cancel()
-
-    def stopRecognition(self):
-        self.is_stopping = True
-        self.cancelRecognitionTask()
-        if getattr(self, "watchdog_timer", None) is not None:
-            self.watchdog_timer.invalidate()
-            self.watchdog_timer = None
-
-        if self.audio_engine is not None:
-            if self.tap_installed:
-                try:
-                    self.audio_engine.inputNode().removeTapOnBus_(0)
-                except Exception as exc:
-                    log(f"Audio tap removal error: {exc}")
-                self.tap_installed = False
-            if self.audio_engine.isRunning():
-                self.audio_engine.stop()
-            self.audio_engine = None
-
-    def scheduleRecognitionRestart_(self, _sender):
-        if self.is_stopping:
-            return
-        if self.restart_timer is not None:
-            return
-        self.restart_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            1.5,
-            self,
-            "restartRecognition:",
-            None,
-            False,
-        )
-
-    def scheduleLocaleRestart_(self, locale_identifier: str):
-        if self.is_stopping:
-            return
-        if locale_identifier in self.locale_restart_timers:
-            return
-        timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            8.0,
-            self,
-            "restartLocale:",
-            locale_identifier,
-            False,
-        )
-        self.locale_restart_timers[locale_identifier] = timer
-
-    def restartLocale_(self, timer):
-        locale_identifier = str(timer.userInfo())
-        self.locale_restart_timers.pop(locale_identifier, None)
-        if self.is_stopping:
-            return
-        log(f"Restarting Speech task for locale {locale_identifier} without touching the others.")
-        try:
-            self.startRecognitionTasksForLocales_reason_([locale_identifier], "locale-restart")
-        except Exception as exc:
-            log(f"Locale restart error for {locale_identifier}: {exc}")
-
-    def restartRecognition_(self, _sender):
-        self.restart_timer = None
-        if self.is_stopping:
-            return
-        log("Restarting Speech tasks without restarting the microphone.")
-        try:
-            self.startAudioEngine()
-            self.startRecognitionTask_("restart")
-        except Exception as exc:
-            log(f"Speech backend restart error: {exc}")
-
-    def refreshRecognitionTask_(self, _sender):
-        self.refresh_timer = None
-        if self.is_stopping:
-            return
-        log("Periodic Speech task refresh without restarting the microphone.")
-        try:
-            self.startRecognitionTask_("refresh")
-        except Exception as exc:
-            log(f"Speech backend refresh error: {exc}")
-
-    def startWatchdog(self):
-        self.last_callback_at = time.monotonic()
-        if self.watchdog_timer is not None:
-            self.watchdog_timer.invalidate()
-        self.watchdog_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            10.0,
-            self,
-            "watchdogTick:",
-            None,
-            True,
-        )
-
-    def watchdogTick_(self, _sender):
-        if self.is_stopping:
-            return
-        if self.audio_engine is None or not self.audio_engine.isRunning():
-            log("Watchdog: audio engine stopped; fully restarting listening.")
-            try:
-                self.startAudioEngine()
-                self.startRecognitionTask_("watchdog-audio")
-            except Exception as exc:
-                log(f"Audio watchdog error: {exc}")
-            return
-
-        idle_seconds = time.monotonic() - self.last_callback_at
-        if idle_seconds > 25:
-            log(f"Watchdog: no Speech callback for {idle_seconds:.0f}s; refreshing tasks.")
-            try:
-                self.startRecognitionTask_("watchdog-stale")
-            except Exception as exc:
-                log(f"Speech watchdog error: {exc}")
-
-    def handleTranscript_(self, transcript: str):
-        match_text = transcript
-        if self.require_wake_word:
-            wake_text = text_after_wake_word(transcript)
-            now = time.monotonic()
-            if wake_text is not None:
-                self.wake_listen_until = now + WAKE_LISTEN_SECONDS
-                self.performSelectorOnMainThread_withObject_waitUntilDone_(
-                    "showWakeListening:",
-                    wake_text,
-                    False,
-                )
-                match_text = wake_text
-            elif now >= self.wake_listen_until:
-                return
-            if not match_text:
-                return
-
-        exact_spell = find_exact_spell_in_text(match_text, self.spell_lookup)
-        if self.require_wake_word and exact_spell is None:
-            self.performSelectorOnMainThread_withObject_waitUntilDone_(
-                "showChoices:",
-                {"query": match_text, "heard": transcript},
-                False,
-            )
-            return
-
-        spell = exact_spell or find_spell_in_text(match_text, self.spell_lookup)
-        if spell is None:
-            return
-
-        now = time.monotonic()
-        if spell.id == self.last_spell_id and now - self.last_spell_at < 3.0:
-            return
-
-        self.last_spell_id = spell.id
-        self.last_spell_at = now
-        log(f"Spell found: {spell.name} from Speech transcript.")
-        self.performSelectorOnMainThread_withObject_waitUntilDone_("showSpell:", spell, False)
-        self.performSelectorOnMainThread_withObject_waitUntilDone_(
-            "resetAfterSpell:",
-            None,
-            False,
-        )
-
-    def showSpell_(self, spell: Spell):
-        self.overlay.showSpell_(spell)
-
-    def showWakeListening_(self, match_text: str):
-        body = (
-            f'I heard "{match_text}". Looking for an exact spell match.'
-            if match_text
-            else f'Say the spell name now. I will listen for {int(WAKE_LISTEN_SECONDS)} seconds.'
-        )
-        self.overlay.showMessage_meta_body_(f"{WAKE_WORD.capitalize()} heard", "Wake word active", body)
-
-    def showChoices_(self, payload: dict[str, str]):
-        query = str(payload.get("query", ""))
-        heard = str(payload.get("heard", query))
-        candidates = search_spells(query, self.spells, 8)
-        if not candidates:
-            self.overlay.showMessage_meta_body_(
-                "No exact spell match",
-                "Wake word active",
-                f'I heard "{heard}". Try saying the spell name again.',
-            )
-            return
-        if self.choice_target is not None:
-            self.choice_target.performSelectorOnMainThread_withObject_waitUntilDone_(
-                "showVoiceChoices:",
-                {"query": query, "heard": heard},
-                False,
-            )
-
-    def resetAfterSpell_(self, _sender):
-        if self.is_stopping:
-            return
-        try:
-            self.startRecognitionTask_("spell-match")
-        except Exception as exc:
-            log(f"Post-spell reset error: {exc}")
-
-
 def carbon_hotkey_event_callback(_next_handler, _event, _user_data):
     delegate = GLOBAL_HOTKEY_DELEGATE
     if delegate is not None:
@@ -4989,7 +3895,6 @@ class AppDelegate(NSObject):
     spells: list[Spell]
     creatures: list[Creature]
     spell_lookup: dict[str, Spell]
-    contextual_strings: list[str]
     status_item: Any
     main_controller: MainWindowController
     search_menu_item: NSMenuItem
@@ -4997,31 +3902,20 @@ class AppDelegate(NSObject):
     search_controller: SpellSearchController
     preferences_controller: PreferencesController
     search_hotkey: Hotkey
-    require_wake_word: bool
     carbon: Any
     carbon_hotkey_ref: Any
     carbon_event_handler_ref: Any
     local_hotkey_monitor: Any
     local_hotkey_handler: Any
     simulate_command: str | None
-    backend: str
-    locale_identifiers: list[str]
-    whisper_model: str
-    debug: bool
-    listener: Any
 
-    def initWithSpells_creatures_spellLookup_overlay_contextualStrings_simulate_backend_locales_whisperModel_debug_(
+    def initWithSpells_creatures_spellLookup_overlay_simulate_(
         self,
         spells,
         creatures,
         spell_lookup,
         overlay,
-        contextual_strings,
         simulate_command,
-        backend,
-        locale_identifiers,
-        whisper_model,
-        debug,
     ):
         self = objc.super(AppDelegate, self).init()
         if self is None:
@@ -5030,13 +3924,7 @@ class AppDelegate(NSObject):
         self.creatures = list(creatures)
         self.spell_lookup = spell_lookup
         self.overlay = overlay
-        self.contextual_strings = list(contextual_strings)
         self.simulate_command = simulate_command
-        self.backend = backend
-        self.locale_identifiers = list(locale_identifiers)
-        self.whisper_model = whisper_model
-        self.debug = debug
-        self.listener = None
         self.status_item = None
         self.main_controller = None
         self.search_menu_item = None
@@ -5044,7 +3932,6 @@ class AppDelegate(NSObject):
         self.search_controller = None
         self.preferences_controller = None
         self.search_hotkey = load_search_hotkey()
-        self.require_wake_word = load_require_wake_word()
         self.carbon = None
         self.carbon_hotkey_ref = None
         self.carbon_event_handler_ref = None
@@ -5079,38 +3966,6 @@ class AppDelegate(NSObject):
                 False,
             )
             return
-
-        if not VOICE_FEATURES_ENABLED:
-            log("Voice features are temporarily disabled.")
-            return
-
-        if self.backend == "whisper":
-            self.listener = WhisperSpellListener(
-                self.spells,
-                self.spell_lookup,
-                self.overlay,
-                self,
-                self.whisper_model,
-                whisper_prompt_for_spells(self.contextual_strings),
-                self.debug,
-            )
-        elif self.backend == "command":
-            self.listener = CommandSpellListener.alloc().initWithSpellLookup_overlay_(
-                self.spell_lookup,
-                self.overlay,
-            )
-        else:
-            self.listener = SpeechSpellListener.alloc().initWithSpells_spellLookup_overlay_choiceTarget_contextualStrings_locales_debug_(
-                self.spells,
-                self.spell_lookup,
-                self.overlay,
-                self,
-                self.contextual_strings,
-                self.locale_identifiers,
-                self.debug,
-            )
-        self.applyVoicePreferencesToListener()
-        self.listener.start()
 
     def installMainMenu(self):
         main_menu = NSMenu.alloc().init()
@@ -5293,9 +4148,6 @@ class AppDelegate(NSObject):
     def showPreferences_(self, _sender):
         self.preferences_controller.show_(None)
 
-    def showVoiceChoices_(self, payload: dict[str, str]):
-        self.search_controller.showWithQuery_(payload)
-
     def setSearchHotkey_(self, hotkey: Hotkey):
         self.search_hotkey = hotkey
         save_search_hotkey(hotkey)
@@ -5307,24 +4159,12 @@ class AppDelegate(NSObject):
             self.status_search_item.setTitle_(f"Search Spell... ({hotkey_display(hotkey)})")
         log(f"Search hotkey set to {hotkey_display(hotkey)}.")
 
-    def applyVoicePreferencesToListener(self):
-        if self.listener is not None and hasattr(self.listener, "require_wake_word"):
-            self.listener.require_wake_word = self.require_wake_word
-
-    def setRequireWakeWord_(self, enabled: bool):
-        self.require_wake_word = bool(enabled)
-        save_require_wake_word(self.require_wake_word)
-        self.applyVoicePreferencesToListener()
-        state = "enabled" if self.require_wake_word else "disabled"
-        log(f"Wake word mode {state}: {WAKE_WORD.capitalize()}.")
-
     def showAbout_(self, _sender):
         alert = NSAlert.alloc().init()
         alert.setMessageText_("Arcane Manager")
         alert.setInformativeText_(
-            "A voice-powered spell overlay for Dungeons & Dragons 5e.\n\n"
-            "Say a spell name in English or Italian and Arcane Manager shows "
-            "its casting details without interrupting your game.\n\n"
+            "A Dungeons & Dragons 5e table assistant with spells, bestiary, "
+            "initiative tracking, and dice rolling.\n\n"
             "Developed by Giulio Maffei and Francesco Di Castri."
         )
         alert.addButtonWithTitle_("OK")
@@ -5338,21 +4178,17 @@ class AppDelegate(NSObject):
 
     def applicationWillTerminate_(self, _notification):
         self.unregisterCarbonHotkey()
-        if self.listener is not None and hasattr(self.listener, "stopRecognition"):
-            self.listener.stopRecognition()
 
     def applicationShouldTerminateAfterLastWindowClosed_(self, _sender):
         return False
 
     def quit_(self, _sender):
         self.unregisterCarbonHotkey()
-        if self.listener is not None and hasattr(self.listener, "stopRecognition"):
-            self.listener.stopRecognition()
         NSApp.terminate_(None)
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Arcane Manager spell listener for macOS.")
+    parser = argparse.ArgumentParser(description="Arcane Manager for macOS.")
     parser.add_argument(
         "--spells",
         default=str(DEFAULT_SPELLS_FILE),
@@ -5371,42 +4207,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--simulate",
-        help="Show a spell by alias without using the microphone, then exit.",
-    )
-    parser.add_argument(
-        "--backend",
-        choices=("whisper", "speech", "command"),
-        default="whisper",
-        help="whisper is multilingual local transcription; speech uses macOS Speech; command uses older macOS command recognition.",
-    )
-    parser.add_argument(
-        "--whisper-model",
-        default="base",
-        help="faster-whisper model name. Use tiny for speed, base for balance, small for better accuracy.",
-    )
-    parser.add_argument(
-        "--locale",
-        help="Single speech recognition locale, for example it-IT or en-US. Overrides --locales.",
-    )
-    parser.add_argument(
-        "--locales",
-        default="it-IT,en-US",
-        help="Comma-separated speech recognition locales. Default: it-IT,en-US.",
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Print live transcriptions to the terminal.",
+        help="Show a spell by alias, then exit.",
     )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
-    locale_identifiers = [args.locale] if args.locale else parse_locales(args.locales)
     spells, lookup = load_spells(Path(args.spells).expanduser())
     creatures = load_bestiary(Path(args.bestiary).expanduser())
-    contextual_strings = contextual_strings_for_spells(spells)
     if not spells:
         raise SystemExit("No spells found in the spell database.")
 
@@ -5414,30 +4223,19 @@ def main(argv: list[str] | None = None) -> int:
     app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
 
     overlay = OverlayController.alloc().initWithHideAfter_(args.hide_after)
-    delegate = AppDelegate.alloc().initWithSpells_creatures_spellLookup_overlay_contextualStrings_simulate_backend_locales_whisperModel_debug_(
+    delegate = AppDelegate.alloc().initWithSpells_creatures_spellLookup_overlay_simulate_(
         spells,
         creatures,
         lookup,
         overlay,
-        contextual_strings,
         args.simulate,
-        args.backend,
-        locale_identifiers,
-        args.whisper_model,
-        args.debug,
     )
     APP_RETAINED_OBJECTS.extend([overlay, delegate])
-    log(
-        f"Starting app with {len(spells)} spells, {len(lookup)} aliases, "
-        f"{len(contextual_strings)} configured names, "
-        f"backend={args.backend}, whisper_model={args.whisper_model}, "
-        f"locales={','.join(locale_identifiers)}."
-    )
+    log(f"Starting app with {len(spells)} spells and {len(creatures)} creatures.")
     app.setDelegate_(delegate)
     app.run()
     return 0
 
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
     raise SystemExit(main())

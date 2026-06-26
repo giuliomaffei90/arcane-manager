@@ -35,37 +35,22 @@ rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_b
   --add-data=assets/icons:resources/assets/icons \
   --add-data=assets/dice_roller:resources/assets/dice_roller \
   --add-data=assets/three-dice:resources/assets/three-dice \
-  --collect-all faster_whisper \
-  --collect-all huggingface_hub \
-  --collect-all tqdm \
-  --collect-all ctranslate2 \
-  --collect-all av \
-  --collect-all sounddevice \
-  --collect-all numpy \
   --collect-all pyobjc_core \
   --collect-all pyobjc_framework_Cocoa \
   --collect-all WebKit \
   --collect-all JavaScriptCore \
-  --collect-all pyobjc_framework_AVFoundation \
-  --collect-all pyobjc_framework_Speech \
   --hidden-import objc \
   --hidden-import Cocoa \
   --hidden-import WebKit \
   --hidden-import JavaScriptCore \
-  --hidden-import AVFoundation \
-  --hidden-import Speech \
   SpellAudio.py > pyinstaller_build.log 2>&1
 
 PLIST="dist/$APP_NAME.app/Contents/Info.plist"
-for key in NSMicrophoneUsageDescription NSSpeechRecognitionUsageDescription LSUIElement; do
-  /usr/libexec/PlistBuddy -c "Delete :$key" "$PLIST" 2>/dev/null || true
-done
+/usr/libexec/PlistBuddy -c "Delete :LSUIElement" "$PLIST" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $APP_NAME" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleName $APP_NAME" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :NSHighResolutionCapable true" "$PLIST" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$PLIST"
-/usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Arcane Manager uses the microphone to listen for spell names during your session." "$PLIST"
-/usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string Arcane Manager uses speech recognition to transcribe spell names." "$PLIST"
 
 codesign --force --deep --sign - "dist/$APP_NAME.app"
 cp -R "dist/$APP_NAME.app" .
