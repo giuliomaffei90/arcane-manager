@@ -1,6 +1,7 @@
 pyobjc-framework-Cocoa>=12.2
 pyobjc-framework-WebKit>=12.2
 beautifulsoup4>=4.15.0
+markdown-it-py>=4.2.0
 requests>=2.34.2
 ddgs>=9.9.2
 json5>=0.14.0

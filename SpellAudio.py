@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import functools
+import html
 import http.server
 import json
 import random
@@ -23,6 +24,16 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:  # pragma: no cover - startup dependency message covers installs
+    BeautifulSoup = None
+
+try:
+    from markdown_it import MarkdownIt
+except ImportError:  # pragma: no cover - Adventure tab shows a friendly message
+    MarkdownIt = None
 
 try:
     import objc
@@ -55,6 +66,7 @@ try:
         NSMakeRect,
         NSMenu,
         NSMenuItem,
+        NSOpenPanel,
         NSMutableParagraphStyle,
         NSPanel,
         NSParagraphStyleAttributeName,
@@ -82,6 +94,8 @@ try:
         NSWindowStyleMaskResizable,
         NSWindowStyleMaskTitled,
         NSWindowStyleMaskUtilityWindow,
+        NSWorkspace,
+        NSWorkspaceRecycleOperation,
         NSTextField,
         NSCompositingOperationSourceOver,
     )
@@ -203,6 +217,8 @@ CARBON_OPTION_KEY = 1 << 11
 CARBON_CONTROL_KEY = 1 << 12
 SEARCH_HOTKEY_PREF = "SearchHotkey"
 PARTIES_PREF = "InitiativeParties"
+ADVENTURE_VAULT_PREF = "AdventureVaultPath"
+ADVENTURE_SELECTED_NOTE_PREF = "AdventureSelectedNotePath"
 CLASS_OPTIONS = [
     "Artificer",
     "Barbarian",
@@ -943,6 +959,212 @@ def format_dice_roll_history() -> str:
     if not DICE_ROLL_HISTORY:
         return "No rolls yet."
     return "\n".join(f"{index + 1}. {entry}" for index, entry in enumerate(DICE_ROLL_HISTORY))
+
+
+@dataclass
+class AdventureNode:
+    path: Path
+    name: str
+    is_dir: bool
+    depth: int
+    children: list["AdventureNode"]
+
+
+ADVENTURE_COLOR_PALETTE = [
+    ("Blue", "#3885d6"),
+    ("Red", "#ea1f1f"),
+    ("Green", "#5bc267"),
+    ("Cyan", "#00e2e6"),
+    ("yellow", "#d6b300"),
+    ("orange", "#d66000"),
+    ("pink", "#ff70e5"),
+]
+
+
+ADVENTURE_MARKDOWN_CSS = """
+:root {
+  color-scheme: dark;
+  --bg: #202329;
+  --panel: #252932;
+  --text: #d8d8dc;
+  --muted: #969aa3;
+  --border: #3a3f49;
+  --link: #48a8f5;
+  --dice: #93f447;
+  --gold: #f0c84b;
+  --danger: #ff5a67;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; margin: 0; background: var(--bg); }
+body {
+  color: var(--text);
+  font: 16px/1.62 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  padding: 36px 48px 72px;
+}
+main { max-width: 980px; margin: 0 auto; }
+h1, h2, h3, h4 { color: #ececf0; line-height: 1.2; margin: 1.45em 0 0.55em; }
+h1 { font-size: 2rem; margin-top: 0; }
+h2 { font-size: 1.58rem; }
+h3 { font-size: 1.28rem; }
+p, ul, ol, table, blockquote, pre, .callout { margin: 0 0 1.05em; }
+a { color: var(--link); text-decoration: none; cursor: pointer; }
+a:hover { text-decoration: underline; }
+.dice-link { color: var(--dice); font-weight: 700; white-space: nowrap; }
+strong { color: #efeff3; }
+em { color: #dddde2; }
+code {
+  color: #f2d27b;
+  background: #171a20;
+  border: 1px solid #333844;
+  border-radius: 5px;
+  padding: 0.08em 0.32em;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 0.88em;
+}
+pre {
+  background: #171a20;
+  border: 1px solid #333844;
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+pre code { border: 0; padding: 0; background: transparent; color: #d6d7dc; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #1d2027;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+th, td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; }
+th { color: var(--gold); background: #272b34; text-align: left; }
+blockquote {
+  border-left: 4px solid #5b6575;
+  color: #caccd3;
+  padding: 0.15em 0 0.15em 1em;
+}
+.callout {
+  --callout-bg: #2f343d;
+  --callout-border: #444b58;
+  --callout-accent: #8f98a6;
+  --callout-title: #aeb6c4;
+  background: var(--callout-bg);
+  border: 1px solid var(--callout-border);
+  border-left: 4px solid var(--callout-accent);
+  border-radius: 7px;
+  padding: 14px 18px 16px;
+}
+.callout-title {
+  color: var(--callout-title);
+  font-weight: 800;
+  margin-bottom: 0.65em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.42em;
+}
+.callout-title::before {
+  color: var(--callout-accent);
+  content: "•";
+  flex: 0 0 auto;
+  font-weight: 800;
+}
+.callout-title a { color: inherit; }
+.callout-quote {
+  --callout-bg: #2b3038;
+  --callout-border: #343943;
+  --callout-accent: #90949d;
+  --callout-title: #b0b3ba;
+}
+.callout-quote .callout-title::before { content: "❞"; }
+.callout-info, .callout-note, .callout-tip {
+  --callout-bg: #233149;
+  --callout-border: #314664;
+  --callout-accent: #2294ff;
+  --callout-title: #2294ff;
+}
+.callout-info .callout-title::before,
+.callout-note .callout-title::before,
+.callout-tip .callout-title::before { content: "ⓘ"; }
+.callout-warning, .callout-caution, .callout-attention {
+  --callout-bg: #3a3331;
+  --callout-border: #514741;
+  --callout-accent: #f39a32;
+  --callout-title: #ffa43f;
+}
+.callout-warning .callout-title::before,
+.callout-caution .callout-title::before,
+.callout-attention .callout-title::before { content: "⚠"; }
+.callout-danger, .callout-failure, .callout-error {
+  --callout-bg: #3b292e;
+  --callout-border: #5a3941;
+  --callout-accent: var(--danger);
+  --callout-title: var(--danger);
+}
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin: 0.5em 0 1.15em;
+}
+hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+.empty, .missing { color: var(--muted); font-style: italic; }
+@media (max-width: 720px) {
+  body { padding: 24px 26px 56px; font-size: 15px; }
+}
+"""
+
+
+def safe_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def strip_markdown_frontmatter(markdown: str) -> str:
+    if not markdown.startswith("---"):
+        return markdown
+    match = re.match(r"^---\s*\n.*?\n---\s*\n?", markdown, flags=re.S)
+    if match:
+        return markdown[match.end() :]
+    return markdown
+
+
+def separate_obsidian_callout_titles(markdown: str) -> str:
+    lines = markdown.splitlines()
+    output: list[str] = []
+    for index, line in enumerate(lines):
+        output.append(line)
+        if not re.match(r"^\s*>\s*\[!\w+\]", line):
+            continue
+        next_line = lines[index + 1] if index + 1 < len(lines) else ""
+        if re.match(r"^\s*>\s*$", next_line):
+            continue
+        if re.match(r"^\s*>", next_line):
+            output.append(">")
+    trailing_newline = "\n" if markdown.endswith("\n") else ""
+    return "\n".join(output) + trailing_newline
+
+
+def natural_sort_key(value: str) -> list[Any]:
+    parts = re.split(r"(\d+)", normalize(str(value)))
+    return [int(part) if part.isdigit() else part for part in parts]
+
+
+def markdown_parser():
+    if MarkdownIt is None:
+        return None
+    parser = MarkdownIt("commonmark", {"html": True, "linkify": False})
+    for rule in ("table", "strikethrough"):
+        try:
+            parser.enable(rule)
+        except Exception:
+            pass
+    return parser
 
 
 def component_badge_text(components: str) -> str:
@@ -2274,6 +2496,102 @@ class SearchResultButton(NSButton):
         draw_fitted_text(bottom, NSMakeRect(14, 25, width - 28, 15), 11.5, muted, False)
 
 
+def color_from_hex(value: str, fallback=None):
+    text = str(value or "").strip().lstrip("#")
+    if len(text) != 6:
+        return fallback or ui_color(0.86, 0.86, 0.88, 1.0)
+    try:
+        red = int(text[0:2], 16) / 255.0
+        green = int(text[2:4], 16) / 255.0
+        blue = int(text[4:6], 16) / 255.0
+    except ValueError:
+        return fallback or ui_color(0.86, 0.86, 0.88, 1.0)
+    return ui_color(red, green, blue, 1.0)
+
+
+class AdventureTreeButton(NSButton):
+    display_name = objc.ivar()
+    node_path = objc.ivar()
+    depth = objc.ivar()
+    is_dir = objc.ivar()
+    is_expanded = objc.ivar()
+    is_selected = objc.ivar()
+    color_hex = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(AdventureTreeButton, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.display_name = ""
+        self.node_path = ""
+        self.depth = 0
+        self.is_dir = False
+        self.is_expanded = False
+        self.is_selected = False
+        self.color_hex = ""
+        self.setBordered_(False)
+        self.setTitle_("")
+        return self
+
+    def configureName_path_depth_isDir_expanded_selected_color_(
+        self,
+        name,
+        path,
+        depth,
+        is_dir,
+        expanded,
+        selected,
+        color_hex,
+    ):
+        self.display_name = str(name)
+        self.node_path = str(path)
+        self.depth = int(depth)
+        self.is_dir = bool(is_dir)
+        self.is_expanded = bool(expanded)
+        self.is_selected = bool(selected)
+        self.color_hex = str(color_hex or "")
+        self.setToolTip_(str(path))
+        self.setNeedsDisplay_(True)
+
+    def menuForEvent_(self, _event):
+        target = self.target()
+        if target is not None and hasattr(target, "adventureContextMenuForButton_"):
+            return target.adventureContextMenuForButton_(self)
+        return objc.super(AdventureTreeButton, self).menuForEvent_(_event)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        highlighted = self.isHighlighted()
+        if self.is_selected:
+            fill = ui_color(0.28, 0.47, 0.82, 1.0)
+        elif highlighted:
+            fill = ui_color(0.14, 0.15, 0.17, 1.0)
+        else:
+            fill = None
+        if fill is not None:
+            draw_rounded_rect(
+                NSMakeRect(4, 1, max(1, bounds.size.width - 8), max(1, bounds.size.height - 2)),
+                fill,
+                None,
+                5,
+                0,
+            )
+
+        indent = 10 + int(self.depth) * 18
+        text_x = indent + 20
+        text_color = color_from_hex(self.color_hex, ui_color(0.84, 0.84, 0.86, 1.0))
+        if self.is_selected:
+            text_color = ui_color(0.96, 0.96, 0.98, 1.0)
+        muted = ui_color(0.52, 0.54, 0.58, 1.0)
+
+        if self.is_dir:
+            arrow = "⌄" if self.is_expanded else "›"
+            draw_center_fitted_text(arrow, NSMakeRect(indent, 5, 14, 16), 14, muted, True)
+            draw_fitted_text(self.display_name, NSMakeRect(text_x, 5, bounds.size.width - text_x - 10, 18), 13, text_color, True)
+        else:
+            draw_fitted_text(self.display_name, NSMakeRect(text_x, 5, bounds.size.width - text_x - 10, 18), 13, text_color, False)
+
+
 class StatBlockAbilityButton(NSButton):
     ability_name = objc.ivar()
     score_text = objc.ivar()
@@ -2707,12 +3025,14 @@ class MainWindowController(NSObject):
     initiative_tab_button: NSButton
     spells_tab_button: NSButton
     dice_tab_button: NSButton
+    adventure_tab_button: NSButton
     sidebar_panel: NSView
     sidebar_scroll: NSScrollView
     sidebar_content: NSView
     combat_panel: NSView
     spell_panel: NSView
     dice_panel: NSView
+    adventure_panel: NSView
     sidebar_logo_label: NSTextField
     sidebar_footer_label: NSTextField
     creatures: list[Creature]
@@ -2803,6 +3123,30 @@ class MainWindowController(NSObject):
     dice_clear_button: NSButton
     dice_preset_buttons: list[NSButton]
     dice_pool: dict[int, int]
+    adventure_vault_path: Path | None
+    adventure_selected_note: Path | None
+    adventure_root_node: AdventureNode | None
+    adventure_flat_nodes: list[AdventureNode]
+    adventure_expanded_paths: set[str]
+    adventure_note_index: dict[str, list[Path]]
+    adventure_asset_index: dict[str, list[Path]]
+    adventure_file_colors: dict[str, str]
+    adventure_tree_buttons: list[AdventureTreeButton]
+    adventure_views: list[Any]
+    adventure_tree_scroll: NSScrollView
+    adventure_tree_content: FlippedView
+    adventure_title_label: NSTextField
+    adventure_status_label: NSTextField
+    adventure_folder_button: NSButton
+    adventure_toggle_button: NSButton
+    adventure_save_button: NSButton
+    adventure_dirty_label: NSTextField
+    adventure_web_view: WKWebView
+    adventure_editor_scroll: NSScrollView
+    adventure_editor_view: NSTextView
+    adventure_is_editing: bool
+    adventure_dirty: bool
+    adventure_last_saved_text: str
     displayed_spells: list[Spell]
     initiative_views: list[Any]
     spell_views: list[Any]
@@ -2834,6 +3178,19 @@ class MainWindowController(NSObject):
         self.spell_result_buttons = []
         self.dice_preset_buttons = []
         self.dice_pool = {4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0}
+        self.adventure_vault_path = None
+        self.adventure_selected_note = None
+        self.adventure_root_node = None
+        self.adventure_flat_nodes = []
+        self.adventure_expanded_paths = set()
+        self.adventure_note_index = {}
+        self.adventure_asset_index = {}
+        self.adventure_file_colors = {}
+        self.adventure_tree_buttons = []
+        self.adventure_views = []
+        self.adventure_is_editing = False
+        self.adventure_dirty = False
+        self.adventure_last_saved_text = ""
         if self not in DICE_HISTORY_LISTENERS:
             DICE_HISTORY_LISTENERS.append(self)
         self.party_member_labels = []
@@ -2891,6 +3248,7 @@ class MainWindowController(NSObject):
         self.initiative_tab_button = self._make_button("Initiative Tracker", (20, height - 38, 150, 30), "showInitiativeTab:")
         self.spells_tab_button = self._make_button("Spells", (178, height - 38, 86, 30), "showSpellsTab:")
         self.dice_tab_button = self._make_button("Dice Roller", (272, height - 38, 112, 30), "showDiceTab:")
+        self.adventure_tab_button = self._make_button("Adventure", (392, height - 38, 104, 30), "showAdventureTab:")
         self.sidebar_panel = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
         style_layer(self.sidebar_panel, ui_color(0.075, 0.075, 0.078, 1.0), None, 0)
         self.sidebar_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
@@ -2906,6 +3264,8 @@ class MainWindowController(NSObject):
         style_layer(self.spell_panel, ui_color(0.015, 0.015, 0.017, 1.0), ui_color(0.12, 0.12, 0.13, 1.0), 14, 1)
         self.dice_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
         style_layer(self.dice_panel, ui_color(0.015, 0.015, 0.017, 1.0), ui_color(0.12, 0.12, 0.13, 1.0), 14, 1)
+        self.adventure_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
+        style_layer(self.adventure_panel, ui_color(0.015, 0.015, 0.017, 1.0), ui_color(0.12, 0.12, 0.13, 1.0), 14, 1)
 
         self.monster_sheet_drawer = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 360, height - 48))
         style_layer(self.monster_sheet_drawer, ui_color(0.055, 0.055, 0.062, 1.0), ui_color(0.18, 0.18, 0.19, 1.0), 12, 1)
@@ -3135,6 +3495,50 @@ class MainWindowController(NSObject):
             button.setTag_(sides)
             self.dice_preset_buttons.append(button)
 
+        self.adventure_title_label = make_label("Adventure", (0, 0, 360, 32), 24, True)
+        self.adventure_status_label = make_label("Choose a folder of Markdown notes.", (0, 0, 520, 24), 13)
+        self.adventure_status_label.setTextColor_(ui_color(0.72, 0.72, 0.75, 1.0))
+        self.adventure_folder_button = self._make_button("Choose Folder", (0, 0, 132, 32), "chooseAdventureFolder:")
+        self.adventure_toggle_button = self._make_button("Edit", (0, 0, 86, 32), "toggleAdventureMode:")
+        self.adventure_save_button = self._make_button("Save", (0, 0, 82, 32), "saveAdventureNote:")
+        self.adventure_dirty_label = make_label("", (0, 0, 120, 22), 12, True)
+        self.adventure_dirty_label.setTextColor_(ui_color(1.0, 0.82, 0.26, 1.0))
+
+        self.adventure_tree_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 260, 420))
+        self.adventure_tree_scroll.setHasVerticalScroller_(True)
+        self.adventure_tree_scroll.setAutohidesScrollers_(False)
+        self.adventure_tree_scroll.setDrawsBackground_(False)
+        self.adventure_tree_scroll.setBorderType_(0)
+        style_layer(self.adventure_tree_scroll, ui_color(0.070, 0.073, 0.080, 1.0), ui_color(0.18, 0.19, 0.21, 1.0), 8, 1)
+        self.adventure_tree_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 260, 420))
+        self.adventure_tree_scroll.setDocumentView_(self.adventure_tree_content)
+
+        adventure_user_content = WKUserContentController.alloc().init()
+        adventure_user_content.addScriptMessageHandler_name_(self, "adventure")
+        adventure_config = WKWebViewConfiguration.alloc().init()
+        adventure_config.setUserContentController_(adventure_user_content)
+        self.adventure_web_view = WKWebView.alloc().initWithFrame_configuration_(NSMakeRect(0, 0, 620, 420), adventure_config)
+        self.adventure_web_view.setValue_forKey_(False, "drawsBackground")
+
+        self.adventure_editor_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 620, 420))
+        self.adventure_editor_scroll.setHasVerticalScroller_(True)
+        self.adventure_editor_scroll.setHasHorizontalScroller_(False)
+        self.adventure_editor_scroll.setAutohidesScrollers_(False)
+        self.adventure_editor_scroll.setDrawsBackground_(False)
+        self.adventure_editor_scroll.setBorderType_(0)
+        style_layer(self.adventure_editor_scroll, ui_color(0.060, 0.062, 0.070, 1.0), ui_color(0.18, 0.19, 0.21, 1.0), 8, 1)
+        self.adventure_editor_view = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, 620, 420))
+        self.adventure_editor_view.setEditable_(True)
+        self.adventure_editor_view.setSelectable_(True)
+        self.adventure_editor_view.setFont_(NSFont.monospacedSystemFontOfSize_weight_(13, 0))
+        self.adventure_editor_view.setTextColor_(ui_color(0.88, 0.88, 0.90, 1.0))
+        self.adventure_editor_view.setBackgroundColor_(ui_color(0.060, 0.062, 0.070, 1.0))
+        self.adventure_editor_view.setTextContainerInset_(NSMakeSize(14, 14))
+        self.adventure_editor_view.textContainer().setLineFragmentPadding_(0)
+        self.adventure_editor_view.setDelegate_(self)
+        self.adventure_editor_scroll.setDocumentView_(self.adventure_editor_view)
+        self.adventure_editor_scroll.setHidden_(True)
+
         self.previous_turn_button = self._make_button("Previous", (0, 0, 110, 34), "previousTurn:")
         self.next_turn_button = self._make_button("Next", (0, 0, 100, 34), "nextTurn:")
         self.clear_tracker_button = self._make_button("Finish Combat", (0, 0, 130, 34), "clearTracker:")
@@ -3159,9 +3563,11 @@ class MainWindowController(NSObject):
         self.content_view.addSubview_(self.monster_sheet_drawer)
         self.content_view.addSubview_(self.spell_panel)
         self.content_view.addSubview_(self.dice_panel)
+        self.content_view.addSubview_(self.adventure_panel)
         self.content_view.addSubview_(self.initiative_tab_button)
         self.content_view.addSubview_(self.spells_tab_button)
         self.content_view.addSubview_(self.dice_tab_button)
+        self.content_view.addSubview_(self.adventure_tab_button)
         for view in (
             self.notes_title,
             self.notes_hint,
@@ -3224,6 +3630,18 @@ class MainWindowController(NSObject):
             self.content_view.addSubview_(view)
         for button in self.dice_preset_buttons:
             self.content_view.addSubview_(button)
+        for view in (
+            self.adventure_title_label,
+            self.adventure_status_label,
+            self.adventure_folder_button,
+            self.adventure_toggle_button,
+            self.adventure_save_button,
+            self.adventure_dirty_label,
+            self.adventure_tree_scroll,
+            self.adventure_web_view,
+            self.adventure_editor_scroll,
+        ):
+            self.content_view.addSubview_(view)
 
         self.initiative_views = [
             self.sidebar_panel,
@@ -3257,8 +3675,21 @@ class MainWindowController(NSObject):
             self.dice_roll_button,
             *self.dice_preset_buttons,
         ]
+        self.adventure_views = [
+            self.adventure_panel,
+            self.adventure_title_label,
+            self.adventure_status_label,
+            self.adventure_folder_button,
+            self.adventure_toggle_button,
+            self.adventure_save_button,
+            self.adventure_dirty_label,
+            self.adventure_tree_scroll,
+            self.adventure_web_view,
+            self.adventure_editor_scroll,
+        ]
 
         self.window.setContentView_(self.content_view)
+        self.loadAdventureVaultFromDefaults()
         self.layoutMainWindow()
         self.refreshPartyPopup()
         self.searchMonsters_(None)
@@ -3293,6 +3724,7 @@ class MainWindowController(NSObject):
         self.initiative_tab_button.setFrame_(NSMakeRect(20, tab_y, 150, 30))
         self.spells_tab_button.setFrame_(NSMakeRect(178, tab_y, 86, 30))
         self.dice_tab_button.setFrame_(NSMakeRect(272, tab_y, 112, 30))
+        self.adventure_tab_button.setFrame_(NSMakeRect(392, tab_y, 104, 30))
         content_height = height - 54
         sidebar_width = min(370, max(320, int(width * 0.29)))
         outer_gap = 20
@@ -3556,6 +3988,40 @@ class MainWindowController(NSObject):
         self.dice_clear_button.setFrame_(NSMakeRect(dice_center_x - 136, action_y, 116, 34))
         self.dice_roll_button.setFrame_(NSMakeRect(dice_center_x + 20, action_y, 136, 34))
 
+        self.adventure_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
+        adventure_frame = self.adventure_panel.frame()
+        adventure_margin = 28
+        adventure_x = adventure_frame.origin.x + adventure_margin
+        adventure_y = adventure_frame.origin.y + adventure_margin
+        adventure_width = adventure_frame.size.width - adventure_margin * 2
+        adventure_height = adventure_frame.size.height - adventure_margin * 2
+        tree_width = min(390, max(270, int(adventure_width * 0.30)))
+        toolbar_h = 48
+        self.adventure_title_label.setFrame_(NSMakeRect(adventure_x, adventure_y + adventure_height - 34, tree_width, 30))
+        self.adventure_folder_button.setFrame_(NSMakeRect(adventure_x + max(0, tree_width - 136), adventure_y + adventure_height - 36, 136, 32))
+        self.adventure_tree_scroll.setFrame_(NSMakeRect(adventure_x, adventure_y, tree_width, adventure_height - toolbar_h))
+        tree_document_width = max(180, tree_width - 18)
+        tree_document_height = max(adventure_height - toolbar_h, len(self.adventure_flat_nodes) * 28 + 12)
+        self.adventure_tree_content.setFrame_(NSMakeRect(0, 0, tree_document_width, tree_document_height))
+        for index, button in enumerate(self.adventure_tree_buttons):
+            button.setFrame_(NSMakeRect(4, 6 + index * 28, max(80, tree_document_width - 8), 26))
+
+        detail_x = adventure_x + tree_width + 22
+        detail_width = max(360, adventure_width - tree_width - 22)
+        detail_top = adventure_y + adventure_height
+        button_y = detail_top - 36
+        self.adventure_toggle_button.setFrame_(NSMakeRect(detail_x + detail_width - 190, button_y, 86, 32))
+        self.adventure_save_button.setFrame_(NSMakeRect(detail_x + detail_width - 96, button_y, 82, 32))
+        self.adventure_dirty_label.setFrame_(NSMakeRect(detail_x + detail_width - 316, button_y + 6, 112, 22))
+        self.adventure_status_label.setFrame_(NSMakeRect(detail_x, button_y + 5, max(120, detail_width - 330), 22))
+        content_rect = NSMakeRect(detail_x, adventure_y, detail_width, adventure_height - toolbar_h)
+        self.adventure_web_view.setFrame_(content_rect)
+        self.adventure_editor_scroll.setFrame_(content_rect)
+        editor_width = max(200, detail_width - 18)
+        editor_height = max(content_rect.size.height, self.adventure_editor_view.frame().size.height)
+        self.adventure_editor_view.textContainer().setContainerSize_(NSMakeSize(editor_width - 28, 100000))
+        self.adventure_editor_view.setFrame_(NSMakeRect(0, 0, editor_width, editor_height))
+
     def windowDidResize_(self, _notification):
         self.layoutMainWindow()
 
@@ -3578,10 +4044,16 @@ class MainWindowController(NSObject):
         self.applyCurrentTab()
         self.refreshDiceFormula_(None)
 
+    def showAdventureTab_(self, _sender):
+        self.current_tab = "adventure"
+        self.applyCurrentTab()
+        self.refreshAdventureWorkspace()
+
     def applyCurrentTab(self):
         show_initiative = self.current_tab == "initiative"
         show_spells = self.current_tab == "spells"
         show_dice = self.current_tab == "dice"
+        show_adventure = self.current_tab == "adventure"
         for view in self.initiative_views:
             view.setHidden_(not show_initiative)
         self.monster_search_button.setHidden_(True)
@@ -3589,6 +4061,11 @@ class MainWindowController(NSObject):
             view.setHidden_(not show_spells)
         for view in self.dice_views:
             view.setHidden_(not show_dice)
+        for view in self.adventure_views:
+            view.setHidden_(not show_adventure)
+        if show_adventure:
+            self.adventure_web_view.setHidden_(self.adventure_is_editing)
+            self.adventure_editor_scroll.setHidden_(not self.adventure_is_editing)
         style_layer(
             self.initiative_tab_button,
             ui_color(0.20, 0.20, 0.22, 1.0) if show_initiative else ui_color(0.10, 0.10, 0.11, 1.0),
@@ -3610,6 +4087,13 @@ class MainWindowController(NSObject):
             8,
             1,
         )
+        style_layer(
+            self.adventure_tab_button,
+            ui_color(0.20, 0.20, 0.22, 1.0) if show_adventure else ui_color(0.10, 0.10, 0.11, 1.0),
+            ui_color(0.30, 0.30, 0.32, 1.0),
+            8,
+            1,
+        )
         self.layoutMainWindow()
 
     def controlTextDidChange_(self, notification):
@@ -3618,6 +4102,914 @@ class MainWindowController(NSObject):
             self.searchMonsters_(None)
         elif field == self.spell_search_field:
             self.refreshSpellResults()
+
+    def textDidChange_(self, notification):
+        if notification.object() == self.adventure_editor_view:
+            current = str(self.adventure_editor_view.string())
+            self.adventure_dirty = current != self.adventure_last_saved_text
+            self.refreshAdventureControls()
+
+    @objc.python_method
+    def loadAdventureVaultFromDefaults(self):
+        defaults = NSUserDefaults.standardUserDefaults()
+        raw_path = defaults.stringForKey_(ADVENTURE_VAULT_PREF)
+        if not raw_path:
+            self.refreshAdventureWorkspace()
+            return
+        vault_path = Path(str(raw_path)).expanduser()
+        if not vault_path.is_dir():
+            self.refreshAdventureWorkspace()
+            return
+        self.setAdventureVault_(vault_path)
+        raw_note = defaults.stringForKey_(ADVENTURE_SELECTED_NOTE_PREF)
+        if raw_note:
+            note_path = Path(str(raw_note))
+            if note_path.is_file() and safe_relative_to(note_path, vault_path):
+                self.openAdventureNote_(note_path)
+                return
+        first_note = self.firstAdventureNote()
+        if first_note is not None:
+            self.openAdventureNote_(first_note)
+
+    def chooseAdventureFolder_(self, _sender):
+        if not self.confirmAdventureCanDiscardOrSave():
+            return
+        panel = NSOpenPanel.openPanel()
+        panel.setCanChooseFiles_(False)
+        panel.setCanChooseDirectories_(True)
+        panel.setAllowsMultipleSelection_(False)
+        panel.setCanCreateDirectories_(False)
+        panel.setMessage_("Choose the folder that contains your Markdown adventure notes.")
+        if self.adventure_vault_path is not None:
+            panel.setDirectoryURL_(NSURL.fileURLWithPath_(str(self.adventure_vault_path)))
+        NSApp.activateIgnoringOtherApps_(True)
+        if int(panel.runModal()) not in (1, 1000):
+            log("Adventure folder selection cancelled.")
+            return
+        url = panel.URL()
+        if url is None:
+            return
+        path = Path(str(url.path()))
+        if not path.is_dir():
+            log(f"Adventure folder selection ignored because path is not a directory: {path}")
+            return
+        log(f"Adventure folder selected: {path}")
+        self.current_tab = "adventure"
+        self.setAdventureVault_(path)
+        first_note = self.firstAdventureNote()
+        if first_note is not None:
+            self.openAdventureNote_(first_note)
+            log(f"Adventure opened first note: {first_note}")
+        else:
+            self.adventure_selected_note = None
+            self.showAdventureEmpty_("No Markdown notes found in this folder.")
+            log(f"Adventure folder has no Markdown notes: {path}")
+        self.refreshAdventureWorkspace()
+        self.applyCurrentTab()
+        self.window.makeKeyAndOrderFront_(None)
+
+    @objc.python_method
+    def setAdventureVault_(self, path: Path):
+        self.adventure_vault_path = path.resolve()
+        defaults = NSUserDefaults.standardUserDefaults()
+        defaults.setObject_forKey_(str(self.adventure_vault_path), ADVENTURE_VAULT_PREF)
+        defaults.synchronize()
+        self.adventure_selected_note = None
+        self.adventure_is_editing = False
+        self.adventure_dirty = False
+        self.adventure_last_saved_text = ""
+        self.loadAdventureFileColors()
+        self.buildAdventureIndexes()
+        self.adventure_root_node = self.buildAdventureNode(self.adventure_vault_path, 0)
+        self.adventure_expanded_paths = set()
+        if self.adventure_root_node is not None:
+            self.collectAdventureDirectoryPaths(self.adventure_root_node, self.adventure_expanded_paths)
+        self.refreshAdventureTree()
+        self.refreshAdventureControls()
+        log(
+            "Adventure vault loaded: "
+            f"{self.adventure_vault_path} "
+            f"({len(self.adventure_note_index)} note keys, {len(self.adventure_flat_nodes)} visible rows)"
+        )
+
+    @objc.python_method
+    def loadAdventureFileColors(self):
+        self.adventure_file_colors = {}
+        if self.adventure_vault_path is None:
+            return
+        path = self.adventure_vault_path / ".obsidian" / "plugins" / "obsidian-file-color" / "data.json"
+        if not path.exists():
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            return
+        palette = {
+            str(item.get("id")): str(item.get("value"))
+            for item in data.get("palette", [])
+            if isinstance(item, dict) and item.get("id") and item.get("value")
+        }
+        for item in data.get("fileColors", []):
+            if not isinstance(item, dict):
+                continue
+            rel_path = str(item.get("path") or "").strip().strip("/")
+            color = palette.get(str(item.get("color") or ""))
+            if rel_path and color:
+                self.adventure_file_colors[rel_path] = color
+
+    @objc.python_method
+    def buildAdventureIndexes(self):
+        self.adventure_note_index = {}
+        self.adventure_asset_index = {}
+        if self.adventure_vault_path is None:
+            return
+        for path in sorted(self.adventure_vault_path.rglob("*"), key=lambda item: normalize(str(item.relative_to(self.adventure_vault_path)))):
+            if any(part.startswith(".") for part in path.relative_to(self.adventure_vault_path).parts):
+                continue
+            if path.is_file() and path.suffix.lower() in (".md", ".markdown"):
+                rel = path.relative_to(self.adventure_vault_path)
+                keys = {
+                    normalize(path.stem),
+                    normalize(str(rel.with_suffix(""))),
+                    normalize(str(rel)),
+                }
+                for key in keys:
+                    if key:
+                        self.adventure_note_index.setdefault(key, []).append(path)
+            elif path.is_file():
+                key = normalize(path.name)
+                if key:
+                    self.adventure_asset_index.setdefault(key, []).append(path)
+
+    @objc.python_method
+    def buildAdventureNode(self, path: Path, depth: int) -> AdventureNode | None:
+        if path.is_file():
+            if path.suffix.lower() not in (".md", ".markdown"):
+                return None
+            return AdventureNode(path=path, name=path.stem, is_dir=False, depth=depth, children=[])
+        if path.name.startswith(".") and path != self.adventure_vault_path:
+            return None
+        children: list[AdventureNode] = []
+        try:
+            entries = list(path.iterdir())
+        except OSError:
+            entries = []
+        entries.sort(key=lambda item: (not item.is_dir(), natural_sort_key(item.name)))
+        for entry in entries:
+            child = self.buildAdventureNode(entry, depth + 1)
+            if child is not None:
+                children.append(child)
+        if path == self.adventure_vault_path or children:
+            return AdventureNode(path=path, name=path.name, is_dir=True, depth=depth, children=children)
+        return None
+
+    @objc.python_method
+    def collectAdventureDirectoryPaths(self, node: AdventureNode, result: set[str]):
+        if not node.is_dir:
+            return
+        result.add(str(node.path))
+        for child in node.children:
+            self.collectAdventureDirectoryPaths(child, result)
+
+    @objc.python_method
+    def firstAdventureNote(self) -> Path | None:
+        if self.adventure_root_node is None:
+            return None
+        stack = list(self.adventure_root_node.children)
+        while stack:
+            node = stack.pop(0)
+            if not node.is_dir:
+                return node.path
+            stack = list(node.children) + stack
+        return None
+
+    @objc.python_method
+    def refreshAdventureWorkspace(self):
+        self.refreshAdventureTree()
+        self.refreshAdventureControls()
+        if self.adventure_vault_path is None:
+            self.showAdventureEmpty_("Choose a local folder to browse your Markdown adventure notes.")
+        elif self.adventure_selected_note is None:
+            self.showAdventureEmpty_("Select a Markdown note from the left.")
+
+    @objc.python_method
+    def refreshAdventureTree(self):
+        self.adventure_flat_nodes = []
+        if self.adventure_root_node is not None:
+            for child in self.adventure_root_node.children:
+                self.flattenAdventureNode(child)
+        while len(self.adventure_tree_buttons) < len(self.adventure_flat_nodes):
+            button = AdventureTreeButton.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 26))
+            button.setTarget_(self)
+            button.setAction_("selectAdventureTreeRow:")
+            button.setHidden_(True)
+            self.adventure_tree_buttons.append(button)
+            self.adventure_tree_content.addSubview_(button)
+        for index, button in enumerate(self.adventure_tree_buttons):
+            if index >= len(self.adventure_flat_nodes):
+                button.setHidden_(True)
+                continue
+            node = self.adventure_flat_nodes[index]
+            button.setTag_(index)
+            button.configureName_path_depth_isDir_expanded_selected_color_(
+                node.name,
+                str(node.path),
+                node.depth,
+                node.is_dir,
+                str(node.path) in self.adventure_expanded_paths,
+                self.adventure_selected_note is not None and node.path.resolve() == self.adventure_selected_note.resolve(),
+                self.adventureColorForPath(node.path),
+            )
+            button.setHidden_(False)
+        self.layoutMainWindow()
+
+    @objc.python_method
+    def flattenAdventureNode(self, node: AdventureNode):
+        self.adventure_flat_nodes.append(node)
+        if not node.is_dir or str(node.path) not in self.adventure_expanded_paths:
+            return
+        for child in node.children:
+            self.flattenAdventureNode(child)
+
+    @objc.python_method
+    def adventureColorForPath(self, path: Path) -> str:
+        if self.adventure_vault_path is None:
+            return ""
+        try:
+            rel = self.adventureRelativePath(path)
+        except ValueError:
+            return ""
+        candidates = []
+        current = rel
+        while current:
+            candidates.append(current)
+            current = str(Path(current).parent).replace("\\", "/")
+            if current == ".":
+                break
+        for candidate in candidates:
+            if candidate in self.adventure_file_colors:
+                return self.adventure_file_colors[candidate]
+        return ""
+
+    def selectAdventureTreeRow_(self, sender):
+        index = int(sender.tag())
+        if index < 0 or index >= len(self.adventure_flat_nodes):
+            return
+        node = self.adventure_flat_nodes[index]
+        if node.is_dir:
+            key = str(node.path)
+            if key in self.adventure_expanded_paths:
+                self.adventure_expanded_paths.remove(key)
+            else:
+                self.adventure_expanded_paths.add(key)
+            self.refreshAdventureTree()
+            return
+        if not self.confirmAdventureCanDiscardOrSave():
+            return
+        self.openAdventureNote_(node.path)
+
+    def adventureContextMenuForButton_(self, button):
+        index = int(button.tag())
+        if index < 0 or index >= len(self.adventure_flat_nodes):
+            return None
+        node = self.adventure_flat_nodes[index]
+        menu = NSMenu.alloc().init()
+
+        color_menu = NSMenu.alloc().init()
+        none_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("None", "setAdventureTreeColor:", "")
+        none_item.setTarget_(self)
+        none_item.setRepresentedObject_(json.dumps({"path": str(node.path), "color": ""}))
+        color_menu.addItem_(none_item)
+        color_menu.addItem_(NSMenuItem.separatorItem())
+        for color_name, _hex_value in ADVENTURE_COLOR_PALETTE:
+            item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(color_name, "setAdventureTreeColor:", "")
+            item.setTarget_(self)
+            item.setRepresentedObject_(json.dumps({"path": str(node.path), "color": color_name}))
+            color_menu.addItem_(item)
+
+        set_color_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Set color", None, "")
+        set_color_item.setSubmenu_(color_menu)
+        menu.addItem_(set_color_item)
+        menu.addItem_(NSMenuItem.separatorItem())
+
+        show_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Show in Finder", "showAdventureTreeItemInFinder:", "")
+        show_item.setTarget_(self)
+        show_item.setRepresentedObject_(str(node.path))
+        menu.addItem_(show_item)
+        menu.addItem_(NSMenuItem.separatorItem())
+
+        rename_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Rename", "renameAdventureTreeItem:", "")
+        rename_item.setTarget_(self)
+        rename_item.setRepresentedObject_(str(node.path))
+        menu.addItem_(rename_item)
+
+        delete_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Delete", "deleteAdventureTreeItem:", "")
+        delete_item.setTarget_(self)
+        delete_item.setRepresentedObject_(str(node.path))
+        menu.addItem_(delete_item)
+        return menu
+
+    @objc.python_method
+    def adventurePathFromMenuItem(self, sender) -> Path | None:
+        raw = sender.representedObject() if sender is not None else None
+        if raw is None or self.adventure_vault_path is None:
+            return None
+        path = Path(str(raw)).resolve()
+        if not safe_relative_to(path, self.adventure_vault_path):
+            return None
+        return path
+
+    def showAdventureTreeItemInFinder_(self, sender):
+        path = self.adventurePathFromMenuItem(sender)
+        if path is None:
+            return
+        NSWorkspace.sharedWorkspace().activateFileViewerSelectingURLs_([NSURL.fileURLWithPath_(str(path))])
+
+    def setAdventureTreeColor_(self, sender):
+        if self.adventure_vault_path is None:
+            return
+        raw = sender.representedObject() if sender is not None else None
+        try:
+            payload = json.loads(str(raw))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return
+        path = Path(str(payload.get("path") or "")).resolve()
+        color_name = str(payload.get("color") or "")
+        if not safe_relative_to(path, self.adventure_vault_path):
+            return
+        self.setAdventureColorForPath_color_(path, color_name)
+
+    @objc.python_method
+    def adventureRelativePath(self, path: Path) -> str:
+        return str(path.resolve().relative_to(self.adventure_vault_path.resolve())).replace("\\", "/")
+
+    @objc.python_method
+    def setAdventureColorForPath_color_(self, path: Path, color_name: str):
+        data = self.loadAdventureColorData()
+        palette_ids = self.ensureAdventureColorPalette(data)
+        rel_path = self.adventureRelativePath(path)
+        file_colors = [item for item in data.get("fileColors", []) if isinstance(item, dict)]
+        file_colors = [item for item in file_colors if str(item.get("path") or "").strip().strip("/") != rel_path]
+        if color_name:
+            color_id = palette_ids.get(color_name)
+            if color_id:
+                file_colors.append({"path": rel_path, "color": color_id})
+        data["fileColors"] = file_colors
+        self.saveAdventureColorData(data)
+        self.loadAdventureFileColors()
+        self.refreshAdventureTree()
+
+    def renameAdventureTreeItem_(self, sender):
+        path = self.adventurePathFromMenuItem(sender)
+        if path is None or self.adventure_vault_path is None or not path.exists():
+            return
+        if not self.confirmAdventureCanDiscardOrSave():
+            return
+
+        old_name = path.name
+        old_stem = path.stem
+        field = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 360, 26))
+        field.setStringValue_(old_name)
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_("Rename")
+        alert.setInformativeText_(f"Enter a new name for {old_name}.")
+        alert.setAccessoryView_(field)
+        alert.addButtonWithTitle_("Rename")
+        alert.addButtonWithTitle_("Cancel")
+        NSApp.activateIgnoringOtherApps_(True)
+        if int(alert.runModal()) != 1000:
+            return
+
+        new_name = str(field.stringValue()).strip()
+        if not new_name:
+            self.showAdventureAlert_message_("Rename failed", "Name cannot be empty.")
+            return
+        if "/" in new_name or "\\" in new_name or new_name in (".", ".."):
+            self.showAdventureAlert_message_("Rename failed", "Name cannot contain path separators.")
+            return
+        if path.is_file() and path.suffix.lower() in (".md", ".markdown") and Path(new_name).suffix == "":
+            new_name = f"{new_name}{path.suffix}"
+        destination = (path.parent / new_name).resolve()
+        if not safe_relative_to(destination, self.adventure_vault_path):
+            self.showAdventureAlert_message_("Rename failed", "Destination is outside the selected folder.")
+            return
+        if destination.exists():
+            self.showAdventureAlert_message_("Rename failed", "A file or folder with that name already exists.")
+            return
+        try:
+            path.rename(destination)
+        except OSError as exc:
+            log(f"Adventure rename failed: {exc}")
+            self.showAdventureAlert_message_("Rename failed", str(exc))
+            return
+
+        self.updateAdventureColorPathsAfterRename_old_new_(path, destination)
+        if path.is_file() and path.suffix.lower() in (".md", ".markdown"):
+            self.updateAdventureWikiLinksForRename_oldStem_newStem_oldRel_newRel_(
+                old_stem,
+                destination.stem,
+                str(Path(self.adventureRelativePath(path)).with_suffix("")).replace("\\", "/"),
+                str(Path(self.adventureRelativePath(destination)).with_suffix("")).replace("\\", "/"),
+            )
+        if self.adventure_selected_note is not None and self.pathContainsPath_parent_child_(path, self.adventure_selected_note):
+            if path.is_dir():
+                rel = self.adventure_selected_note.resolve().relative_to(path.resolve())
+                self.adventure_selected_note = (destination / rel).resolve()
+            else:
+                self.adventure_selected_note = destination
+        self.rebuildAdventureAfterFileAction_select_(self.adventure_selected_note if self.adventure_selected_note and self.adventure_selected_note.exists() else destination)
+
+    def deleteAdventureTreeItem_(self, sender):
+        path = self.adventurePathFromMenuItem(sender)
+        if path is None or self.adventure_vault_path is None or not path.exists():
+            return
+        if not self.confirmAdventureCanDiscardOrSave():
+            return
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_(f"Delete {path.name}?")
+        alert.setInformativeText_("This moves the item to the macOS Trash.")
+        alert.addButtonWithTitle_("Delete")
+        alert.addButtonWithTitle_("Cancel")
+        NSApp.activateIgnoringOtherApps_(True)
+        if int(alert.runModal()) != 1000:
+            return
+        source = str(path.parent)
+        recycle_result = NSWorkspace.sharedWorkspace().performFileOperation_source_destination_files_tag_(
+            NSWorkspaceRecycleOperation,
+            source,
+            "",
+            [path.name],
+            None,
+        )
+        ok = bool(recycle_result[0]) if isinstance(recycle_result, tuple) else bool(recycle_result)
+        if not ok:
+            self.showAdventureAlert_message_("Delete failed", "The item could not be moved to Trash.")
+            return
+        self.removeAdventureColorPathsForDeletedPath_(path)
+        selected_deleted = self.adventure_selected_note is not None and self.pathContainsPath_parent_child_(path, self.adventure_selected_note)
+        self.adventure_selected_note = None if selected_deleted else self.adventure_selected_note
+        self.rebuildAdventureAfterFileAction_select_(None if selected_deleted else self.adventure_selected_note)
+
+    @objc.python_method
+    def showAdventureAlert_message_(self, title: str, message: str):
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_(title)
+        alert.setInformativeText_(message)
+        alert.addButtonWithTitle_("OK")
+        NSApp.activateIgnoringOtherApps_(True)
+        alert.runModal()
+
+    @objc.python_method
+    def pathContainsPath_parent_child_(self, parent: Path, child: Path) -> bool:
+        parent = parent.resolve()
+        child = child.resolve()
+        if parent == child:
+            return True
+        if not parent.is_dir():
+            return False
+        try:
+            child.relative_to(parent)
+            return True
+        except ValueError:
+            return False
+
+    @objc.python_method
+    def rebuildAdventureAfterFileAction_select_(self, selected: Path | None):
+        if self.adventure_vault_path is None:
+            return
+        self.loadAdventureFileColors()
+        self.buildAdventureIndexes()
+        self.adventure_root_node = self.buildAdventureNode(self.adventure_vault_path, 0)
+        if self.adventure_root_node is not None:
+            self.collectAdventureDirectoryPaths(self.adventure_root_node, self.adventure_expanded_paths)
+        self.refreshAdventureTree()
+        if selected is not None and selected.exists() and selected.is_file():
+            self.openAdventureNote_(selected)
+        elif self.adventure_selected_note is None:
+            first = self.firstAdventureNote()
+            if first is not None:
+                self.openAdventureNote_(first)
+            else:
+                self.showAdventureEmpty_("Select a Markdown note from the left.")
+        self.refreshAdventureControls()
+
+    @objc.python_method
+    def adventureColorDataPath(self) -> Path:
+        return self.adventure_vault_path / ".obsidian" / "plugins" / "obsidian-file-color" / "data.json"
+
+    @objc.python_method
+    def loadAdventureColorData(self) -> dict[str, Any]:
+        path = self.adventureColorDataPath()
+        if path.exists():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    data.setdefault("cascadeColors", True)
+                    data.setdefault("colorBackground", False)
+                    data.setdefault("palette", [])
+                    data.setdefault("fileColors", [])
+                    return data
+            except (OSError, ValueError, json.JSONDecodeError):
+                pass
+        return {"cascadeColors": True, "colorBackground": False, "palette": [], "fileColors": []}
+
+    @objc.python_method
+    def saveAdventureColorData(self, data: dict[str, Any]):
+        path = self.adventureColorDataPath()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    @objc.python_method
+    def ensureAdventureColorPalette(self, data: dict[str, Any]) -> dict[str, str]:
+        palette = [item for item in data.get("palette", []) if isinstance(item, dict)]
+        result: dict[str, str] = {}
+        used_ids = {str(item.get("id")) for item in palette if item.get("id")}
+        for color_name, hex_value in ADVENTURE_COLOR_PALETTE:
+            existing = None
+            for item in palette:
+                if str(item.get("name") or "") == color_name or str(item.get("value") or "").lower() == hex_value.lower():
+                    existing = item
+                    break
+            if existing is None:
+                color_id = f"arcane-{normalize(color_name).replace(' ', '-') or color_name.lower()}"
+                suffix = 2
+                base_id = color_id
+                while color_id in used_ids:
+                    color_id = f"{base_id}-{suffix}"
+                    suffix += 1
+                existing = {"id": color_id, "name": color_name, "value": hex_value}
+                palette.append(existing)
+                used_ids.add(color_id)
+            result[color_name] = str(existing.get("id"))
+        data["palette"] = palette
+        return result
+
+    @objc.python_method
+    def updateAdventureColorPathsAfterRename_old_new_(self, old_path: Path, new_path: Path):
+        data = self.loadAdventureColorData()
+        old_rel = self.adventureRelativePath(old_path)
+        new_rel = self.adventureRelativePath(new_path)
+        for item in data.get("fileColors", []):
+            if not isinstance(item, dict):
+                continue
+            rel = str(item.get("path") or "").strip().strip("/")
+            if rel == old_rel:
+                item["path"] = new_rel
+            elif rel.startswith(old_rel + "/"):
+                item["path"] = new_rel + rel[len(old_rel) :]
+        self.saveAdventureColorData(data)
+
+    @objc.python_method
+    def removeAdventureColorPathsForDeletedPath_(self, path: Path):
+        data = self.loadAdventureColorData()
+        rel_path = self.adventureRelativePath(path)
+        data["fileColors"] = [
+            item
+            for item in data.get("fileColors", [])
+            if isinstance(item, dict)
+            and (lambda rel: rel != rel_path and not rel.startswith(rel_path + "/"))(str(item.get("path") or "").strip().strip("/"))
+        ]
+        self.saveAdventureColorData(data)
+
+    @objc.python_method
+    def updateAdventureWikiLinksForRename_oldStem_newStem_oldRel_newRel_(self, old_stem: str, new_stem: str, old_rel: str, new_rel: str):
+        if self.adventure_vault_path is None:
+            return
+        pattern = re.compile(r"(?<!!)\[\[([^\]]+)\]\]")
+
+        def replace_link(match):
+            inner = match.group(1)
+            target_part, alias = (inner.split("|", 1) + [""])[:2] if "|" in inner else (inner, "")
+            target_base, heading = (target_part.split("#", 1) + [""])[:2] if "#" in target_part else (target_part, "")
+            normalized_target = normalize(target_base.strip())
+            if normalized_target == normalize(old_stem):
+                replacement_target = new_stem
+            elif normalized_target == normalize(old_rel):
+                replacement_target = new_rel
+            else:
+                return match.group(0)
+            if heading:
+                replacement_target = f"{replacement_target}#{heading}"
+            if alias:
+                return f"[[{replacement_target}|{alias}]]"
+            return f"[[{replacement_target}]]"
+
+        for md_path in self.adventure_vault_path.rglob("*.md"):
+            if any(part.startswith(".") for part in md_path.relative_to(self.adventure_vault_path).parts):
+                continue
+            try:
+                original = md_path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            updated = pattern.sub(replace_link, original)
+            if updated != original:
+                try:
+                    md_path.write_text(updated, encoding="utf-8")
+                except OSError as exc:
+                    log(f"Adventure wikilink update failed for {md_path}: {exc}")
+
+    @objc.python_method
+    def openAdventureNote_(self, path: Path):
+        if self.adventure_vault_path is None or not path.is_file() or not safe_relative_to(path, self.adventure_vault_path):
+            return
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            self.showAdventureEmpty_(f"Could not read note: {exc}")
+            return
+        self.adventure_selected_note = path.resolve()
+        defaults = NSUserDefaults.standardUserDefaults()
+        defaults.setObject_forKey_(str(self.adventure_selected_note), ADVENTURE_SELECTED_NOTE_PREF)
+        defaults.synchronize()
+        for parent in [self.adventure_selected_note.parent, *self.adventure_selected_note.parents]:
+            if self.adventure_vault_path is not None and safe_relative_to(parent, self.adventure_vault_path):
+                self.adventure_expanded_paths.add(str(parent))
+            if parent == self.adventure_vault_path:
+                break
+        self.adventure_last_saved_text = text
+        self.adventure_dirty = False
+        if self.adventure_is_editing:
+            self.adventure_editor_view.setString_(text)
+        else:
+            self.renderAdventureMarkdown_(text)
+        self.refreshAdventureTree()
+        self.refreshAdventureControls()
+
+    @objc.python_method
+    def showAdventureEmpty_(self, message: str):
+        body = f"<p class='empty'>{html.escape(message)}</p>"
+        self.loadAdventureHTMLBody_(body)
+        self.adventure_status_label.setStringValue_(message)
+
+    @objc.python_method
+    def refreshAdventureControls(self):
+        has_vault = self.adventure_vault_path is not None
+        has_note = self.adventure_selected_note is not None
+        self.adventure_title_label.setStringValue_(self.adventure_vault_path.name if has_vault else "Adventure")
+        self.adventure_folder_button.setTitle_("Change Folder" if has_vault else "Choose Folder")
+        self.adventure_toggle_button.setEnabled_(has_note)
+        self.adventure_toggle_button.setTitle_("Preview" if self.adventure_is_editing else "Edit")
+        self.adventure_save_button.setEnabled_(has_note and self.adventure_is_editing and self.adventure_dirty)
+        self.adventure_save_button.setHidden_(not self.adventure_is_editing)
+        self.adventure_dirty_label.setStringValue_("Unsaved" if self.adventure_dirty else "")
+        if has_note and self.adventure_vault_path is not None:
+            try:
+                rel = str(self.adventure_selected_note.relative_to(self.adventure_vault_path)).replace("/", " / ")
+            except ValueError:
+                rel = self.adventure_selected_note.name
+            self.adventure_status_label.setStringValue_(rel)
+        elif has_vault:
+            self.adventure_status_label.setStringValue_("Select a Markdown note from the left.")
+        else:
+            self.adventure_status_label.setStringValue_("Choose a folder of Markdown notes.")
+        if self.current_tab == "adventure":
+            self.adventure_web_view.setHidden_(self.adventure_is_editing)
+            self.adventure_editor_scroll.setHidden_(not self.adventure_is_editing)
+
+    def toggleAdventureMode_(self, _sender):
+        if self.adventure_selected_note is None:
+            return
+        if self.adventure_is_editing:
+            text = str(self.adventure_editor_view.string())
+            self.adventure_dirty = text != self.adventure_last_saved_text
+            self.adventure_is_editing = False
+            self.renderAdventureMarkdown_(text)
+        else:
+            if self.adventure_dirty:
+                text = str(self.adventure_editor_view.string())
+            else:
+                try:
+                    text = self.adventure_selected_note.read_text(encoding="utf-8")
+                except OSError:
+                    text = self.adventure_last_saved_text
+                self.adventure_editor_view.setString_(text)
+                self.adventure_last_saved_text = text
+                self.adventure_dirty = False
+            self.adventure_is_editing = True
+        self.refreshAdventureControls()
+        self.layoutMainWindow()
+
+    def saveAdventureNote_(self, _sender):
+        self.saveAdventureCurrentNote()
+
+    @objc.python_method
+    def saveAdventureCurrentNote(self) -> bool:
+        if self.adventure_selected_note is None or self.adventure_vault_path is None:
+            return True
+        if not safe_relative_to(self.adventure_selected_note, self.adventure_vault_path):
+            return False
+        text = str(self.adventure_editor_view.string()) if (self.adventure_is_editing or self.adventure_dirty) else self.adventure_last_saved_text
+        try:
+            self.adventure_selected_note.write_text(text, encoding="utf-8")
+        except OSError as exc:
+            alert = NSAlert.alloc().init()
+            alert.setMessageText_("Could not save Adventure note")
+            alert.setInformativeText_(str(exc))
+            alert.addButtonWithTitle_("OK")
+            alert.runModal()
+            return False
+        self.adventure_last_saved_text = text
+        self.adventure_dirty = False
+        self.buildAdventureIndexes()
+        self.refreshAdventureControls()
+        return True
+
+    @objc.python_method
+    def confirmAdventureCanDiscardOrSave(self) -> bool:
+        if not self.adventure_dirty:
+            return True
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_("Save changes to this Adventure note?")
+        alert.setInformativeText_("You have unsaved Markdown edits.")
+        alert.addButtonWithTitle_("Save")
+        alert.addButtonWithTitle_("Discard")
+        alert.addButtonWithTitle_("Cancel")
+        NSApp.activateIgnoringOtherApps_(True)
+        result = int(alert.runModal())
+        if result == 1000:
+            return self.saveAdventureCurrentNote()
+        if result == 1001:
+            self.adventure_dirty = False
+            return True
+        return False
+
+    @objc.python_method
+    def renderAdventureMarkdown_(self, markdown: str):
+        if MarkdownIt is None:
+            self.loadAdventureHTMLBody_("<p class='missing'>Install markdown-it-py to preview Markdown.</p>")
+            return
+        parser = markdown_parser()
+        source = self.prepareAdventureMarkdown(markdown)
+        rendered = parser.render(source) if parser is not None else html.escape(source)
+        rendered = self.decorateAdventureHTML(rendered)
+        self.loadAdventureHTMLBody_(rendered)
+
+    @objc.python_method
+    def prepareAdventureMarkdown(self, markdown: str) -> str:
+        source = separate_obsidian_callout_titles(strip_markdown_frontmatter(markdown))
+
+        def image_replace(match):
+            target = match.group(1).strip()
+            parts = [part.strip() for part in target.split("|", 1)]
+            image_path = self.resolveAdventureAsset(parts[0])
+            if image_path is None:
+                alt = html.escape(parts[-1] if len(parts) > 1 else parts[0])
+                return f"<p class=\"missing\">Missing image: {alt}</p>"
+            alt = html.escape(parts[-1] if len(parts) > 1 else image_path.name)
+            return f'<img src="{html.escape(image_path.as_uri())}" alt="{alt}">'
+
+        def wiki_replace(match):
+            target = match.group(1).strip()
+            if not target:
+                return ""
+            label = target
+            if "|" in target:
+                target, label = [part.strip() for part in target.split("|", 1)]
+            elif "#" in target:
+                label = target.split("#", 1)[0] or target
+            return (
+                f'<a href="#" data-note="{html.escape(target, quote=True)}">'
+                f"{html.escape(label)}</a>"
+            )
+
+        def dice_replace(match):
+            expression = re.sub(r"\s+", "", match.group(1).strip())
+            if not (DICE_PATTERN.fullmatch(expression) or DICE_FORMULA_PATTERN.fullmatch(expression)):
+                return match.group(0)
+            return (
+                f'<a href="#" class="dice-link" data-dice="{html.escape(expression, quote=True)}">'
+                f"🎲 {html.escape(expression)}</a>"
+            )
+
+        source = re.sub(r"!\[\[([^\]]+)\]\]", image_replace, source)
+        source = re.sub(r"(?<!!)\[\[([^\]]+)\]\]", wiki_replace, source)
+        source = re.sub(r"`\s*dice:\s*([^`]+)`", dice_replace, source, flags=re.I)
+        return source
+
+    @objc.python_method
+    def decorateAdventureHTML(self, rendered: str) -> str:
+        if BeautifulSoup is None:
+            return rendered
+        soup = BeautifulSoup(rendered, "html.parser")
+        for blockquote in soup.find_all("blockquote"):
+            first = blockquote.find(["p", "strong"])
+            if first is None:
+                continue
+            text = first.get_text(" ", strip=True)
+            match = re.match(r"\[!(\w+)\]\s*(.*)", text)
+            if not match:
+                continue
+            kind = normalize(match.group(1)).replace(" ", "-") or "note"
+            wrapper = soup.new_tag("div")
+            wrapper["class"] = f"callout callout-{kind}"
+            title_tag = soup.new_tag("div")
+            title_tag["class"] = "callout-title"
+            for child in list(first.contents):
+                if isinstance(child, str):
+                    cleaned = re.sub(r"^\[!\w+\]\s*", "", str(child), count=1)
+                    if cleaned:
+                        title_tag.append(cleaned)
+                    continue
+                title_tag.append(child.extract())
+            if not title_tag.get_text(strip=True):
+                title_tag.string = kind.title()
+            wrapper.append(title_tag)
+            first.extract()
+            for child in list(blockquote.contents):
+                wrapper.append(child.extract())
+            blockquote.replace_with(wrapper)
+        return str(soup)
+
+    @objc.python_method
+    def loadAdventureHTMLBody_(self, body: str):
+        script = """
+        <script>
+        document.addEventListener('click', function(event) {
+          var note = event.target.closest('a[data-note]');
+          if (note) {
+            event.preventDefault();
+            window.webkit.messageHandlers.adventure.postMessage({type: 'note', target: note.dataset.note || ''});
+            return;
+          }
+          var dice = event.target.closest('a[data-dice]');
+          if (dice) {
+            event.preventDefault();
+            window.webkit.messageHandlers.adventure.postMessage({type: 'dice', expression: dice.dataset.dice || ''});
+          }
+        });
+        </script>
+        """
+        document = (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+            f"<style>{ADVENTURE_MARKDOWN_CSS}</style></head><body><main>{body}</main>{script}</body></html>"
+        )
+        base_url = NSURL.fileURLWithPath_(str(self.adventure_vault_path)) if self.adventure_vault_path is not None else None
+        self.adventure_web_view.loadHTMLString_baseURL_(document, base_url)
+
+    @objc.python_method
+    def resolveAdventureAsset(self, target: str) -> Path | None:
+        if self.adventure_vault_path is None:
+            return None
+        clean = target.split("#", 1)[0].strip()
+        candidates = []
+        direct = (self.adventure_vault_path / clean).resolve()
+        candidates.append(direct)
+        if self.adventure_selected_note is not None:
+            candidates.append((self.adventure_selected_note.parent / clean).resolve())
+        candidates.extend(self.adventure_asset_index.get(normalize(Path(clean).name), []))
+        for candidate in candidates:
+            if candidate.exists() and candidate.is_file() and safe_relative_to(candidate, self.adventure_vault_path):
+                return candidate.resolve()
+        return None
+
+    @objc.python_method
+    def resolveAdventureNote(self, target: str) -> Path | None:
+        if self.adventure_vault_path is None:
+            return None
+        clean = target.split("#", 1)[0].strip()
+        if not clean:
+            return self.adventure_selected_note
+        possibilities = []
+        raw = Path(clean)
+        if raw.suffix.lower() not in (".md", ".markdown"):
+            raw = raw.with_suffix(".md")
+        possibilities.append((self.adventure_vault_path / raw).resolve())
+        if self.adventure_selected_note is not None:
+            possibilities.append((self.adventure_selected_note.parent / raw).resolve())
+        keys = [normalize(clean), normalize(str(Path(clean).with_suffix(""))), normalize(Path(clean).name)]
+        for key in keys:
+            possibilities.extend(self.adventure_note_index.get(key, []))
+        for candidate in possibilities:
+            if candidate.exists() and candidate.is_file() and safe_relative_to(candidate, self.adventure_vault_path):
+                return candidate.resolve()
+        return None
+
+    def userContentController_didReceiveScriptMessage_(self, _user_content_controller, message):
+        body = message.body()
+        if hasattr(body, "items"):
+            payload = dict(body)
+        elif hasattr(body, "objectForKey_"):
+            payload = {
+                key: body.objectForKey_(key)
+                for key in ("type", "target", "expression")
+                if body.objectForKey_(key) is not None
+            }
+        else:
+            payload = {}
+        message_type = str(payload.get("type") or "")
+        if message_type == "dice":
+            self.rollDice_(str(payload.get("expression") or ""))
+            return
+        if message_type != "note":
+            return
+        if not self.confirmAdventureCanDiscardOrSave():
+            return
+        note = self.resolveAdventureNote(str(payload.get("target") or ""))
+        if note is None:
+            self.adventure_status_label.setStringValue_("Linked note not found.")
+            return
+        self.openAdventureNote_(note)
 
     def refreshDiceHistory(self):
         if self.dice_history_view is not None:
@@ -4723,6 +6115,9 @@ class MainWindowController(NSObject):
         self.showSpellInDetail_(spell)
         self.window.makeKeyAndOrderFront_(None)
 
+    def windowShouldClose_(self, _sender):
+        return self.confirmAdventureCanDiscardOrSave()
+
     def windowWillClose_(self, _notification):
         if self in DICE_HISTORY_LISTENERS:
             DICE_HISTORY_LISTENERS.remove(self)
@@ -5441,6 +6836,25 @@ class AppDelegate(NSObject):
         app_menu.addItem_(quit_item)
 
         app_menu_item.setSubmenu_(app_menu)
+
+        edit_menu_item = NSMenuItem.alloc().init()
+        main_menu.addItem_(edit_menu_item)
+        edit_menu = NSMenu.alloc().initWithTitle_("Edit")
+        undo_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Undo", "undo:", "z")
+        edit_menu.addItem_(undo_item)
+        redo_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Redo", "redo:", "Z")
+        edit_menu.addItem_(redo_item)
+        edit_menu.addItem_(NSMenuItem.separatorItem())
+        cut_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Cut", "cut:", "x")
+        edit_menu.addItem_(cut_item)
+        copy_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Copy", "copy:", "c")
+        edit_menu.addItem_(copy_item)
+        paste_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Paste", "paste:", "v")
+        edit_menu.addItem_(paste_item)
+        edit_menu.addItem_(NSMenuItem.separatorItem())
+        select_all_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Select All", "selectAll:", "a")
+        edit_menu.addItem_(select_all_item)
+        edit_menu_item.setSubmenu_(edit_menu)
         NSApp.setMainMenu_(main_menu)
 
     def installStatusMenu(self):
@@ -5608,6 +7022,8 @@ class AppDelegate(NSObject):
         return False
 
     def quit_(self, _sender):
+        if self.main_controller is not None and not self.main_controller.confirmAdventureCanDiscardOrSave():
+            return
         self.unregisterCarbonHotkey()
         NSApp.terminate_(None)
 
