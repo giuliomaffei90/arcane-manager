@@ -22,8 +22,8 @@ global voice behavior unless the product direction explicitly changes.
 
 ## Architecture
 
-* `SpellAudio.py` is the main app entry point. The name is legacy because the
-  build script and launcher depend on it.
+* `main.py` is the main app entry point. Most implementation code lives in the
+  `src/arcane_manager/` package.
 * `scripts/build_app.zsh` builds the standalone macOS app and release zip.
 * `spells.json` and `bestiary_srd.json` are the primary bundled data sources.
 * `assets/icons/` contains UI icons.
@@ -127,7 +127,8 @@ Treat the 3D dice roller as a protected subsystem.
 After source, data, or UI changes:
 
 ```bash
-.venv/bin/python -m py_compile SpellAudio.py
+.venv/bin/python -m py_compile main.py
+.venv/bin/python -m compileall src
 ./scripts/build_app.zsh
 ```
 

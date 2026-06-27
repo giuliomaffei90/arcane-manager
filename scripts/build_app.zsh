@@ -43,7 +43,8 @@ rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_b
   --hidden-import Cocoa \
   --hidden-import WebKit \
   --hidden-import JavaScriptCore \
-  SpellAudio.py > pyinstaller_build.log 2>&1
+  --paths src \
+  main.py > pyinstaller_build.log 2>&1
 
 PLIST="dist/$APP_NAME.app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Delete :LSUIElement" "$PLIST" 2>/dev/null || true
