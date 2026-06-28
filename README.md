@@ -30,10 +30,17 @@ The script keeps `.venv` for future development, signs the app ad-hoc, and creat
 
 ```text
 Arcane Manager.app
-Arcane Manager.zip
 ```
 
-For GitHub distribution, attach release builds to GitHub Releases instead of committing them to the repository.
+Normal local builds do not create zip archives or DMG artifacts.
+
+For GitHub distribution, publish a versioned DMG release asset with:
+
+```bash
+./scripts/publish_github_release.zsh
+```
+
+The publish script reads the latest GitHub Release, increments the minor version by default, creates `Arcane Manager <version>.dmg`, uploads it to GitHub Releases, and removes the local DMG after a successful upload. Use `--bump major` or `--bump patch` only when that version increment is explicitly intended.
 
 Security hardening notes live in [SECURITY.md](SECURITY.md). The build uses `requirements.lock.txt` when present so packaged releases are not rebuilt against surprise dependency versions.
 

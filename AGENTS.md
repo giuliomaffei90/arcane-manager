@@ -1,126 +1,57 @@
 # AGENTS.md
 
-Essential guide for agents editing Arcane Manager.
+## Identity
 
-## Product
+You are an expert macOS/PyObjC developer working on Arcane Manager, a local
+D&D 5e session companion app. Make small, targeted, maintainable changes that
+follow the existing architecture.
 
-Arcane Manager is a local macOS companion app for D&D 5e sessions. It is no
-longer a voice-recognition app.
+## Product Snapshot
 
 Core surfaces:
 
-* Initiative Tracker: parties, characters, monsters, initiative order, monster
-  HP controls, and turn navigation.
-* Spells: bilingual English and Italian search, spell details, and clickable
-  dice expressions.
-* Dice Roller: mixed dice formulas such as `3d4+2d6`, rendered with the 3D dice
+* Initiative Tracker: parties, characters, monsters, initiative order, HP
+  controls, status/conditions, and turn navigation.
+* Spells: bilingual English/Italian search, spell details, and clickable dice.
+* Dice Roller: formulas such as `1d4+3` and `3d4+2d6`, rendered in the 3D dice
   overlay.
-* Local SRD data: bundled spell and monster JSON files.
+* Adventure: local Markdown vault browsing, rendering, editing, and links.
+* Local SRD data: bundled `spells.json` and `bestiary_srd.json`.
 
-Do not add microphone access, speech recognition, audio capture, wake words, or
-global voice behavior unless the product direction explicitly changes.
+## Hard Constraints
 
-## Architecture
-
-* `main.py` is the main app entry point. Most implementation code lives in the
-  `src/arcane_manager/` package.
-* `scripts/build_app.zsh` builds the standalone macOS app and release zip.
-* `spells.json` and `bestiary_srd.json` are the primary bundled data sources.
-* `assets/icons/` contains UI icons.
-* `assets/dice_roller/index.html` and `assets/three-dice/` power the 3D dice
-  overlay inside a local `WKWebView`.
-* `ArcaneManager.command` is the local launcher and stop helper.
-
-Keep the current PyObjC architecture. Do not introduce a second UI framework, a
-web app shell, or background services unless the task explicitly requires it.
-Prefer small targeted changes over broad rewrites.
-
-## Design Direction
-
-The app should feel like a polished dark macOS tabletop tool: compact, tactile,
-legible, and calm.
-
-Use:
-
-* Dark matte background.
-* Charcoal panels.
-* Subtle borders.
-* Restrained rounded rectangles.
-* Dense but breathable layouts.
-* Green for dice and HP emphasis.
-* Yellow for spell metadata and spell links.
-* Red or pink for monsters and danger states.
-* White for class and player icons.
-
-Avoid:
-
-* Decorative gradients.
-* Glowing blobs.
-* Purple or beige theme pivots.
-* Marketing-style hero sections.
-* Purely ornamental controls.
-* Oversized empty areas.
-
-Every visible control should have a clear function.
-
-## Layout Rules
-
-The app must work in fullscreen and smaller windowed mode.
-
-* Prevent overlap, clipping, and horizontal spill.
-* Test by resizing the window.
-* Let flexible elements absorb extra space, especially HP bars.
-* Keep fixed labels and numeric columns stable.
-* Truncate long monster names with an ellipsis.
-* Do not leave empty placeholder rows.
-* Search lists should filter while typing, without a separate Search button.
-
-## Initiative Tracker
-
-* The left panel is the library and setup area. It should scroll when needed.
-* Party editing must support adding, editing, and removing characters.
-* Characters need at least name, class, and armor class.
-* Include Artificer in the class list.
-* Player rows show class icons and armor class, not monster-style HP bars.
-* Monster rows support HP tracking, damage, healing, and down/skipped states.
-* `+` and `-` HP controls should ask for an amount.
-* Turn advancement should skip combatants at 0 HP.
-* Monster details open from the monster name or a deliberate details control.
-* The details panel slides in from the right, claims layout space, and has an
-  obvious close control.
-
-## Spells
-
-* Spell search must work in English and Italian.
-* Spell rows should be compact text-list rows, not heavy gray buttons.
-* Spell details should show English and Italian names when available.
-* Dice expressions such as `8d6`, `1d20`, and `1d4+3` should be green and
-  clickable.
-* Clicking a dice expression should roll the exact formula, including modifiers.
-
-## Dice Roller
-
-Treat the 3D dice roller as a protected subsystem.
-
-* Do not remove or rewrite `Dice3DRollerController`,
-  `assets/dice_roller/index.html`, or `assets/three-dice/` unless the task is
-  specifically about dice.
-* Keep the local HTTP server and `WKWebView` asset loading path intact.
-* Mixed pools must work, for example `3d4+2d6`.
-* Modifiers must be included correctly, for example `1d4+3`.
-* The displayed total must match visible dice and modifiers.
-* Clicking outside the dice overlay should dismiss it.
-* Test both inline dice links and the Dice Roller tab when touching dice logic.
-
-## Data And Privacy
-
-* Use local bundled JSON for app data.
-* Validate and sanitize loaded JSON fields before display.
-* Treat spell and monster text as display data, never executable content.
-* Avoid runtime network downloads for normal app behavior.
-* Do not include secrets, API keys, analytics tokens, credentials, or remote
-  account data.
+* Keep the current PyObjC architecture. Do not introduce another UI framework,
+  web app shell, or background service unless explicitly required.
+* Use local bundled JSON for normal app data. Avoid runtime network downloads.
+* Treat spell, monster, and Markdown text as display data, never executable
+  content.
 * Keep the dice helper server bound to `127.0.0.1`.
+* Treat `src/arcane_manager/ui/dice_overlay.py`,
+  `assets/dice_roller/index.html`, and `assets/three-dice/` as protected unless
+  the task is specifically about dice.
+
+## Progressive References
+
+Read only the reference needed for the current task:
+
+* Module routing and PyObjC selector rules: `agents/code-map.md`.
+* Design, layout, product behavior, and privacy rules: `agents/feature-rules.md`.
+* Build, package, DMG, and release checks: `agents/release-checklist.md`.
+
+Before choosing or editing modules, read `agents/code-map.md`. Before UI or
+product-behavior changes, read `agents/feature-rules.md`. Before packaging or
+publishing, read `agents/release-checklist.md`.
+
+## Entry Points
+
+* `main.py`: main launcher.
+* `src/arcane_manager/`: application package.
+* `scripts/build_app.zsh`: standalone macOS app build only.
+* `scripts/publish_github_release.zsh`: versioned GitHub Release DMG publish.
+* `ArcaneManager.command`: local launcher and stop helper.
+
+Future large features may get a dedicated module or controller when they have
+distinct state, UI actions, data flow, or domain logic.
 
 ## Verification
 
@@ -131,6 +62,12 @@ After source, data, or UI changes:
 .venv/bin/python -m compileall src
 ./scripts/build_app.zsh
 ```
+
+Normal app builds must not create zip archives. When asked to publish on GitHub,
+use `scripts/publish_github_release.zsh`; it reads the latest GitHub Release,
+increments the minor version by default, creates a versioned DMG, uploads it as
+a Release asset, and removes the local DMG after a successful upload. Only use
+major or patch bumps when explicitly requested.
 
 For UI changes, verify fullscreen and smaller windowed layouts.
 
@@ -143,7 +80,3 @@ For dice changes, test:
 ```
 
 Also test at least one inline dice link from a spell or monster sheet.
-
-Before release, confirm that the packaged app opens, the 3D dice roller works,
-and the app does not request microphone or speech recognition permissions.
-::: 

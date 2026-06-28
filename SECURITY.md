@@ -14,7 +14,7 @@ Please open a private security advisory on GitHub if available, or contact the m
 
 - Broken Access Control: no remote API or multi-user authorization boundary is exposed.
 - Security Misconfiguration: the app runs as a regular Dock app and builds from a documented script.
-- Software Supply Chain Failures: `requirements.lock.txt` pins the build environment used for the packaged app; compiled `.app` and `.zip` artifacts are distributed as Release assets instead of being committed.
+- Software Supply Chain Failures: `requirements.lock.txt` pins the build environment used for the packaged app; compiled `.app` and `.dmg` artifacts are distributed as Release assets instead of being committed.
 - Cryptographic Failures: the app does not manage passwords, sessions, payment data, or encrypted user data. Release notarization is still recommended before wide distribution.
 - Injection: spell and monster data are parsed as JSON only; text is displayed as text in native controls or sanitized local WebKit views, not executed as user-provided code. The loaders bound and sanitize untrusted JSON fields.
 - Insecure Design: campaign tools run locally, release artifacts are built from pinned dependencies, and any local helper server is bound to `127.0.0.1` for bundled dice assets only.

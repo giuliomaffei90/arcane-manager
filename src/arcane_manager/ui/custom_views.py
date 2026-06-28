@@ -135,6 +135,26 @@ class DiceTextView(NSTextView):
             return
         objc.super(DiceTextView, self).mouseDown_(event)
 
+
+SPELL_SCHOOL_RGB: dict[str, tuple[float, float, float]] = {
+    "Abjuration": (0x72 / 255, 0xC7 / 255, 0xF7 / 255),
+    "Conjuration": (0x62 / 255, 0xD7 / 255, 0xC7 / 255),
+    "Divination": (0x9C / 255, 0xA8 / 255, 0xFF / 255),
+    "Enchantment": (0xF0 / 255, 0x85 / 255, 0xC8 / 255),
+    "Evocation": (0xF2 / 255, 0x7A / 255, 0x5E / 255),
+    "Illusion": (0xC4 / 255, 0x99 / 255, 0xF2 / 255),
+    "Necromancy": (0x9A / 255, 0xD8 / 255, 0x5F / 255),
+    "Transmutation": (0xE7 / 255, 0xB9 / 255, 0x56 / 255),
+}
+
+
+def spell_school_color(school: str):
+    rgb = SPELL_SCHOOL_RGB.get(str(school or "").strip())
+    if rgb is None:
+        return theme_color("gold")
+    return ui_color(*rgb, 1.0)
+
+
 class SearchResultButton(NSButton):
     row_kind = objc.ivar()
     primary_text = objc.ivar()
@@ -143,6 +163,7 @@ class SearchResultButton(NSButton):
     ac_text = objc.ivar()
     cr_text = objc.ivar()
     meta_text = objc.ivar()
+    spell_school = objc.ivar()
 
     def initWithFrame_(self, frame):
         self = objc.super(SearchResultButton, self).initWithFrame_(frame)
@@ -155,6 +176,7 @@ class SearchResultButton(NSButton):
         self.ac_text = ""
         self.cr_text = ""
         self.meta_text = ""
+        self.spell_school = ""
         self.setBordered_(False)
         self.setTitle_("")
         return self
@@ -167,6 +189,7 @@ class SearchResultButton(NSButton):
         self.ac_text = f"AC {display_ac(creature.ac)}"
         self.cr_text = f"CR {creature.cr}"
         self.meta_text = ""
+        self.spell_school = ""
         self.setToolTip_(creature_summary(creature))
         self.setNeedsDisplay_(True)
 
@@ -178,6 +201,7 @@ class SearchResultButton(NSButton):
         self.ac_text = ""
         self.cr_text = ""
         self.meta_text = " | ".join(part for part in (spell.level, spell.school) if part)
+        self.spell_school = spell.school
         tooltip_parts = [spell.name]
         if self.secondary_text:
             tooltip_parts.append(f"({self.secondary_text})")
@@ -214,40 +238,34 @@ class SearchResultButton(NSButton):
         primary = theme_color("text_strong")
         muted = theme_color("muted")
         name_attrs = text_attributes(14, primary, True)
-        meta_attrs = text_attributes(12.5, muted, True)
-        hp_text = self.hp_text.replace("HP ", "HP: ")
+        meta_attrs = text_attributes(11, muted, True)
         ac_text = self.ac_text.replace("AC ", "AC: ")
         cr_text = self.cr_text.replace("CR ", "CR: ")
         ac_width = text_width(ac_text, meta_attrs)
-        hp_width = text_width(hp_text, meta_attrs)
         cr_width = text_width(cr_text, meta_attrs)
         gap = 6
         x = 14
         y = max(0, (bounds.size.height - 19) / 2 - 1)
-        metadata_width = hp_width + ac_width + cr_width + gap * 3
-        name_width = max(54, width - x * 2 - metadata_width)
+        metadata_width = ac_width + cr_width + gap
+        meta_x = width - x - metadata_width
+        name_width = max(54, meta_x - x - gap)
         fitted_name = fit_text_to_width(self.primary_text, name_width, name_attrs)
         NSString.stringWithString_(fitted_name).drawInRect_withAttributes_(NSMakeRect(x, y, name_width, 20), name_attrs)
-        meta_x = x + min(name_width, text_width(fitted_name, name_attrs)) + gap
-        NSString.stringWithString_(hp_text).drawInRect_withAttributes_(NSMakeRect(meta_x, y + 1, hp_width, 19), meta_attrs)
-        NSString.stringWithString_(ac_text).drawInRect_withAttributes_(NSMakeRect(meta_x + hp_width + gap, y + 1, ac_width, 19), meta_attrs)
-        NSString.stringWithString_(cr_text).drawInRect_withAttributes_(
-            NSMakeRect(meta_x + hp_width + ac_width + gap * 2, y + 1, cr_width, 19),
-            meta_attrs,
-        )
+        draw_right_fitted_text(ac_text, NSMakeRect(meta_x, y + 2, ac_width, 17), 11, muted, True)
+        draw_right_fitted_text(cr_text, NSMakeRect(meta_x + ac_width + gap, y + 2, cr_width, 17), 11, muted, True)
 
     @objc.python_method
     def _drawSpellResult_(self, bounds):
         width = bounds.size.width
         primary = theme_color("text")
         muted = theme_color("muted")
-        gold = theme_color("gold")
+        metadata_color = spell_school_color(self.spell_school)
         draw_fitted_text(self.primary_text, NSMakeRect(14, 7, width - 28, 17), 13.5, primary, True)
         if width >= 340 and self.meta_text:
             meta_w = min(172, max(120, width * 0.40))
             secondary_w = width - meta_w - 38
             draw_fitted_text(self.secondary_text, NSMakeRect(14, 25, secondary_w, 15), 11.5, muted, False)
-            draw_right_fitted_text(self.meta_text, NSMakeRect(width - meta_w - 14, 25, meta_w, 15), 11.5, gold, True)
+            draw_right_fitted_text(self.meta_text, NSMakeRect(width - meta_w - 14, 25, meta_w, 15), 11.5, metadata_color, True)
             return
         bottom = self.meta_text
         if self.secondary_text and self.meta_text:
@@ -351,6 +369,53 @@ class AdventureTreeButton(NSButton):
             draw_fitted_text(self.display_name, NSMakeRect(text_x, 5, bounds.size.width - text_x - 10, 18), 13, text_color, True)
         else:
             draw_fitted_text(self.display_name, NSMakeRect(text_x, 5, bounds.size.width - text_x - 10, 18), 13, text_color, False)
+
+
+class AdventureDividerView(NSView):
+    target = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(AdventureDividerView, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.target = None
+        self.setToolTip_("Drag to resize")
+        return self
+
+    def setTarget_(self, target):
+        self.target = target
+
+    def resetCursorRects(self):
+        self.addCursorRect_cursor_(self.bounds(), NSCursor.resizeLeftRightCursor())
+
+    def mouseEntered_(self, _event):
+        NSCursor.resizeLeftRightCursor().set()
+
+    def mouseDown_(self, event):
+        NSCursor.resizeLeftRightCursor().set()
+        self._sendDragLocation_(event)
+
+    def mouseDragged_(self, event):
+        self._sendDragLocation_(event)
+
+    def mouseUp_(self, _event):
+        NSCursor.arrowCursor().set()
+
+    @objc.python_method
+    def _sendDragLocation_(self, event):
+        if self.target is None or not hasattr(self.target, "resizeAdventureTreeToWindowX_"):
+            return
+        self.target.resizeAdventureTreeToWindowX_(event.locationInWindow().x)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        x = bounds.size.width / 2 - 0.5
+        theme_color("border").set()
+        path = NSBezierPath.bezierPath()
+        path.moveToPoint_(NSMakePoint(x, 0))
+        path.lineToPoint_(NSMakePoint(x, bounds.size.height))
+        path.setLineWidth_(1)
+        path.stroke()
 
 
 class StatBlockAbilityButton(NSButton):

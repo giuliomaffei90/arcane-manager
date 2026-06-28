@@ -22,7 +22,7 @@ else
   .venv/bin/python -m pip install -r requirements.txt pyinstaller
 fi
 
-rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" pyinstaller_build.log
+rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" "$APP_NAME"*.dmg(N) pyinstaller_build.log
 
 .venv/bin/pyinstaller \
   --noconfirm \
@@ -56,8 +56,7 @@ PLIST="dist/$APP_NAME.app/Contents/Info.plist"
 codesign --force --deep --sign - "dist/$APP_NAME.app"
 cp -R "dist/$APP_NAME.app" .
 codesign --force --deep --sign - "$APP_NAME.app"
-ditto -c -k --sequesterRsrc --keepParent "$APP_NAME.app" "$APP_NAME.zip"
 
 rm -rf build dist "$APP_NAME.spec" pyinstaller_build.log
 
-du -sh "$APP_NAME.app" "$APP_NAME.zip"
+du -sh "$APP_NAME.app"

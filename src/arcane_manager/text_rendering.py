@@ -104,7 +104,7 @@ def attributed_monster_body(body: str, spell_ranges: list[tuple[int, int, Spell]
         start = cursor
         cursor += len(line) + 1
         lower_line = line.lower()
-        if "spellcaster" in lower_line and "spellcasting ability" in lower_line:
+        if "spellcasting ability" in lower_line or "spell casting ability" in lower_line:
             attributed.addAttribute_value_range_(
                 NSFontAttributeName,
                 italic_font,

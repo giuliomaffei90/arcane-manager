@@ -167,7 +167,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
 
 def adventure_markdown_css() -> str:
     replacements = {
-        "--bg: #1a1e24;": f"--bg: {rgb_to_hex(THEME_RGB['app_bg'])};",
+        "--bg: #1a1e24;": f"--bg: {rgb_to_hex(THEME_RGB['adventure_reader_bg'])};",
         "--panel: #1f232b;": f"--panel: {rgb_to_hex(THEME_RGB['panel'])};",
         "--surface: #252932;": f"--surface: {rgb_to_hex(THEME_RGB['surface'])};",
         "--surface-soft: #22262e;": f"--surface-soft: {rgb_to_hex(THEME_RGB['surface_soft'])};",

@@ -18,6 +18,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             style_layer(label, theme_color("surface"), theme_color("border_soft"), 8, 1)
         for scroll in (self.dice_history_scroll, self.adventure_tree_scroll, self.adventure_editor_scroll):
             style_layer(scroll, theme_color("surface_soft"), theme_color("border_soft"), 8, 1)
+        style_layer(self.adventure_web_view, theme_color("adventure_reader_bg"), theme_color("border_soft"), 8, 1)
 
         for button in (
             self.initiative_tab_button,
@@ -31,7 +32,6 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.monster_search_button,
             self.dice_clear_button,
             self.dice_roll_button,
-            self.adventure_folder_button,
             self.adventure_toggle_button,
             self.adventure_save_button,
             self.previous_turn_button,
@@ -65,7 +65,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         )
         for label in muted_labels:
             label.setTextColor_(theme_color("muted"))
-        for label in (self.spell_detail_meta_label, self.turn_label, self.adventure_dirty_label):
+        for label in (self.turn_label, self.adventure_dirty_label):
             label.setTextColor_(theme_color("gold"))
         for label in (
             self.spell_components_label,
@@ -73,8 +73,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.spell_stats_label,
         ):
             label.setTextColor_(theme_color("text"))
-        for label in (self.spell_v_label, self.spell_s_label, self.spell_m_label):
-            label.setTextColor_(theme_color("gold"))
+        self.applySpellDetailSchoolColor()
         self.monster_sheet_roll_label.setTextColor_(theme_color("dice"))
         self.dice_formula_label.setTextColor_(theme_color("dice"))
 
@@ -392,10 +391,15 @@ class MainWindowController(objc.Category(_MainWindowController)):
         adventure_y = adventure_frame.origin.y + adventure_margin
         adventure_width = adventure_frame.size.width - adventure_margin * 2
         adventure_height = adventure_frame.size.height - adventure_margin * 2
-        tree_width = min(390, max(270, int(adventure_width * 0.30)))
+        detail_gap = 22
+        divider_width = 8
+        min_tree_width = 180
+        max_tree_width = max(min_tree_width, min(520, int(adventure_width - detail_gap - 420)))
+        tree_width = min(max_tree_width, max(min_tree_width, int(self.adventure_tree_width)))
+        if tree_width != int(self.adventure_tree_width):
+            self.adventure_tree_width = tree_width
         toolbar_h = 48
         self.adventure_title_label.setFrame_(NSMakeRect(adventure_x, adventure_y + adventure_height - 34, tree_width, 30))
-        self.adventure_folder_button.setFrame_(NSMakeRect(adventure_x + max(0, tree_width - 136), adventure_y + adventure_height - 36, 136, 32))
         self.adventure_tree_scroll.setFrame_(NSMakeRect(adventure_x, adventure_y, tree_width, adventure_height - toolbar_h))
         tree_document_width = max(180, tree_width - 18)
         tree_document_height = max(adventure_height - toolbar_h, len(self.adventure_flat_nodes) * 28 + 12)
@@ -403,14 +407,30 @@ class MainWindowController(objc.Category(_MainWindowController)):
         for index, button in enumerate(self.adventure_tree_buttons):
             button.setFrame_(NSMakeRect(4, 6 + index * 28, max(80, tree_document_width - 8), 26))
 
-        detail_x = adventure_x + tree_width + 22
-        detail_width = max(360, adventure_width - tree_width - 22)
+        divider_x = adventure_x + tree_width + (detail_gap - divider_width) / 2
+        self.adventure_divider_view.setFrame_(NSMakeRect(divider_x, adventure_y, divider_width, adventure_height - toolbar_h))
+        detail_x = adventure_x + tree_width + detail_gap
+        detail_width = max(360, adventure_width - tree_width - detail_gap)
         detail_top = adventure_y + adventure_height
         button_y = detail_top - 36
-        self.adventure_toggle_button.setFrame_(NSMakeRect(detail_x + detail_width - 190, button_y, 86, 32))
-        self.adventure_save_button.setFrame_(NSMakeRect(detail_x + detail_width - 96, button_y, 82, 32))
-        self.adventure_dirty_label.setFrame_(NSMakeRect(detail_x + detail_width - 316, button_y + 6, 112, 22))
-        self.adventure_status_label.setFrame_(NSMakeRect(detail_x, button_y + 5, max(120, detail_width - 330), 22))
+        save_button_width = 82
+        toggle_button_width = 86
+        control_gap = 8
+        controls_right = detail_x + detail_width
+        if self.adventure_is_editing:
+            save_x = controls_right - save_button_width
+            toggle_x = save_x - control_gap - toggle_button_width
+            status_right = toggle_x - 16
+            self.adventure_save_button.setFrame_(NSMakeRect(save_x, button_y, save_button_width, 32))
+            self.adventure_toggle_button.setFrame_(NSMakeRect(toggle_x, button_y, toggle_button_width, 32))
+            self.adventure_dirty_label.setFrame_(NSMakeRect(max(detail_x, toggle_x - 128), button_y + 6, 112, 22))
+        else:
+            toggle_x = controls_right - toggle_button_width
+            status_right = toggle_x - 16
+            self.adventure_toggle_button.setFrame_(NSMakeRect(toggle_x, button_y, toggle_button_width, 32))
+            self.adventure_save_button.setFrame_(NSMakeRect(controls_right - save_button_width, button_y, save_button_width, 32))
+            self.adventure_dirty_label.setFrame_(NSMakeRect(status_right, button_y + 6, 0, 22))
+        self.adventure_status_label.setFrame_(NSMakeRect(detail_x, button_y + 5, max(120, status_right - detail_x), 22))
         content_rect = NSMakeRect(detail_x, adventure_y, detail_width, adventure_height - toolbar_h)
         self.adventure_web_view.setFrame_(content_rect)
         self.adventure_editor_scroll.setFrame_(content_rect)
@@ -418,3 +438,23 @@ class MainWindowController(objc.Category(_MainWindowController)):
         editor_height = max(content_rect.size.height, self.adventure_editor_view.frame().size.height)
         self.adventure_editor_view.textContainer().setContainerSize_(NSMakeSize(editor_width - 28, 100000))
         self.adventure_editor_view.setFrame_(NSMakeRect(0, 0, editor_width, editor_height))
+
+    @objc.python_method
+    def resizeAdventureTreeToWindowX_(self, window_x: float):
+        if self.current_tab != "adventure":
+            return
+        adventure_frame = self.adventure_panel.frame()
+        adventure_margin = 28
+        adventure_x = adventure_frame.origin.x + adventure_margin
+        adventure_width = adventure_frame.size.width - adventure_margin * 2
+        detail_gap = 22
+        min_tree_width = 180
+        max_tree_width = max(min_tree_width, min(520, int(adventure_width - detail_gap - 420)))
+        tree_width = int(min(max_tree_width, max(min_tree_width, float(window_x) - adventure_x - detail_gap / 2)))
+        if tree_width == int(self.adventure_tree_width):
+            return
+        self.adventure_tree_width = tree_width
+        defaults = NSUserDefaults.standardUserDefaults()
+        defaults.setInteger_forKey_(tree_width, ADVENTURE_TREE_WIDTH_PREF)
+        defaults.synchronize()
+        self.layoutMainWindow()

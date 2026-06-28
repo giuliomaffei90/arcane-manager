@@ -34,6 +34,7 @@ TRANSCRIPT_NORMALIZATION_REPLACEMENTS = {
 PARTIES_PREF = "InitiativeParties"
 ADVENTURE_VAULT_PREF = "AdventureVaultPath"
 ADVENTURE_SELECTED_NOTE_PREF = "AdventureSelectedNotePath"
+ADVENTURE_TREE_WIDTH_PREF = "AdventureTreeWidth"
 CLASS_OPTIONS = [
     "Artificer",
     "Barbarian",
@@ -105,4 +106,3 @@ CLASS_ICON_FILES = {
 }
 MONSTER_ICON_FILE = "monster.png"
 ICON_IMAGE_CACHE: dict[str, Any] = {}
-

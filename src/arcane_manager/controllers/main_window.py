@@ -94,6 +94,7 @@ class MainWindowController(NSObject):
     spell_result_buttons: list[NSButton]
     spell_detail_scroll: NSScrollView
     spell_detail_view: DiceTextView
+    current_spell_school: str
     dice_title_label: NSTextField
     dice_hint_label: NSTextField
     dice_formula_label: NSTextField
@@ -117,9 +118,9 @@ class MainWindowController(NSObject):
     adventure_views: list[Any]
     adventure_tree_scroll: NSScrollView
     adventure_tree_content: FlippedView
+    adventure_divider_view: AdventureDividerView
     adventure_title_label: NSTextField
     adventure_status_label: NSTextField
-    adventure_folder_button: NSButton
     adventure_toggle_button: NSButton
     adventure_save_button: NSButton
     adventure_dirty_label: NSTextField
@@ -129,6 +130,7 @@ class MainWindowController(NSObject):
     adventure_is_editing: bool
     adventure_dirty: bool
     adventure_last_saved_text: str
+    adventure_tree_width: int
     displayed_spells: list[Spell]
     initiative_views: list[Any]
     spell_views: list[Any]
@@ -157,6 +159,7 @@ class MainWindowController(NSObject):
         self.monster_add_buttons = []
         self.displayed_spells = []
         self.spell_result_buttons = []
+        self.current_spell_school = ""
         self.dice_preset_buttons = []
         self.dice_pool = {4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0}
         self.adventure_vault_path = None
@@ -172,6 +175,7 @@ class MainWindowController(NSObject):
         self.adventure_is_editing = False
         self.adventure_dirty = False
         self.adventure_last_saved_text = ""
+        self.adventure_tree_width = int(NSUserDefaults.standardUserDefaults().integerForKey_(ADVENTURE_TREE_WIDTH_PREF)) or 260
         if self not in DICE_HISTORY_LISTENERS:
             DICE_HISTORY_LISTENERS.append(self)
         self.party_member_labels = []
@@ -479,7 +483,6 @@ class MainWindowController(NSObject):
         self.adventure_title_label = make_label("Adventure", (0, 0, 360, 32), 24, True)
         self.adventure_status_label = make_label("Choose a folder of Markdown notes.", (0, 0, 520, 24), 13)
         self.adventure_status_label.setTextColor_(theme_color("muted"))
-        self.adventure_folder_button = self._make_button("Choose Folder", (0, 0, 132, 32), "chooseAdventureFolder:")
         self.adventure_toggle_button = self._make_button("Edit", (0, 0, 86, 32), "toggleAdventureMode:")
         self.adventure_save_button = self._make_button("Save", (0, 0, 82, 32), "saveAdventureNote:")
         self.adventure_dirty_label = make_label("", (0, 0, 120, 22), 12, True)
@@ -493,6 +496,8 @@ class MainWindowController(NSObject):
         style_layer(self.adventure_tree_scroll, theme_color("surface_soft"), theme_color("border_soft"), 8, 1)
         self.adventure_tree_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 260, 420))
         self.adventure_tree_scroll.setDocumentView_(self.adventure_tree_content)
+        self.adventure_divider_view = AdventureDividerView.alloc().initWithFrame_(NSMakeRect(0, 0, 8, 420))
+        self.adventure_divider_view.setTarget_(self)
 
         adventure_user_content = WKUserContentController.alloc().init()
         adventure_user_content.addScriptMessageHandler_name_(self, "adventure")
@@ -500,6 +505,7 @@ class MainWindowController(NSObject):
         adventure_config.setUserContentController_(adventure_user_content)
         self.adventure_web_view = WKWebView.alloc().initWithFrame_configuration_(NSMakeRect(0, 0, 620, 420), adventure_config)
         self.adventure_web_view.setValue_forKey_(False, "drawsBackground")
+        style_layer(self.adventure_web_view, theme_color("adventure_reader_bg"), theme_color("border_soft"), 8, 1)
 
         self.adventure_editor_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 620, 420))
         self.adventure_editor_scroll.setHasVerticalScroller_(True)
@@ -614,11 +620,11 @@ class MainWindowController(NSObject):
         for view in (
             self.adventure_title_label,
             self.adventure_status_label,
-            self.adventure_folder_button,
             self.adventure_toggle_button,
             self.adventure_save_button,
             self.adventure_dirty_label,
             self.adventure_tree_scroll,
+            self.adventure_divider_view,
             self.adventure_web_view,
             self.adventure_editor_scroll,
         ):
@@ -660,11 +666,11 @@ class MainWindowController(NSObject):
             self.adventure_panel,
             self.adventure_title_label,
             self.adventure_status_label,
-            self.adventure_folder_button,
             self.adventure_toggle_button,
             self.adventure_save_button,
             self.adventure_dirty_label,
             self.adventure_tree_scroll,
+            self.adventure_divider_view,
             self.adventure_web_view,
             self.adventure_editor_scroll,
         ]

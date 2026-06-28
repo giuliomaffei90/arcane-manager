@@ -642,7 +642,6 @@ class MainWindowController(objc.Category(_MainWindowController)):
         has_vault = self.adventure_vault_path is not None
         has_note = self.adventure_selected_note is not None
         self.adventure_title_label.setStringValue_(self.adventure_vault_path.name if has_vault else "Adventure")
-        self.adventure_folder_button.setTitle_("Change Folder" if has_vault else "Choose Folder")
         self.adventure_toggle_button.setEnabled_(has_note)
         self.adventure_toggle_button.setTitle_("Preview" if self.adventure_is_editing else "Edit")
         self.adventure_save_button.setEnabled_(has_note and self.adventure_is_editing and self.adventure_dirty)

@@ -5,6 +5,15 @@ from .main_window import MainWindowController as _MainWindowController
 
 
 class MainWindowController(objc.Category(_MainWindowController)):
+    @objc.python_method
+    def applySpellDetailSchoolColor(self):
+        color = spell_school_color(self.current_spell_school)
+        self.spell_detail_meta_label.setTextColor_(color)
+        for label in (self.spell_v_label, self.spell_s_label, self.spell_m_label):
+            label.setTextColor_(color)
+        for box in (self.spell_v_box, self.spell_s_box, self.spell_m_box):
+            box.setFillColor_strokeColor_(color, color)
+
     def selectedMonsterCrFilter(self) -> str | None:
         selected = self.monster_cr_filter_popup.selectedItem()
         title = str(selected.title()) if selected is not None else ""
@@ -119,6 +128,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.showSpellInDetail_(self.displayed_spells[0])
         else:
             self.setSpellDetailHeaderHidden_(True)
+            self.current_spell_school = ""
             self.layoutMainWindow()
             self.spell_detail_view.setString_("No matching spells.")
             self.spell_detail_view.setDiceRanges_([])
@@ -132,6 +142,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
 
     def showSpellInDetail_(self, spell):
         title, meta, body = format_spell_for_detail(spell)
+        self.current_spell_school = spell.school
         self.setSpellDetailHeaderHidden_(False)
         self.spell_detail_title_label.setStringValue_(title)
         italian_name = spell.italian_name.strip()
@@ -140,6 +151,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         else:
             self.spell_detail_italian_label.setStringValue_("")
         self.spell_detail_meta_label.setStringValue_(meta)
+        self.applySpellDetailSchoolColor()
 
         flags = component_flags(spell.components)
         self.spell_v_box.setChecked_(flags["V"])
