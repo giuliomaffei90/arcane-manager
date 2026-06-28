@@ -81,6 +81,7 @@ try:
         NSWorkspaceRecycleOperation,
         NSTextField,
         NSCompositingOperationSourceOver,
+        NSViewBoundsDidChangeNotification,
     )
     from WebKit import (
         WKUserContentController,
@@ -98,6 +99,7 @@ try:
         NSMakeRange,
         NSMakeSize,
         NSObject,
+        NSNotificationCenter,
         NSTimer,
         NSUserDefaults,
     )

@@ -74,6 +74,7 @@ class MainWindowController(NSObject):
     monster_search_button: NSButton
     monster_results_scroll: NSScrollView
     monster_results_content: FlippedView
+    monster_results_indicator: PersistentScrollIndicator
     monster_result_buttons: list[NSButton]
     monster_add_buttons: list[NSButton]
     spell_search_field: NSTextField
@@ -388,12 +389,21 @@ class MainWindowController(NSObject):
         self.monster_search_button = self._make_button("Search", (0, 0, 80, 26), "searchMonsters:")
         self.monster_search_button.setHidden_(True)
         self.monster_results_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
-        self.monster_results_scroll.setHasVerticalScroller_(True)
+        self.monster_results_scroll.setHasVerticalScroller_(False)
         self.monster_results_scroll.setAutohidesScrollers_(False)
         self.monster_results_scroll.setDrawsBackground_(False)
         self.monster_results_scroll.setBorderType_(0)
         self.monster_results_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
         self.monster_results_scroll.setDocumentView_(self.monster_results_content)
+        self.monster_results_scroll.contentView().setPostsBoundsChangedNotifications_(True)
+        self.monster_results_indicator = PersistentScrollIndicator.alloc().initWithFrame_(NSMakeRect(0, 0, 8, 100))
+        self.monster_results_indicator.setScrollView_(self.monster_results_scroll)
+        NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
+            self,
+            "monsterResultsBoundsDidChange:",
+            NSViewBoundsDidChangeNotification,
+            self.monster_results_scroll.contentView(),
+        )
 
         self.spell_search_field = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 260, 28))
         self.spell_search_field.setPlaceholderString_("Search spells in English or Italian")
@@ -640,6 +650,7 @@ class MainWindowController(NSObject):
             self.monster_cr_filter_popup,
             self.monster_search_button,
             self.monster_results_scroll,
+            self.monster_results_indicator,
         ):
             self.sidebar_content.addSubview_(view)
         for label in self.party_member_labels:

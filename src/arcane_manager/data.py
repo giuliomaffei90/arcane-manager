@@ -184,25 +184,30 @@ def search_creatures(query: str, creatures: list[Creature], cr_filter: str | Non
         results = sorted(filtered_creatures, key=lambda creature: normalize(creature.name))
         return results if limit is None else results[:limit]
 
-    matched: list[Creature] = []
-    compact_query = normalized_query.replace(" ", "")
+    query_words = normalized_query.split()
+    ranked: list[tuple[int, str, Creature]] = []
     for creature in filtered_creatures:
         normalized_name = normalize(creature.name)
-        compact_name = normalized_name.replace(" ", "")
+        name_words = normalized_name.split()
+        if not query_words or not all(
+            any(name_word == query_word or name_word.startswith(query_word) for name_word in name_words)
+            for query_word in query_words
+        ):
+            continue
+
         if normalized_name == normalized_query:
-            score = 1.0
+            tier = 0
         elif normalized_name.startswith(normalized_query):
-            score = 0.94
-        elif normalized_query in normalized_name:
-            score = 0.86
-        elif compact_query and compact_query in compact_name:
-            score = 0.82
+            tier = 1
+        elif all(query_word in name_words for query_word in query_words):
+            tier = 2
         else:
-            score = SequenceMatcher(None, normalized_query, normalized_name).ratio() * 0.78
-        if score >= 0.45:
-            matched.append(creature)
-    matched.sort(key=lambda creature: normalize(creature.name))
-    return matched if limit is None else matched[:limit]
+            tier = 3
+        ranked.append((tier, normalized_name, creature))
+
+    ranked.sort(key=lambda item: (item[0], item[1]))
+    results = [creature for _tier, _name, creature in ranked]
+    return results if limit is None else results[:limit]
 
 
 @dataclass(frozen=True)
