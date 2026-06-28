@@ -37,8 +37,11 @@ try:
         NSBackingStoreBuffered,
         NSBezierPath,
         NSButton,
+        NSButtonTypeSwitch,
         NSColor,
         NSColorWell,
+        NSControlStateValueOff,
+        NSControlStateValueOn,
         NSCursor,
         NSFont,
         NSFontAttributeName,
@@ -81,6 +84,7 @@ try:
         NSWorkspaceRecycleOperation,
         NSTextField,
         NSCompositingOperationSourceOver,
+        NSViewBoundsDidChangeNotification,
     )
     from WebKit import (
         WKUserContentController,
@@ -98,6 +102,7 @@ try:
         NSMakeRange,
         NSMakeSize,
         NSObject,
+        NSNotificationCenter,
         NSTimer,
         NSUserDefaults,
     )

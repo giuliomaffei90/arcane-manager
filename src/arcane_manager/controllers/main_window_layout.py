@@ -149,10 +149,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             panel_width = max(560, available_panel_width)
         panel_height = max(560, content_height - panel_y)
         party = self.selectedParty()
-        characters = party.get("characters", [])
-        if not isinstance(characters, list):
-            characters = []
-        visible_party_rows = min(len([character for character in characters if isinstance(character, dict)]), len(self.party_member_labels))
+        visible_party_rows = len(self._valid_party_characters(party))
         sidebar_document_height = max(
             content_height,
             620 + visible_party_rows * 42,
@@ -211,11 +208,13 @@ class MainWindowController(objc.Category(_MainWindowController)):
         card_width = sidebar_width - sidebar_margin * 2
         for index, label in enumerate(self.party_member_labels):
             label.setFrame_(NSMakeRect(sidebar_margin, y - index * 42, card_width, 36))
+        for index, checkbox in enumerate(self.party_member_checkboxes):
+            checkbox.setFrame_(NSMakeRect(sidebar_margin + 10, y - index * 42 + 8, 20, 20))
         for index, icon_view in enumerate(self.party_member_icon_views):
-            icon_view.setFrame_(NSMakeRect(sidebar_margin + 12, y - index * 42 + 8, 20, 20))
+            icon_view.setFrame_(NSMakeRect(sidebar_margin + 38, y - index * 42 + 8, 20, 20))
         ac_w = 68
         class_w = min(104, max(76, int(card_width * 0.27)))
-        icon_column_w = 42
+        icon_column_w = 68
         column_gap = 8
         row_name_x = sidebar_margin + icon_column_w
         row_ac_x = sidebar_margin + card_width - ac_w - 10
@@ -229,7 +228,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         y -= visible_party_rows * 42 + 8
         self.party_status_label.setFrame_(NSMakeRect(sidebar_margin, y, card_width, 38))
 
-        y -= 70
+        y -= 34
         self.monster_label.setFrame_(NSMakeRect(sidebar_margin, y + 4, 140, 24))
         y -= 40
         cr_filter_w = 90
@@ -238,14 +237,16 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.monster_search_field.setFrame_(NSMakeRect(sidebar_margin, y - 3, search_w, 34))
         self.monster_cr_filter_popup.setFrame_(NSMakeRect(sidebar_margin + search_w + cr_filter_gap, y - 3, cr_filter_w, 34))
         self.monster_search_button.setFrame_(NSMakeRect(sidebar_margin + card_width - 76, y, 76, 28))
-        y -= 48
+        y -= 19
         results_height = max(140, y - 18)
         self.monster_results_scroll.setFrame_(NSMakeRect(sidebar_margin, 18, card_width, results_height))
+        self.monster_results_indicator.setFrame_(NSMakeRect(sidebar_margin + card_width - 11, 18, 8, results_height))
         monster_add_w = 30
         monster_result_gap = 10
         monster_result_w = max(180, card_width - monster_add_w - monster_result_gap - 18)
         results_document_height = max(results_height, len(self.monster_results) * MONSTER_RESULT_ROW_STEP)
         self.monster_results_content.setFrame_(NSMakeRect(0, 0, card_width - 18, results_document_height))
+        self.monster_results_indicator.setNeedsDisplay_(True)
         for index, button in enumerate(self.monster_result_buttons):
             row_y = index * MONSTER_RESULT_ROW_STEP
             button.setFrame_(NSMakeRect(0, row_y, monster_result_w, MONSTER_RESULT_ROW_HEIGHT))

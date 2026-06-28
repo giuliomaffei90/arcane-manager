@@ -6,6 +6,53 @@ from ..data import Creature, Item, Spell, creature_summary, display_ac, item_cos
 from ..text_utils import normalize
 from .core import *
 
+
+class PersistentScrollIndicator(NSView):
+    scroll_view = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(PersistentScrollIndicator, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.scroll_view = None
+        self.setWantsLayer_(True)
+        return self
+
+    def isFlipped(self):
+        return True
+
+    def setScrollView_(self, scroll_view):
+        self.scroll_view = scroll_view
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        if bounds.size.height <= 1 or self.scroll_view is None:
+            return
+
+        document_view = self.scroll_view.documentView()
+        clip_view = self.scroll_view.contentView()
+        if document_view is None or clip_view is None:
+            return
+
+        document_height = float(document_view.frame().size.height)
+        viewport_height = float(clip_view.bounds().size.height)
+        if document_height <= viewport_height + 1:
+            return
+
+        track_width = min(6.0, max(3.0, float(bounds.size.width) - 2.0))
+        track_x = (float(bounds.size.width) - track_width) / 2.0
+        track_rect = NSMakeRect(track_x, 0.0, track_width, float(bounds.size.height))
+        draw_rounded_rect(track_rect, theme_color("border_soft", 0.55), None, track_width / 2.0, 0)
+
+        max_offset = max(1.0, document_height - viewport_height)
+        offset = min(max(0.0, float(clip_view.bounds().origin.y)), max_offset)
+        thumb_height = max(28.0, float(bounds.size.height) * viewport_height / document_height)
+        thumb_y = offset / max_offset * max(0.0, float(bounds.size.height) - thumb_height)
+        thumb_rect = NSMakeRect(track_x, thumb_y, track_width, thumb_height)
+        draw_rounded_rect(thumb_rect, theme_color("muted", 0.95), None, track_width / 2.0, 0)
+
+
 class DiceTextView(NSTextView):
     dice_ranges: list[tuple[int, int, str]]
     spell_ranges: list[tuple[int, int, Spell]]

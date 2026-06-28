@@ -26,11 +26,12 @@ class MainWindowController(objc.Category(_MainWindowController)):
 
     def startFight_(self, _sender):
         party = self.selectedParty()
-        characters = party.get("characters", [])
-        if not isinstance(characters, list):
-            return
+        characters = self._valid_party_characters(party)
+        enabled_state = self._ensure_party_enabled_state()
         self.combatants = [combatant for combatant in self.combatants if combatant.get("kind") != "PC"]
-        for character in characters:
+        for index, character in enumerate(characters):
+            if index >= len(enabled_state) or not enabled_state[index]:
+                continue
             if not isinstance(character, dict):
                 continue
             name = str(character.get("name") or "").strip()

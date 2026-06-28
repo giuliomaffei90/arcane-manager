@@ -5,6 +5,67 @@ from .main_window import MainWindowController as _MainWindowController
 
 
 class MainWindowController(objc.Category(_MainWindowController)):
+    @objc.python_method
+    def _valid_party_characters(self, party: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        if party is None:
+            party = self.selectedParty()
+        characters = party.get("characters", [])
+        if not isinstance(characters, list):
+            party["characters"] = []
+            return []
+        return [character for character in characters if isinstance(character, dict)]
+
+    @objc.python_method
+    def _ensure_party_enabled_state(self, party_index: int | None = None) -> list[bool]:
+        if party_index is None:
+            party_index = self.selectedPartyIndex()
+        while len(self.party_member_enabled) < len(self.parties):
+            self.party_member_enabled.append([])
+        if party_index < 0 or party_index >= len(self.parties):
+            return []
+        characters = self._valid_party_characters(self.parties[party_index])
+        enabled = self.party_member_enabled[party_index]
+        if len(enabled) < len(characters):
+            enabled.extend([True] * (len(characters) - len(enabled)))
+        elif len(enabled) > len(characters):
+            del enabled[len(characters):]
+        return enabled
+
+    @objc.python_method
+    def _ensure_party_member_rows(self, count: int):
+        while len(self.party_member_labels) < count:
+            label = make_label("", (0, 0, 100, 38), 13, True)
+            label.setHidden_(True)
+            style_layer(label, theme_color("surface"), theme_color("border_soft"), 8, 1)
+            self.party_member_labels.append(label)
+            self.sidebar_content.addSubview_(label)
+
+            checkbox = NSButton.alloc().initWithFrame_(NSMakeRect(0, 0, 18, 18))
+            checkbox.setButtonType_(NSButtonTypeSwitch)
+            checkbox.setTitle_("")
+            checkbox.setTarget_(self)
+            checkbox.setAction_("togglePartyMemberEnabled:")
+            checkbox.setHidden_(True)
+            self.party_member_checkboxes.append(checkbox)
+            self.sidebar_content.addSubview_(checkbox)
+
+            icon_view = NSImageView.alloc().initWithFrame_(NSMakeRect(0, 0, 20, 20))
+            icon_view.setHidden_(True)
+            self.party_member_icon_views.append(icon_view)
+            self.sidebar_content.addSubview_(icon_view)
+
+            name_label = make_label("", (0, 0, 80, 20), 13, True)
+            class_label = make_label("", (0, 0, 80, 20), 12, True)
+            ac_label = make_label("", (0, 0, 56, 20), 12, True)
+            for row_label in (name_label, class_label, ac_label):
+                row_label.setUsesSingleLineMode_(True)
+                row_label.setLineBreakMode_(4)
+                row_label.setHidden_(True)
+                self.sidebar_content.addSubview_(row_label)
+            self.party_member_name_labels.append(name_label)
+            self.party_member_class_labels.append(class_label)
+            self.party_member_ac_labels.append(ac_label)
+
     def loadParties(self) -> list[dict[str, Any]]:
         raw = NSUserDefaults.standardUserDefaults().stringForKey_(PARTIES_PREF)
         if raw:
@@ -38,18 +99,17 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.party_popup.addItemWithTitle_(str(party.get("name") or "Unnamed Party"))
         self.party_popup.selectItemAtIndex_(min(self.selectedPartyIndex(), max(0, len(self.parties) - 1)))
         self.party_popup.setNeedsDisplay_(True)
-        self.layoutMainWindow()
         self.syncPartyFields()
+        self.layoutMainWindow()
 
     def syncPartyFields(self):
         party = self.selectedParty()
-        characters = party.get("characters", [])
-        if not isinstance(characters, list):
-            characters = []
-            party["characters"] = characters
-        visible_characters = [character for character in characters if isinstance(character, dict)]
+        visible_characters = self._valid_party_characters(party)
+        self._ensure_party_member_rows(len(visible_characters))
+        enabled_state = self._ensure_party_enabled_state()
         for index, label in enumerate(self.party_member_labels):
             icon_view = self.party_member_icon_views[index] if index < len(self.party_member_icon_views) else None
+            checkbox = self.party_member_checkboxes[index] if index < len(self.party_member_checkboxes) else None
             row_labels = (
                 self.party_member_name_labels[index],
                 self.party_member_class_labels[index],
@@ -57,6 +117,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
             )
             if index >= len(visible_characters):
                 label.setHidden_(True)
+                if checkbox is not None:
+                    checkbox.setHidden_(True)
                 if icon_view is not None:
                     icon_view.setHidden_(True)
                 for row_label in row_labels:
@@ -68,6 +130,10 @@ class MainWindowController(objc.Category(_MainWindowController)):
             ac = str(character.get("ac") or "?")
             label.setStringValue_("")
             label.setHidden_(False)
+            if checkbox is not None:
+                checkbox.setTag_(index)
+                checkbox.setState_(NSControlStateValueOn if enabled_state[index] else NSControlStateValueOff)
+                checkbox.setHidden_(False)
             if icon_view is not None:
                 image = icon_image(class_name)
                 icon_view.setImage_(image)
@@ -77,17 +143,25 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.party_member_ac_labels[index].setStringValue_(f"AC: {ac[:4]}")
             for row_label in row_labels:
                 row_label.setHidden_(False)
-        if len(visible_characters) > len(self.party_member_labels):
-            self.party_status_label.setStringValue_(f"+ {len(visible_characters) - len(self.party_member_labels)} more member(s)")
-        elif visible_characters:
-            self.party_status_label.setStringValue_(f"{len(visible_characters)} member(s) ready")
+        if visible_characters:
+            selected_count = sum(1 for enabled in enabled_state[: len(visible_characters)] if enabled)
+            self.party_status_label.setStringValue_(f"{selected_count}/{len(visible_characters)} member(s) ready")
         else:
             self.party_status_label.setStringValue_("No characters yet. Create or edit a party.")
 
     def selectParty_(self, _sender):
         self.party_popup.setNeedsDisplay_(True)
-        self.layoutMainWindow()
         self.syncPartyFields()
+        self.layoutMainWindow()
+
+    def togglePartyMemberEnabled_(self, sender):
+        index = int(sender.tag())
+        enabled = self._ensure_party_enabled_state()
+        if index < 0 or index >= len(enabled):
+            return
+        enabled[index] = int(sender.state()) == NSControlStateValueOn
+        self.syncPartyFields()
+        self.layoutMainWindow()
 
     def newParty_(self, _sender):
         self.openPartyEditorForIndex_(-1)
@@ -109,12 +183,16 @@ class MainWindowController(objc.Category(_MainWindowController)):
         if int(alert.runModal()) != 1000:
             return
         del self.parties[index]
+        if index < len(self.party_member_enabled):
+            del self.party_member_enabled[index]
         if not self.parties:
             self.parties.append({"name": "Default Party", "characters": []})
+            self.party_member_enabled.append([])
         self.saveParties()
         self.refreshPartyPopup()
         self.party_popup.selectItemAtIndex_(min(index, len(self.parties) - 1))
         self.syncPartyFields()
+        self.layoutMainWindow()
 
     def openPartyEditorForIndex_(self, index: int):
         self.editing_party_index = int(index)
@@ -304,11 +382,13 @@ class MainWindowController(objc.Category(_MainWindowController)):
             selected_index = self.editing_party_index
         else:
             self.parties.append(party)
+            self.party_member_enabled.append([])
             selected_index = len(self.parties) - 1
         self.saveParties()
         self.refreshPartyPopup()
         self.party_popup.selectItemAtIndex_(selected_index)
         self.syncPartyFields()
+        self.layoutMainWindow()
         self.party_editor_panel.orderOut_(None)
 
     def cancelEditorParty_(self, _sender):

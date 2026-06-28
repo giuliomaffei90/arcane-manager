@@ -39,6 +39,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.monster_add_buttons.append(add_button)
             self.monster_results_content.addSubview_(add_button)
 
+    def monsterResultsBoundsDidChange_(self, _notification):
+        self.monster_results_indicator.setNeedsDisplay_(True)
+
     def searchMonsters_(self, _sender):
         query = str(self.monster_search_field.stringValue()).strip()
         self.monster_results = search_creatures(query, self.creatures, self.selectedMonsterCrFilter())
@@ -58,6 +61,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.layoutMainWindow()
             self.monster_results_scroll.contentView().scrollToPoint_(NSMakePoint(0, 0))
             self.monster_results_scroll.reflectScrolledClipView_(self.monster_results_scroll.contentView())
+            self.monster_results_indicator.setNeedsDisplay_(True)
 
     def selectedSpellLevelFilter(self) -> str | None:
         selected = self.spell_level_filter_popup.selectedItem()
