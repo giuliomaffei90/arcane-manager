@@ -8,7 +8,7 @@ dist/
 *.spec
 pyinstaller_build.log
 
-agents/
+agents
 AGENTS.md
 
 *.app/
