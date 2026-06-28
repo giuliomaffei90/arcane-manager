@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from .platform import Any, Path, SequenceMatcher, dataclass, json
+from .platform import Any, Path, SequenceMatcher, dataclass, json, re
 from .logging_utils import log
-from .resources import MAX_ALIAS_CHARS, MAX_ALIASES_PER_SPELL, MAX_SHORT_FIELD_CHARS, MAX_SPELL_FILE_BYTES, MAX_SPELLS, MAX_TEXT_FIELD_CHARS
+from .resources import MAX_ALIAS_CHARS, MAX_ALIASES_PER_SPELL, MAX_ITEM_FILE_BYTES, MAX_ITEMS, MAX_SHORT_FIELD_CHARS, MAX_SPELL_FILE_BYTES, MAX_SPELLS, MAX_TEXT_FIELD_CHARS
 from .text_utils import clean_text, clean_text_list, normalize
 
 
@@ -203,3 +203,170 @@ def search_creatures(query: str, creatures: list[Creature], cr_filter: str | Non
             matched.append(creature)
     matched.sort(key=lambda creature: normalize(creature.name))
     return matched if limit is None else matched[:limit]
+
+
+@dataclass(frozen=True)
+class Item:
+    id: str
+    name: str
+    category: str
+    description: str
+    cost: str
+    ac: str = ""
+    classification: str = ""
+    damage: str = ""
+    properties: str = ""
+    source_page: int = 0
+    source: str = ""
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "Item":
+        if not isinstance(raw, dict):
+            raise ValueError("Item entries must be JSON objects.")
+        name = clean_text(raw.get("name", ""), MAX_SHORT_FIELD_CHARS)
+        if not name:
+            raise ValueError(f"Item entry without a name: {raw!r}")
+        try:
+            source_page = int(raw.get("source_page") or 0)
+        except (TypeError, ValueError):
+            source_page = 0
+        return cls(
+            id=clean_text(raw.get("id") or normalize(name).replace(" ", "-"), MAX_SHORT_FIELD_CHARS),
+            name=name,
+            category=clean_text(raw.get("category", ""), MAX_SHORT_FIELD_CHARS),
+            description=clean_text(raw.get("description", ""), MAX_TEXT_FIELD_CHARS),
+            cost=clean_text(raw.get("cost", ""), MAX_SHORT_FIELD_CHARS),
+            ac=clean_text(raw.get("ac", ""), MAX_SHORT_FIELD_CHARS),
+            classification=clean_text(raw.get("classification", ""), MAX_SHORT_FIELD_CHARS),
+            damage=clean_text(raw.get("damage", ""), MAX_SHORT_FIELD_CHARS),
+            properties=clean_text(raw.get("properties", ""), MAX_SHORT_FIELD_CHARS),
+            source_page=source_page,
+            source=clean_text(raw.get("source", ""), MAX_SHORT_FIELD_CHARS),
+        )
+
+
+def load_items(path: Path) -> list[Item]:
+    path = path.expanduser()
+    if not path.exists():
+        log(f"Items file not found: {path}")
+        return []
+    if not path.is_file():
+        raise ValueError(f"Items path is not a regular file: {path}")
+    if path.stat().st_size > MAX_ITEM_FILE_BYTES:
+        raise ValueError(f"Items file is too large: {path}")
+    with path.open("r", encoding="utf-8") as handle:
+        try:
+            payload = json.load(handle)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid items JSON: {exc}") from exc
+    raw_items = payload.get("items", payload) if isinstance(payload, dict) else payload
+    if not isinstance(raw_items, list):
+        raise ValueError("Items file must contain a list or an object with an 'items' list.")
+    if len(raw_items) > MAX_ITEMS:
+        raise ValueError(f"Items file contains too many entries: {len(raw_items)}")
+    items = [Item.from_dict(item) for item in raw_items if isinstance(item, dict)]
+    return [item for item in items if item.name]
+
+
+def item_category_values(items: list[Item]) -> list[str]:
+    values = {item.category for item in items if item.category}
+    return sorted(values, key=lambda value: normalize(value))
+
+
+def item_summary(item: Item) -> str:
+    parts = [item.name]
+    if item.category:
+        parts.append(item.category)
+    if item.cost:
+        parts.append(item.cost)
+    return " - ".join(parts)
+
+
+def item_cost_to_copper(cost: str) -> int | None:
+    match = re.fullmatch(r"\s*(\d+)\s+(Gold|Silver|Copper)\s*", cost or "", re.IGNORECASE)
+    if not match:
+        return None
+    value = int(match.group(1))
+    unit = match.group(2).lower()
+    if unit == "gold":
+        return value * 100
+    if unit == "silver":
+        return value * 10
+    return value
+
+
+def copper_value_text(copper: int) -> str:
+    copper = max(0, int(copper))
+    gold, remainder = divmod(copper, 100)
+    silver, copper = divmod(remainder, 10)
+    parts = []
+    if gold:
+        parts.append(f"{gold} Gold")
+    if silver:
+        parts.append(f"{silver} Silver")
+    if copper or not parts:
+        parts.append(f"{copper} Copper")
+    return " ".join(parts)
+
+
+def item_value_text(cost: str) -> str:
+    return cost.strip() if cost and cost.strip() else "Loot Only"
+
+
+def merchant_value_text(cost: str) -> str:
+    copper = item_cost_to_copper(cost)
+    if copper is None:
+        return "Loot Only"
+    return copper_value_text((copper * 60) // 100)
+
+
+def item_cost_color_name(cost: str) -> str:
+    copper = item_cost_to_copper(cost)
+    if copper is None:
+        return "gold"
+    if copper >= 100:
+        return "gold"
+    if copper >= 10:
+        return "muted"
+    return "copper"
+
+
+def search_items(query: str, items: list[Item], category_filter: str | None = None, limit: int | None = None) -> list[Item]:
+    filtered_items = [item for item in items if not category_filter or item.category == category_filter]
+    normalized_query = normalize(query)
+    if not normalized_query:
+        results = sorted(filtered_items, key=lambda item: normalize(item.name))
+        return results if limit is None else results[:limit]
+
+    matched: list[tuple[float, Item]] = []
+    compact_query = normalized_query.replace(" ", "")
+    for item in filtered_items:
+        searchable_values = [
+            item.name,
+            item.category,
+            item.cost,
+            item.classification,
+            item.damage,
+            item.properties,
+            item.description,
+        ]
+        normalized_name = normalize(item.name)
+        compact_name = normalized_name.replace(" ", "")
+        haystack = normalize(" ".join(value for value in searchable_values if value))
+        if normalized_name == normalized_query:
+            score = 1.0
+        elif normalized_name.startswith(normalized_query):
+            score = 0.94
+        elif normalized_query in normalized_name:
+            score = 0.88
+        elif compact_query and compact_query in compact_name:
+            score = 0.84
+        elif normalized_query in haystack:
+            score = 0.72
+        else:
+            score = SequenceMatcher(None, normalized_query, normalized_name).ratio() * 0.78
+        if score >= 0.45:
+            matched.append((score, item))
+    matched.sort(key=lambda pair: (-pair[0], normalize(pair[1].name)))
+    results = [item for _score, item in matched]
+    return results if limit is None else results[:limit]

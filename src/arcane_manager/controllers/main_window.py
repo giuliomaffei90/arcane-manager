@@ -7,6 +7,7 @@ class MainWindowController(NSObject):
     content_view: NSView
     initiative_tab_button: NSButton
     spells_tab_button: NSButton
+    items_tab_button: NSButton
     dice_tab_button: NSButton
     adventure_tab_button: NSButton
     sidebar_panel: NSView
@@ -14,12 +15,14 @@ class MainWindowController(NSObject):
     sidebar_content: NSView
     combat_panel: NSView
     spell_panel: NSView
+    item_panel: NSView
     dice_panel: NSView
     adventure_panel: NSView
     sidebar_logo_label: NSTextField
     sidebar_footer_label: NSTextField
     creatures: list[Creature]
     spells: list[Spell]
+    items: list[Item]
     spell_lookup: dict[str, Spell]
     parties: list[dict[str, Any]]
     combatants: list[dict[str, Any]]
@@ -95,6 +98,19 @@ class MainWindowController(NSObject):
     spell_detail_scroll: NSScrollView
     spell_detail_view: DiceTextView
     current_spell_school: str
+    item_search_field: NSTextField
+    item_category_filter_popup: NSPopUpButton
+    item_results_scroll: NSScrollView
+    item_results_content: FlippedView
+    item_detail_title_label: NSTextField
+    item_detail_meta_label: NSTextField
+    item_detail_fields_label: NSTextField
+    item_detail_header_views: list[Any]
+    item_result_buttons: list[NSButton]
+    item_detail_scroll: NSScrollView
+    item_detail_view: DiceTextView
+    displayed_items: list[Item]
+    selected_item: Item | None
     dice_title_label: NSTextField
     dice_hint_label: NSTextField
     dice_formula_label: NSTextField
@@ -134,6 +150,7 @@ class MainWindowController(NSObject):
     displayed_spells: list[Spell]
     initiative_views: list[Any]
     spell_views: list[Any]
+    item_views: list[Any]
     dice_views: list[Any]
     current_tab: str
     previous_turn_button: NSButton
@@ -144,13 +161,14 @@ class MainWindowController(NSObject):
     party_status_label: NSTextField
     turn_label: NSTextField
 
-    def initWithBestiary_spells_spellLookup_(self, creatures, spells, spell_lookup):
+    def initWithBestiary_spells_spellLookup_items_(self, creatures, spells, spell_lookup, items):
         self = objc.super(MainWindowController, self).init()
         if self is None:
             return None
 
         self.creatures = list(creatures)
         self.spells = list(spells)
+        self.items = list(items)
         self.spell_lookup = dict(spell_lookup)
         self.parties = self.loadParties()
         self.combatants = []
@@ -160,6 +178,9 @@ class MainWindowController(NSObject):
         self.displayed_spells = []
         self.spell_result_buttons = []
         self.current_spell_school = ""
+        self.displayed_items = []
+        self.selected_item = None
+        self.item_result_buttons = []
         self.dice_preset_buttons = []
         self.dice_pool = {4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0}
         self.adventure_vault_path = None
@@ -185,6 +206,7 @@ class MainWindowController(NSObject):
         self.party_member_ac_labels = []
         self.initiative_views = []
         self.spell_views = []
+        self.item_views = []
         self.dice_views = []
         self.current_tab = "initiative"
         self.current_turn_index = 0
@@ -232,8 +254,9 @@ class MainWindowController(NSObject):
         style_layer(self.content_view, theme_color("app_bg"), None, 0)
         self.initiative_tab_button = self._make_button("Initiative Tracker", (20, height - 38, 150, 30), "showInitiativeTab:")
         self.spells_tab_button = self._make_button("Spells", (178, height - 38, 86, 30), "showSpellsTab:")
-        self.dice_tab_button = self._make_button("Dice Roller", (272, height - 38, 112, 30), "showDiceTab:")
-        self.adventure_tab_button = self._make_button("Adventure", (392, height - 38, 104, 30), "showAdventureTab:")
+        self.items_tab_button = self._make_button("Items", (272, height - 38, 82, 30), "showItemsTab:")
+        self.dice_tab_button = self._make_button("Dice Roller", (362, height - 38, 112, 30), "showDiceTab:")
+        self.adventure_tab_button = self._make_button("Adventure", (482, height - 38, 104, 30), "showAdventureTab:")
         self.sidebar_panel = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
         style_layer(self.sidebar_panel, theme_color("panel_alt"), None, 0)
         self.sidebar_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
@@ -247,6 +270,8 @@ class MainWindowController(NSObject):
         style_layer(self.combat_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         self.spell_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
         style_layer(self.spell_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
+        self.item_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
+        style_layer(self.item_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         self.dice_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
         style_layer(self.dice_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         self.adventure_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
@@ -445,6 +470,46 @@ class MainWindowController(NSObject):
         self.spell_detail_view.setRollTarget_(self)
         self.spell_detail_scroll.setDocumentView_(self.spell_detail_view)
 
+        self.item_search_field = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 260, 28))
+        self.item_search_field.setPlaceholderString_("Search items")
+        self.item_search_field.setDelegate_(self)
+        style_text_input(self.item_search_field)
+        self.item_category_filter_popup = StyledPopUpButton.alloc().initWithFrame_(NSMakeRect(0, 0, 150, 28))
+        self.item_category_filter_popup.addItemWithTitle_("Any Category")
+        for category in item_category_values(self.items):
+            self.item_category_filter_popup.addItemWithTitle_(category)
+        self.item_category_filter_popup.setTarget_(self)
+        self.item_category_filter_popup.setAction_("refreshItemResults:")
+        self.item_results_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
+        self.item_results_scroll.setHasVerticalScroller_(True)
+        self.item_results_scroll.setAutohidesScrollers_(False)
+        self.item_results_scroll.setDrawsBackground_(False)
+        self.item_results_scroll.setBorderType_(0)
+        self.item_results_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
+        self.item_results_scroll.setDocumentView_(self.item_results_content)
+        self.item_detail_title_label = make_label("", (0, 0, 320, 34), 26, True)
+        self.item_detail_title_label.setLineBreakMode_(4)
+        self.item_detail_meta_label = make_label("", (0, 0, 320, 24), 15, True)
+        self.item_detail_meta_label.setTextColor_(theme_color("gold"))
+        self.item_detail_meta_label.setLineBreakMode_(4)
+        self.item_detail_fields_label = make_multiline(make_label("", (0, 0, 320, 80), 13))
+        self.item_detail_fields_label.setTextColor_(theme_color("text"))
+        self.item_detail_header_views = [
+            self.item_detail_title_label,
+            self.item_detail_meta_label,
+            self.item_detail_fields_label,
+        ]
+        self.item_detail_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
+        self.item_detail_scroll.setHasVerticalScroller_(True)
+        self.item_detail_scroll.setAutohidesScrollers_(False)
+        self.item_detail_scroll.setDrawsBackground_(False)
+        self.item_detail_scroll.setBorderType_(0)
+        self.item_detail_view = DiceTextView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
+        self.item_detail_view.setFont_(NSFont.systemFontOfSize_(13))
+        self.item_detail_view.setTextColor_(theme_color("text"))
+        self.item_detail_view.setRollTarget_(self)
+        self.item_detail_scroll.setDocumentView_(self.item_detail_view)
+
         self.dice_title_label = make_label("Dice Roller", (0, 0, 240, 32), 24, True)
         self.dice_hint_label = make_label("", (0, 0, 720, 24), 13)
         self.dice_hint_label.setTextColor_(theme_color("muted"))
@@ -549,10 +614,12 @@ class MainWindowController(NSObject):
         self.content_view.addSubview_(self.combat_panel)
         self.content_view.addSubview_(self.monster_sheet_drawer)
         self.content_view.addSubview_(self.spell_panel)
+        self.content_view.addSubview_(self.item_panel)
         self.content_view.addSubview_(self.dice_panel)
         self.content_view.addSubview_(self.adventure_panel)
         self.content_view.addSubview_(self.initiative_tab_button)
         self.content_view.addSubview_(self.spells_tab_button)
+        self.content_view.addSubview_(self.items_tab_button)
         self.content_view.addSubview_(self.dice_tab_button)
         self.content_view.addSubview_(self.adventure_tab_button)
         for view in (
@@ -605,6 +672,14 @@ class MainWindowController(NSObject):
         ):
             self.content_view.addSubview_(view)
         for view in (
+            self.item_search_field,
+            self.item_category_filter_popup,
+            self.item_results_scroll,
+            *self.item_detail_header_views,
+            self.item_detail_scroll,
+        ):
+            self.content_view.addSubview_(view)
+        for view in (
             self.dice_title_label,
             self.dice_hint_label,
             self.dice_formula_label,
@@ -651,6 +726,14 @@ class MainWindowController(NSObject):
             *self.spell_detail_header_views,
             self.spell_detail_scroll,
         ]
+        self.item_views = [
+            self.item_panel,
+            self.item_search_field,
+            self.item_category_filter_popup,
+            self.item_results_scroll,
+            *self.item_detail_header_views,
+            self.item_detail_scroll,
+        ]
         self.dice_views = [
             self.dice_panel,
             self.dice_title_label,
@@ -681,6 +764,7 @@ class MainWindowController(NSObject):
         self.refreshPartyPopup()
         self.searchMonsters_(None)
         self.refreshSpellResults()
+        self.refreshItemResults()
         self.refreshDiceFormula_(None)
         self.refreshTracker()
         self.applyCurrentTab()
@@ -705,6 +789,7 @@ def _register_categories():
     from . import party_controller  # noqa: F401
     from . import combat_controller  # noqa: F401
     from . import spell_controller  # noqa: F401
+    from . import item_controller  # noqa: F401
 
 
 _register_categories()

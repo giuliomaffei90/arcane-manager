@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..platform import *
 from ..constants import *
-from ..data import Creature, Spell, creature_summary, display_ac
+from ..data import Creature, Item, Spell, creature_summary, display_ac, item_cost_color_name, item_summary
 from ..text_utils import normalize
 from .core import *
 
@@ -210,6 +210,18 @@ class SearchResultButton(NSButton):
         self.setToolTip_(" ".join(tooltip_parts))
         self.setNeedsDisplay_(True)
 
+    def configureItemResult_(self, item: Item):
+        self.row_kind = "item"
+        self.primary_text = item.name
+        self.secondary_text = item.category
+        self.hp_text = ""
+        self.ac_text = ""
+        self.cr_text = ""
+        self.meta_text = item.cost
+        self.spell_school = ""
+        self.setToolTip_(item_summary(item))
+        self.setNeedsDisplay_(True)
+
     def drawRect_(self, _rect):
         bounds = self.bounds()
         highlighted = self.isHighlighted()
@@ -226,6 +238,8 @@ class SearchResultButton(NSButton):
             self._drawMonsterResult_(bounds)
         elif self.row_kind == "spell":
             self._drawSpellResult_(bounds)
+        elif self.row_kind == "item":
+            self._drawItemResult_(bounds)
 
     def mouseDown_(self, event):
         if self.row_kind == "monster":
@@ -273,6 +287,25 @@ class SearchResultButton(NSButton):
         elif self.secondary_text:
             bottom = self.secondary_text
         draw_fitted_text(bottom, NSMakeRect(14, 25, width - 28, 15), 11.5, muted, False)
+
+    @objc.python_method
+    def _drawItemResult_(self, bounds):
+        width = bounds.size.width
+        primary = theme_color("text")
+        price_color = theme_color(item_cost_color_name(self.meta_text))
+        draw_fitted_text(self.primary_text, NSMakeRect(14, 7, width - 28, 17), 13.5, primary, True)
+        if width >= 340 and self.meta_text:
+            meta_w = min(130, max(82, width * 0.30))
+            secondary_w = width - meta_w - 38
+            draw_fitted_text(self.secondary_text, NSMakeRect(14, 25, secondary_w, 15), 11.5, price_color, False)
+            draw_right_fitted_text(self.meta_text, NSMakeRect(width - meta_w - 14, 25, meta_w, 15), 11.5, price_color, True)
+            return
+        bottom = self.secondary_text
+        if self.secondary_text and self.meta_text:
+            bottom = f"{self.secondary_text} - {self.meta_text}"
+        elif self.meta_text:
+            bottom = self.meta_text
+        draw_fitted_text(bottom, NSMakeRect(14, 25, width - 28, 15), 11.5, price_color, False)
 
 
 def color_from_hex(value: str, fallback=None):

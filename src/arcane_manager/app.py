@@ -8,22 +8,25 @@ from .ui import dice_overlay
 class AppDelegate(NSObject):
     spells: list[Spell]
     creatures: list[Creature]
+    items: list[Item]
     spell_lookup: dict[str, Spell]
     status_item: Any
     main_controller: MainWindowController
     settings_controller: SettingsController
 
-    def initWithSpells_creatures_spellLookup_(
+    def initWithSpells_creatures_spellLookup_items_(
         self,
         spells,
         creatures,
         spell_lookup,
+        items,
     ):
         self = objc.super(AppDelegate, self).init()
         if self is None:
             return None
         self.spells = list(spells)
         self.creatures = list(creatures)
+        self.items = list(items)
         self.spell_lookup = spell_lookup
         self.status_item = None
         self.main_controller = None
@@ -32,10 +35,11 @@ class AppDelegate(NSObject):
 
     def applicationDidFinishLaunching_(self, _notification):
         load_theme_overrides()
-        self.main_controller = MainWindowController.alloc().initWithBestiary_spells_spellLookup_(
+        self.main_controller = MainWindowController.alloc().initWithBestiary_spells_spellLookup_items_(
             self.creatures,
             self.spells,
             self.spell_lookup,
+            self.items,
         )
         APP_RETAINED_OBJECTS.append(self.main_controller)
         self.installMainMenu()
@@ -192,6 +196,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=str(DEFAULT_BESTIARY_FILE),
         help="Path to a JSON SRD bestiary database.",
     )
+    parser.add_argument(
+        "--items",
+        default=str(DEFAULT_ITEMS_FILE),
+        help="Path to a JSON item database.",
+    )
     return parser.parse_args(argv)
 
 
@@ -199,19 +208,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     spells, lookup = load_spells(Path(args.spells).expanduser())
     creatures = load_bestiary(Path(args.bestiary).expanduser())
+    items = load_items(Path(args.items).expanduser())
     if not spells:
         raise SystemExit("No spells found in the spell database.")
 
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
 
-    delegate = AppDelegate.alloc().initWithSpells_creatures_spellLookup_(
+    delegate = AppDelegate.alloc().initWithSpells_creatures_spellLookup_items_(
         spells,
         creatures,
         lookup,
+        items,
     )
     APP_RETAINED_OBJECTS.append(delegate)
-    log(f"Starting app with {len(spells)} spells and {len(creatures)} creatures.")
+    log(f"Starting app with {len(spells)} spells, {len(creatures)} creatures, and {len(items)} items.")
     app.setDelegate_(delegate)
     app.run()
     return 0

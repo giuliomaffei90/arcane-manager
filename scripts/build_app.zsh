@@ -32,6 +32,7 @@ rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" "$APP_NAME"*.
   --icon "assets/ArcaneManager.icns" \
   --add-data=spells.json:resources \
   --add-data=bestiary_srd.json:resources \
+  --add-data=items.json:resources \
   --add-data=assets/icons:resources/assets/icons \
   --add-data=assets/dice_roller:resources/assets/dice_roller \
   --add-data=assets/three-dice:resources/assets/three-dice \

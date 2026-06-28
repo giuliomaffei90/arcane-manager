@@ -10,7 +10,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.window.setBackgroundColor_(theme_color("app_bg"))
         style_layer(self.content_view, theme_color("app_bg"), None, 0)
         style_layer(self.sidebar_panel, theme_color("panel_alt"), None, 0)
-        for panel in (self.combat_panel, self.spell_panel, self.dice_panel, self.adventure_panel):
+        for panel in (self.combat_panel, self.spell_panel, self.item_panel, self.dice_panel, self.adventure_panel):
             style_layer(panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         style_layer(self.monster_sheet_drawer, theme_color("panel_alt"), theme_color("border_soft"), 12, 1)
         style_layer(self.sidebar_logo_label, theme_color("selection"), theme_color("link"), 10, 1)
@@ -23,6 +23,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         for button in (
             self.initiative_tab_button,
             self.spells_tab_button,
+            self.items_tab_button,
             self.dice_tab_button,
             self.adventure_tab_button,
             self.new_party_button,
@@ -44,13 +45,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
             if button is not None:
                 style_layer(button, theme_color("surface"), theme_color("border_soft"), 8, 1)
 
-        for field in (self.monster_search_field, self.spell_search_field):
+        for field in (self.monster_search_field, self.spell_search_field, self.item_search_field):
             style_text_input(field)
         for popup in (
             self.party_popup,
             self.monster_cr_filter_popup,
             self.spell_level_filter_popup,
             self.spell_school_filter_popup,
+            self.item_category_filter_popup,
         ):
             popup.setNeedsDisplay_(True)
 
@@ -67,10 +69,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
             label.setTextColor_(theme_color("muted"))
         for label in (self.turn_label, self.adventure_dirty_label):
             label.setTextColor_(theme_color("gold"))
+        selected_item = getattr(self, "selected_item", None)
+        item_color_name = item_cost_color_name(selected_item.cost) if selected_item is not None else "gold"
+        self.item_detail_meta_label.setTextColor_(theme_color(item_color_name))
         for label in (
             self.spell_components_label,
             self.spell_component_material_label,
             self.spell_stats_label,
+            self.item_detail_fields_label,
         ):
             label.setTextColor_(theme_color("text"))
         self.applySpellDetailSchoolColor()
@@ -84,12 +90,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.adventure_editor_view.setTextColor_(theme_color("text"))
         self.adventure_editor_view.setBackgroundColor_(theme_color("surface_soft"))
         self.spell_detail_view.setTextColor_(theme_color("text"))
+        self.item_detail_view.setTextColor_(theme_color("text"))
         self.monster_sheet_body.setTextColor_(theme_color("text"))
 
         for collection in (
             self.monster_result_buttons,
             self.monster_add_buttons,
             self.spell_result_buttons,
+            self.item_result_buttons,
             self.adventure_tree_buttons,
             self.monster_sheet_ability_buttons,
         ):
@@ -119,8 +127,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         tab_y = height - 38
         self.initiative_tab_button.setFrame_(NSMakeRect(20, tab_y, 150, 30))
         self.spells_tab_button.setFrame_(NSMakeRect(178, tab_y, 86, 30))
-        self.dice_tab_button.setFrame_(NSMakeRect(272, tab_y, 112, 30))
-        self.adventure_tab_button.setFrame_(NSMakeRect(392, tab_y, 104, 30))
+        self.items_tab_button.setFrame_(NSMakeRect(272, tab_y, 82, 30))
+        self.dice_tab_button.setFrame_(NSMakeRect(362, tab_y, 112, 30))
+        self.adventure_tab_button.setFrame_(NSMakeRect(482, tab_y, 104, 30))
         content_height = height - 54
         sidebar_width = min(370, max(320, int(width * 0.29)))
         outer_gap = 20
@@ -179,6 +188,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             )
             self.monster_sheet_body.setFrame_(NSMakeRect(0, 0, body_width, body_height))
         self.spell_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
+        self.item_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
 
         y = sidebar_document_height - 52
         self.sidebar_logo_label.setFrame_(NSMakeRect(sidebar_margin, y - 2, 36, 36))
@@ -341,6 +351,53 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.spell_detail_view.textContainer().setContainerSize_(NSMakeSize(max(120, detail_width - 24), 100000))
             self.spell_detail_view.setFrame_(
                 NSMakeRect(0, 0, detail_width - 24, max(scroll_height, self.spell_detail_view.frame().size.height))
+            )
+
+        item_margin = 44
+        item_panel_frame = self.item_panel.frame()
+        item_x = item_panel_frame.origin.x + item_margin
+        item_y = item_panel_frame.origin.y + item_margin
+        item_width = item_panel_frame.size.width - item_margin * 2
+        item_height = item_panel_frame.size.height - item_margin * 2
+        item_list_width = min(430, max(320, item_width * 0.38))
+        item_filter_gap = 10
+        item_category_filter_w = min(170, max(134, item_list_width * 0.42))
+        item_search_w = max(160, item_list_width - item_category_filter_w - item_filter_gap)
+        item_top = item_y + item_height
+        self.item_search_field.setFrame_(NSMakeRect(item_x, item_top - 42, item_search_w, 34))
+        self.item_category_filter_popup.setFrame_(
+            NSMakeRect(item_x + item_search_w + item_filter_gap, item_top - 42, item_category_filter_w, 34)
+        )
+        item_results_height = max(120, item_height - 54)
+        self.item_results_scroll.setFrame_(NSMakeRect(item_x, item_y, item_list_width, item_results_height))
+        item_results_document_width = max(120, item_list_width - 18)
+        item_results_document_height = max(item_results_height, len(self.displayed_items) * SPELL_RESULT_ROW_STEP)
+        self.item_results_content.setFrame_(NSMakeRect(0, 0, item_results_document_width, item_results_document_height))
+        for index, button in enumerate(self.item_result_buttons):
+            button.setFrame_(NSMakeRect(0, index * SPELL_RESULT_ROW_STEP, item_results_document_width, SPELL_RESULT_ROW_HEIGHT))
+
+        item_detail_x = item_x + item_list_width + 28
+        item_detail_width = max(300, item_width - item_list_width - 28)
+        if self.item_detail_title_label.isHidden():
+            self.item_detail_scroll.setFrame_(NSMakeRect(item_detail_x, item_y, item_detail_width, item_height))
+            self.item_detail_view.textContainer().setContainerSize_(NSMakeSize(max(120, item_detail_width - 24), 100000))
+            self.item_detail_view.setFrame_(
+                NSMakeRect(0, 0, item_detail_width - 24, max(item_height, self.item_detail_view.frame().size.height))
+            )
+        else:
+            self.item_detail_title_label.setFrame_(NSMakeRect(item_detail_x, item_top - 36, item_detail_width, 32))
+            self.item_detail_meta_label.setFrame_(NSMakeRect(item_detail_x, item_top - 68, item_detail_width, 24))
+            fields_text = str(self.item_detail_fields_label.stringValue())
+            field_lines = len([line for line in fields_text.splitlines() if line.strip()])
+            fields_height = 0 if field_lines == 0 else min(96, max(24, field_lines * 20))
+            fields_y = item_top - 76 - fields_height
+            self.item_detail_fields_label.setFrame_(NSMakeRect(item_detail_x, fields_y, item_detail_width, fields_height))
+            scroll_top = fields_y - 14 if fields_height > 0 else item_top - 82
+            scroll_height = max(160, scroll_top - item_y)
+            self.item_detail_scroll.setFrame_(NSMakeRect(item_detail_x, item_y, item_detail_width, scroll_height))
+            self.item_detail_view.textContainer().setContainerSize_(NSMakeSize(max(120, item_detail_width - 24), 100000))
+            self.item_detail_view.setFrame_(
+                NSMakeRect(0, 0, item_detail_width - 24, max(scroll_height, self.item_detail_view.frame().size.height))
             )
 
         dice_panel_frame = self.dice_panel.frame()

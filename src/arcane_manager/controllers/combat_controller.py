@@ -532,7 +532,16 @@ class MainWindowController(objc.Category(_MainWindowController)):
 
         body = self._monster_body_for_creature(creature)
         dice_ranges = monster_roll_ranges_for_body(body)
-        spell_ranges = spell_ranges_for_body(body, self.spells, spell_section_ranges(body))
+        spell_ranges = sorted(
+            spell_ranges_for_body(body, self.spells, spell_section_ranges(body))
+            + explicit_spell_ranges_for_entries(
+                body,
+                [creature.traits, creature.actions, creature.legendary_actions],
+                self.spells,
+                self.spell_lookup,
+            ),
+            key=lambda item: item[0],
+        )
         self.monster_sheet_body.textStorage().setAttributedString_(attributed_monster_body(body, spell_ranges, dice_ranges))
         self.monster_sheet_body.setDiceRanges_(dice_ranges)
         self.monster_sheet_body.setSpellRanges_(spell_ranges)

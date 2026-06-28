@@ -22,6 +22,11 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.applyCurrentTab()
         self.refreshSpellResults()
 
+    def showItemsTab_(self, _sender):
+        self.current_tab = "items"
+        self.applyCurrentTab()
+        self.refreshItemResults()
+
     def showDiceTab_(self, _sender):
         self.current_tab = "dice"
         self.applyCurrentTab()
@@ -35,6 +40,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def applyCurrentTab(self):
         show_initiative = self.current_tab == "initiative"
         show_spells = self.current_tab == "spells"
+        show_items = self.current_tab == "items"
         show_dice = self.current_tab == "dice"
         show_adventure = self.current_tab == "adventure"
         for view in self.initiative_views:
@@ -42,6 +48,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.monster_search_button.setHidden_(True)
         for view in self.spell_views:
             view.setHidden_(not show_spells)
+        for view in self.item_views:
+            view.setHidden_(not show_items)
         for view in self.dice_views:
             view.setHidden_(not show_dice)
         for view in self.adventure_views:
@@ -59,6 +67,13 @@ class MainWindowController(objc.Category(_MainWindowController)):
         style_layer(
             self.spells_tab_button,
             theme_color("surface_hover") if show_spells else theme_color("surface_soft"),
+            theme_color("border"),
+            8,
+            1,
+        )
+        style_layer(
+            self.items_tab_button,
+            theme_color("surface_hover") if show_items else theme_color("surface_soft"),
             theme_color("border"),
             8,
             1,
@@ -85,6 +100,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.searchMonsters_(None)
         elif field == self.spell_search_field:
             self.refreshSpellResults()
+        elif field == self.item_search_field:
+            self.refreshItemResults()
 
     def textDidChange_(self, notification):
         if notification.object() == self.adventure_editor_view:

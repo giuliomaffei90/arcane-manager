@@ -1,0 +1,10 @@
+Skipped dr-eigenvalue bestiary import entries
+Mode: import
+Format: name<TAB>url<TAB>reason
+
+Angulotl Yegg	https://dr-eigenvalue.github.io/bestiary/creature/angulotl-yegg	variable statblock (AC='13 (light armor)', HP='Seven times their level (number of d8 Hit Dice equal to their level)', CR='')
+Avatar of Death	https://dr-eigenvalue.github.io/bestiary/creature/avatar-of-death	missing or zero HP (HP='0')
+Clawfish Companion	https://dr-eigenvalue.github.io/bestiary/creature/clawfish-companion	variable statblock (AC='13 plus PB (natural armor)', HP="7 + seven times caregiver's level (number of d8 Hit Dice equal to their caregiver's level)", CR='')
+Demonic Boon Template	https://dr-eigenvalue.github.io/bestiary/creature/demonic-boon-template	missing or zero HP (HP='')
+Diabolical Cultist Template	https://dr-eigenvalue.github.io/bestiary/creature/cultisttemplate	missing or zero HP (HP='')
+Elder Evil Template	https://dr-eigenvalue.github.io/bestiary/creature/elder-evil-template	missing or zero HP (HP='')

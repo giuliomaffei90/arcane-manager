@@ -3,7 +3,7 @@ from __future__ import annotations
 from .platform import Any, re
 from .data import Spell
 from .dice import DICE_PATTERN
-from .resources import MAX_ALIAS_CHARS
+from .resources import MAX_ALIAS_CHARS, MAX_SHORT_FIELD_CHARS, MAX_TEXT_FIELD_CHARS
 from .text_utils import clean_text, normalize
 
 COMPONENT_BADGE_PATTERN = re.compile(r"\[(?:V|S|M)\]")
@@ -107,5 +107,79 @@ def spell_ranges_for_body(body: str, spells: list[Spell], allowed_sections: list
                 continue
             occupied.append((start, end))
             ranges.append((start, end - start, spell))
+    ranges.sort(key=lambda item: item[0])
+    return ranges
+
+
+def _entry_display_text(entry: dict[str, Any]) -> str:
+    name = clean_text(entry.get("name", ""), MAX_SHORT_FIELD_CHARS)
+    desc = clean_text(entry.get("desc", ""), MAX_TEXT_FIELD_CHARS)
+    damage = clean_text(entry.get("damage_dice", ""), MAX_SHORT_FIELD_CHARS)
+    prefix = f"{name}. " if name else ""
+    suffix = f" Damage dice: {damage}." if damage and damage not in desc else ""
+    return f"{prefix}{desc}{suffix}".strip()
+
+
+def _resolve_spell_link(link: Any, spells: list[Spell], spell_lookup: dict[str, Spell]) -> tuple[str, Spell] | None:
+    if isinstance(link, str):
+        text = clean_text(link, MAX_ALIAS_CHARS)
+        spell = spell_lookup.get(normalize(text))
+        return (text, spell) if text and spell is not None else None
+    if not isinstance(link, dict):
+        return None
+
+    text = clean_text(link.get("text", ""), MAX_ALIAS_CHARS)
+    spell_id = clean_text(link.get("spell_id", ""), MAX_SHORT_FIELD_CHARS)
+    spell = next((candidate for candidate in spells if candidate.id == spell_id), None) if spell_id else None
+    if spell is None and text:
+        spell = spell_lookup.get(normalize(text))
+    return (text, spell) if text and spell is not None else None
+
+
+def explicit_spell_ranges_for_entries(
+    body: str,
+    entry_groups: list[Any],
+    spells: list[Spell],
+    spell_lookup: dict[str, Spell],
+) -> list[tuple[int, int, Spell]]:
+    ranges: list[tuple[int, int, Spell]] = []
+    occupied: list[tuple[int, int]] = []
+    search_start = 0
+    for entries in entry_groups:
+        if not isinstance(entries, (list, tuple)):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            text = _entry_display_text(entry)
+            if not text:
+                continue
+            entry_start = body.find(text, search_start)
+            if entry_start < 0:
+                entry_start = body.find(text)
+            if entry_start < 0:
+                continue
+            entry_end = entry_start + len(text)
+            search_start = entry_end
+
+            links = entry.get("spell_links")
+            if not isinstance(links, list):
+                continue
+            for link in links:
+                resolved = _resolve_spell_link(link, spells, spell_lookup)
+                if resolved is None:
+                    continue
+                link_text, spell = resolved
+                words = normalize(link_text).split()
+                if not words:
+                    continue
+                pattern_text = r"[^A-Za-z0-9]+".join(re.escape(word) for word in words)
+                pattern = re.compile(rf"(?<![A-Za-z0-9]){pattern_text}(?![A-Za-z0-9])", flags=re.I)
+                for match in pattern.finditer(body, entry_start, entry_end):
+                    start, end = match.start(), match.end()
+                    if any(start < used_end and end > used_start for used_start, used_end in occupied):
+                        continue
+                    occupied.append((start, end))
+                    ranges.append((start, end - start, spell))
     ranges.sort(key=lambda item: item[0])
     return ranges
