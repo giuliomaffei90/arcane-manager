@@ -187,7 +187,7 @@ def style_text_input(field):
     field.setFont_(NSFont.systemFontOfSize_(14))
     field.setUsesSingleLineMode_(True)
     field.cell().setScrollable_(True)
-    style_layer(field, theme_color("surface_soft"), theme_color("border"), 8, 1)
+    style_layer(field, theme_color("surface_soft"), theme_color("border_soft"), 8, 1)
 
 
 def style_number_input(field):
