@@ -8,6 +8,8 @@ dist/
 *.spec
 pyinstaller_build.log
 
+agents/
+AGENTS.md
 
 *.app/
 *.zip
