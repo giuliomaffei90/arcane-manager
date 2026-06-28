@@ -63,10 +63,12 @@ class MainWindowController(NSObject):
     delete_party_button: NSButton
     start_fight_button: NSButton
     party_member_labels: list[NSTextField]
+    party_member_checkboxes: list[NSButton]
     party_member_icon_views: list[NSImageView]
     party_member_name_labels: list[NSTextField]
     party_member_class_labels: list[NSTextField]
     party_member_ac_labels: list[NSTextField]
+    party_member_enabled: list[list[bool]]
     notes_view: NSTextView
     monster_label: NSTextField
     monster_search_field: NSTextField
@@ -172,6 +174,7 @@ class MainWindowController(NSObject):
         self.items = list(items)
         self.spell_lookup = dict(spell_lookup)
         self.parties = self.loadParties()
+        self.party_member_enabled = []
         self.combatants = []
         self.monster_results = []
         self.monster_result_buttons = []
@@ -201,6 +204,7 @@ class MainWindowController(NSObject):
         if self not in DICE_HISTORY_LISTENERS:
             DICE_HISTORY_LISTENERS.append(self)
         self.party_member_labels = []
+        self.party_member_checkboxes = []
         self.party_member_icon_views = []
         self.party_member_name_labels = []
         self.party_member_class_labels = []
@@ -353,25 +357,6 @@ class MainWindowController(NSObject):
 
         self.party_status_label = make_multiline(make_label("", (0, 0, 300, 40), 11))
         self.party_status_label.setTextColor_(theme_color("muted"))
-
-        for _index in range(6):
-            icon_view = NSImageView.alloc().initWithFrame_(NSMakeRect(0, 0, 20, 20))
-            icon_view.setHidden_(True)
-            self.party_member_icon_views.append(icon_view)
-            label = make_label("", (0, 0, 100, 38), 13, True)
-            label.setHidden_(True)
-            style_layer(label, theme_color("surface"), theme_color("border_soft"), 8, 1)
-            self.party_member_labels.append(label)
-            name_label = make_label("", (0, 0, 80, 20), 13, True)
-            class_label = make_label("", (0, 0, 80, 20), 12, True)
-            ac_label = make_label("", (0, 0, 56, 20), 12, True)
-            for row_label in (name_label, class_label, ac_label):
-                row_label.setUsesSingleLineMode_(True)
-                row_label.setLineBreakMode_(4)
-                row_label.setHidden_(True)
-            self.party_member_name_labels.append(name_label)
-            self.party_member_class_labels.append(class_label)
-            self.party_member_ac_labels.append(ac_label)
 
         self.monster_label = make_label("Creatures", (0, 0, 100, 24), 16, True)
         self.monster_search_field = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 260, 26))
@@ -655,6 +640,8 @@ class MainWindowController(NSObject):
             self.sidebar_content.addSubview_(view)
         for label in self.party_member_labels:
             self.sidebar_content.addSubview_(label)
+        for checkbox in self.party_member_checkboxes:
+            self.sidebar_content.addSubview_(checkbox)
         for icon_view in self.party_member_icon_views:
             self.sidebar_content.addSubview_(icon_view)
         for labels in (

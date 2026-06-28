@@ -149,10 +149,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             panel_width = max(560, available_panel_width)
         panel_height = max(560, content_height - panel_y)
         party = self.selectedParty()
-        characters = party.get("characters", [])
-        if not isinstance(characters, list):
-            characters = []
-        visible_party_rows = min(len([character for character in characters if isinstance(character, dict)]), len(self.party_member_labels))
+        visible_party_rows = len(self._valid_party_characters(party))
         sidebar_document_height = max(
             content_height,
             620 + visible_party_rows * 42,
@@ -211,11 +208,13 @@ class MainWindowController(objc.Category(_MainWindowController)):
         card_width = sidebar_width - sidebar_margin * 2
         for index, label in enumerate(self.party_member_labels):
             label.setFrame_(NSMakeRect(sidebar_margin, y - index * 42, card_width, 36))
+        for index, checkbox in enumerate(self.party_member_checkboxes):
+            checkbox.setFrame_(NSMakeRect(sidebar_margin + 10, y - index * 42 + 8, 20, 20))
         for index, icon_view in enumerate(self.party_member_icon_views):
-            icon_view.setFrame_(NSMakeRect(sidebar_margin + 12, y - index * 42 + 8, 20, 20))
+            icon_view.setFrame_(NSMakeRect(sidebar_margin + 38, y - index * 42 + 8, 20, 20))
         ac_w = 68
         class_w = min(104, max(76, int(card_width * 0.27)))
-        icon_column_w = 42
+        icon_column_w = 68
         column_gap = 8
         row_name_x = sidebar_margin + icon_column_w
         row_ac_x = sidebar_margin + card_width - ac_w - 10
