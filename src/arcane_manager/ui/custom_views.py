@@ -202,6 +202,67 @@ def spell_school_color(school: str):
     return ui_color(*rgb, 1.0)
 
 
+class TabButton(NSButton):
+    is_active = objc.ivar()
+    is_hovered = objc.ivar()
+    tracking_area = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(TabButton, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.is_active = False
+        self.is_hovered = False
+        self.tracking_area = None
+        self.setBordered_(False)
+        return self
+
+    def setActive_(self, active):
+        self.is_active = bool(active)
+        self.setNeedsDisplay_(True)
+
+    def updateTrackingAreas(self):
+        if self.tracking_area is not None:
+            self.removeTrackingArea_(self.tracking_area)
+        self.tracking_area = NSTrackingArea.alloc().initWithRect_options_owner_userInfo_(
+            self.bounds(),
+            NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways | NSTrackingInVisibleRect,
+            self,
+            None,
+        )
+        self.addTrackingArea_(self.tracking_area)
+        objc.super(TabButton, self).updateTrackingAreas()
+
+    def mouseEntered_(self, _event):
+        self.is_hovered = True
+        self.setNeedsDisplay_(True)
+
+    def mouseExited_(self, _event):
+        self.is_hovered = False
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        highlighted = self.isHighlighted()
+        active = bool(self.is_active)
+        hovered = bool(self.is_hovered)
+        if active:
+            fill = theme_color("surface_hover")
+        elif highlighted or hovered:
+            fill = theme_color("surface")
+        else:
+            fill = theme_color("surface_soft")
+        text_color = theme_color("text_strong") if active else theme_color("muted")
+        draw_rounded_rect(
+            NSMakeRect(0.5, 0.5, max(1, bounds.size.width - 1), max(1, bounds.size.height - 1)),
+            fill,
+            theme_color("border_soft"),
+            8,
+            1,
+        )
+        draw_center_fitted_text(str(self.title()), NSMakeRect(10, 6, bounds.size.width - 20, 18), 12, text_color, True)
+
+
 class SearchResultButton(NSButton):
     row_kind = objc.ivar()
     primary_text = objc.ivar()
