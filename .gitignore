@@ -15,5 +15,8 @@ tmp_whisper_*
 
 *.log
 
+# Local data import tooling.
+scripts/build_5etools_*.py
+
 AGENTS.md
 agents/
