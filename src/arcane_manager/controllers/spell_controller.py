@@ -25,6 +25,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
         while len(self.monster_result_buttons) < count:
             index = len(self.monster_result_buttons)
             button = SearchResultButton.alloc().initWithFrame_(NSMakeRect(0, 0, 100, MONSTER_RESULT_ROW_HEIGHT))
+            button.setTarget_(self)
+            button.setAction_("selectMonsterResult:")
             button.setTag_(index)
             button.setHidden_(True)
             self.monster_result_buttons.append(button)
@@ -62,6 +64,12 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.monster_results_scroll.contentView().scrollToPoint_(NSMakePoint(0, 0))
             self.monster_results_scroll.reflectScrolledClipView_(self.monster_results_scroll.contentView())
             self.monster_results_indicator.setNeedsDisplay_(True)
+
+    def selectMonsterResult_(self, sender):
+        index = int(sender.tag())
+        if index < 0 or index >= len(self.monster_results):
+            return
+        self.openMonsterSheetForCreature_(self.monster_results[index])
 
     def selectedSpellLevelFilter(self) -> str | None:
         selected = self.spell_level_filter_popup.selectedItem()

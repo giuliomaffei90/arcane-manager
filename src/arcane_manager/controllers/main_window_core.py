@@ -57,41 +57,11 @@ class MainWindowController(objc.Category(_MainWindowController)):
         if show_adventure:
             self.adventure_web_view.setHidden_(self.adventure_is_editing)
             self.adventure_editor_scroll.setHidden_(not self.adventure_is_editing)
-        style_layer(
-            self.initiative_tab_button,
-            theme_color("surface_hover") if show_initiative else theme_color("surface_soft"),
-            theme_color("border"),
-            8,
-            1,
-        )
-        style_layer(
-            self.spells_tab_button,
-            theme_color("surface_hover") if show_spells else theme_color("surface_soft"),
-            theme_color("border"),
-            8,
-            1,
-        )
-        style_layer(
-            self.items_tab_button,
-            theme_color("surface_hover") if show_items else theme_color("surface_soft"),
-            theme_color("border"),
-            8,
-            1,
-        )
-        style_layer(
-            self.dice_tab_button,
-            theme_color("surface_hover") if show_dice else theme_color("surface_soft"),
-            theme_color("border"),
-            8,
-            1,
-        )
-        style_layer(
-            self.adventure_tab_button,
-            theme_color("surface_hover") if show_adventure else theme_color("surface_soft"),
-            theme_color("border"),
-            8,
-            1,
-        )
+        self.initiative_tab_button.setActive_(show_initiative)
+        self.spells_tab_button.setActive_(show_spells)
+        self.items_tab_button.setActive_(show_items)
+        self.dice_tab_button.setActive_(show_dice)
+        self.adventure_tab_button.setActive_(show_adventure)
         self.layoutMainWindow()
 
     def controlTextDidChange_(self, notification):

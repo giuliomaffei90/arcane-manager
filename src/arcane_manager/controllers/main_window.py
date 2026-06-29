@@ -52,6 +52,7 @@ class MainWindowController(NSObject):
     monster_sheet_roll_label: NSTextField
     monster_sheet_ability_buttons: list[StatBlockAbilityButton]
     monster_sheet_combatant_index: int
+    monster_sheet_creature: Creature | None
     notes_title: NSTextField
     notes_hint: NSTextField
     notes_scroll: NSScrollView
@@ -233,6 +234,7 @@ class MainWindowController(NSObject):
         self.monster_sheet_roll_label = None
         self.monster_sheet_ability_buttons = []
         self.monster_sheet_combatant_index = -1
+        self.monster_sheet_creature = None
 
         screen = NSScreen.mainScreen().visibleFrame()
         width = int(screen.size.width)
@@ -257,11 +259,11 @@ class MainWindowController(NSObject):
 
         self.content_view = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, width, height))
         style_layer(self.content_view, theme_color("app_bg"), None, 0)
-        self.initiative_tab_button = self._make_button("Initiative Tracker", (20, height - 38, 150, 30), "showInitiativeTab:")
-        self.spells_tab_button = self._make_button("Spells", (178, height - 38, 86, 30), "showSpellsTab:")
-        self.items_tab_button = self._make_button("Items", (272, height - 38, 82, 30), "showItemsTab:")
-        self.dice_tab_button = self._make_button("Dice Roller", (362, height - 38, 112, 30), "showDiceTab:")
-        self.adventure_tab_button = self._make_button("Adventure", (482, height - 38, 104, 30), "showAdventureTab:")
+        self.initiative_tab_button = self._make_tab_button("Initiative Tracker", (20, height - 38, 150, 30), "showInitiativeTab:")
+        self.spells_tab_button = self._make_tab_button("Spells", (178, height - 38, 86, 30), "showSpellsTab:")
+        self.items_tab_button = self._make_tab_button("Items", (272, height - 38, 82, 30), "showItemsTab:")
+        self.dice_tab_button = self._make_tab_button("Dice Roller", (362, height - 38, 112, 30), "showDiceTab:")
+        self.adventure_tab_button = self._make_tab_button("Adventure", (482, height - 38, 104, 30), "showAdventureTab:")
         self.sidebar_panel = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
         style_layer(self.sidebar_panel, theme_color("panel_alt"), None, 0)
         self.sidebar_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
@@ -770,12 +772,20 @@ class MainWindowController(NSObject):
 
     @objc.python_method
     def _make_button(self, title: str, frame: tuple[int, int, int, int], action: str):
-        button = NSButton.alloc().initWithFrame_(NSMakeRect(*frame))
+        button = StyledButton.alloc().initWithFrame_(NSMakeRect(*frame))
         button.setTitle_(title)
         button.setTarget_(self)
         button.setAction_(action)
         button.setBordered_(False)
-        style_layer(button, theme_color("surface"), theme_color("border_soft"), 8, 1)
+        style_button_layer(button)
+        return button
+
+    @objc.python_method
+    def _make_tab_button(self, title: str, frame: tuple[int, int, int, int], action: str):
+        button = TabButton.alloc().initWithFrame_(NSMakeRect(*frame))
+        button.setTitle_(title)
+        button.setTarget_(self)
+        button.setAction_(action)
         return button
 
 

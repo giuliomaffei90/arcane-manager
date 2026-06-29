@@ -530,8 +530,18 @@ class MainWindowController(objc.Category(_MainWindowController)):
             return
 
         self.monster_sheet_combatant_index = index
-        self.monster_sheet_title.setStringValue_(creature.name)
+        self.monster_sheet_creature = None
+        self._showMonsterSheetForCreature_(creature)
         self.monster_sheet_hp_field.setStringValue_(str(combatant.get("hp") or creature.hp))
+
+    def openMonsterSheetForCreature_(self, creature: Creature):
+        self.monster_sheet_combatant_index = -1
+        self.monster_sheet_creature = creature
+        self._showMonsterSheetForCreature_(creature)
+
+    @objc.python_method
+    def _showMonsterSheetForCreature_(self, creature: Creature):
+        self.monster_sheet_title.setStringValue_(creature.name)
         self.monster_sheet_roll_label.setStringValue_("")
         stat_names = ("STR", "DEX", "CON", "INT", "WIS", "CHA")
         for button, name, score in zip(self.monster_sheet_ability_buttons, stat_names, creature.stats):
@@ -557,6 +567,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
 
     def closeMonsterSheet_(self, _sender):
         self.monster_sheet_combatant_index = -1
+        self.monster_sheet_creature = None
         self.monster_sheet_title.setStringValue_("")
         self.monster_sheet_roll_label.setStringValue_("")
         self.monster_sheet_body.setString_("")
