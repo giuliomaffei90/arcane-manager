@@ -108,6 +108,7 @@ class MainWindowController(NSObject):
     item_results_content: FlippedView
     item_detail_title_label: NSTextField
     item_detail_meta_label: NSTextField
+    item_variant_popup: NSPopUpButton
     item_detail_fields_label: NSTextField
     item_detail_header_views: list[Any]
     item_result_buttons: list[NSButton]
@@ -503,11 +504,16 @@ class MainWindowController(NSObject):
         self.item_detail_meta_label = make_label("", (0, 0, 320, 24), 15, True)
         self.item_detail_meta_label.setTextColor_(theme_color("gold"))
         self.item_detail_meta_label.setLineBreakMode_(4)
+        self.item_variant_popup = StyledPopUpButton.alloc().initWithFrame_(NSMakeRect(0, 0, 220, 28))
+        self.item_variant_popup.setTarget_(self)
+        self.item_variant_popup.setAction_("selectItemVariant:")
+        self.item_variant_popup.setHidden_(True)
         self.item_detail_fields_label = make_multiline(make_label("", (0, 0, 320, 80), 13))
         self.item_detail_fields_label.setTextColor_(theme_color("text"))
         self.item_detail_header_views = [
             self.item_detail_title_label,
             self.item_detail_meta_label,
+            self.item_variant_popup,
             self.item_detail_fields_label,
         ]
         self.item_detail_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))

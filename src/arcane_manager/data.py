@@ -241,7 +241,7 @@ def search_creatures(query: str, creatures: list[Creature], cr_filter: str | Non
 
 
 @dataclass(frozen=True)
-class Item:
+class ItemVariant:
     id: str
     name: str
     category: str
@@ -253,14 +253,16 @@ class Item:
     properties: str = ""
     source_page: int = 0
     source: str = ""
+    source_abbreviation: str = ""
+    source_commit: str = ""
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "Item":
+    def from_dict(cls, raw: dict[str, Any]) -> "ItemVariant":
         if not isinstance(raw, dict):
-            raise ValueError("Item entries must be JSON objects.")
+            raise ValueError("Item variant entries must be JSON objects.")
         name = clean_text(raw.get("name", ""), MAX_SHORT_FIELD_CHARS)
         if not name:
-            raise ValueError(f"Item entry without a name: {raw!r}")
+            raise ValueError(f"Item variant without a name: {raw!r}")
         try:
             source_page = int(raw.get("source_page") or 0)
         except (TypeError, ValueError):
@@ -277,6 +279,73 @@ class Item:
             properties=clean_text(raw.get("properties", ""), MAX_SHORT_FIELD_CHARS),
             source_page=source_page,
             source=clean_text(raw.get("source", ""), MAX_SHORT_FIELD_CHARS),
+            source_abbreviation=clean_text(raw.get("source_abbreviation", ""), MAX_SHORT_FIELD_CHARS),
+            source_commit=clean_text(raw.get("source_commit", ""), MAX_SHORT_FIELD_CHARS),
+        )
+
+
+@dataclass(frozen=True)
+class Item:
+    id: str
+    name: str
+    category: str
+    description: str
+    cost: str
+    ac: str = ""
+    classification: str = ""
+    damage: str = ""
+    properties: str = ""
+    source_page: int = 0
+    source: str = ""
+    source_abbreviation: str = ""
+    source_commit: str = ""
+    variants: tuple[ItemVariant, ...] = ()
+    selected_variant_id: str = ""
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "Item":
+        if not isinstance(raw, dict):
+            raise ValueError("Item entries must be JSON objects.")
+        base = ItemVariant.from_dict(raw)
+        variants = tuple(
+            ItemVariant.from_dict(item)
+            for item in raw.get("variants", [])
+            if isinstance(item, dict)
+        )
+        return cls(
+            id=base.id,
+            name=base.name,
+            category=base.category,
+            description=base.description,
+            cost=base.cost,
+            ac=base.ac,
+            classification=base.classification,
+            damage=base.damage,
+            properties=base.properties,
+            source_page=base.source_page,
+            source=base.source,
+            source_abbreviation=base.source_abbreviation,
+            source_commit=base.source_commit,
+            variants=variants,
+        )
+
+    def with_selected_variant(self, variant_id: str) -> "Item":
+        return Item(
+            id=self.id,
+            name=self.name,
+            category=self.category,
+            description=self.description,
+            cost=self.cost,
+            ac=self.ac,
+            classification=self.classification,
+            damage=self.damage,
+            properties=self.properties,
+            source_page=self.source_page,
+            source=self.source,
+            source_abbreviation=self.source_abbreviation,
+            source_commit=self.source_commit,
+            variants=self.variants,
+            selected_variant_id=variant_id,
         )
 
 
@@ -373,35 +442,43 @@ def search_items(query: str, items: list[Item], category_filter: str | None = No
         results = sorted(filtered_items, key=lambda item: normalize(item.name))
         return results if limit is None else results[:limit]
 
-    matched: list[tuple[float, Item]] = []
+    matched: list[tuple[float, str, Item]] = []
     compact_query = normalized_query.replace(" ", "")
     for item in filtered_items:
-        searchable_values = [
-            item.name,
-            item.category,
-            item.cost,
-            item.classification,
-            item.damage,
-            item.properties,
-            item.description,
-        ]
-        normalized_name = normalize(item.name)
-        compact_name = normalized_name.replace(" ", "")
-        haystack = normalize(" ".join(value for value in searchable_values if value))
-        if normalized_name == normalized_query:
-            score = 1.0
-        elif normalized_name.startswith(normalized_query):
-            score = 0.94
-        elif normalized_query in normalized_name:
-            score = 0.88
-        elif compact_query and compact_query in compact_name:
-            score = 0.84
-        elif normalized_query in haystack:
-            score = 0.72
-        else:
-            score = SequenceMatcher(None, normalized_query, normalized_name).ratio() * 0.78
-        if score >= 0.45:
-            matched.append((score, item))
-    matched.sort(key=lambda pair: (-pair[0], normalize(pair[1].name)))
-    results = [item for _score, item in matched]
+        best_score = 0.0
+        best_variant_id = ""
+        for candidate in (item, *item.variants):
+            searchable_values = [
+                candidate.name,
+                candidate.category,
+                candidate.cost,
+                candidate.classification,
+                candidate.damage,
+                candidate.properties,
+                candidate.description,
+                candidate.source,
+                candidate.source_abbreviation,
+            ]
+            normalized_name = normalize(candidate.name)
+            compact_name = normalized_name.replace(" ", "")
+            haystack = normalize(" ".join(value for value in searchable_values if value))
+            if normalized_name == normalized_query:
+                score = 1.0
+            elif normalized_name.startswith(normalized_query):
+                score = 0.94
+            elif normalized_query in normalized_name:
+                score = 0.88
+            elif compact_query and compact_query in compact_name:
+                score = 0.84
+            elif normalized_query in haystack:
+                score = 0.72
+            else:
+                score = SequenceMatcher(None, normalized_query, normalized_name).ratio() * 0.55
+            if score > best_score:
+                best_score = score
+                best_variant_id = candidate.id if isinstance(candidate, ItemVariant) else ""
+        if best_score >= 0.45:
+            matched.append((best_score, best_variant_id, item.with_selected_variant(best_variant_id)))
+    matched.sort(key=lambda pair: (-pair[0], normalize(pair[2].name), pair[1]))
+    results = [item for _score, _variant_id, item in matched]
     return results if limit is None else results[:limit]

@@ -65,6 +65,36 @@ class MainWindowController(objc.Category(_MainWindowController)):
         for view in self.item_detail_header_views:
             view.setHidden_(hidden)
 
+    @objc.python_method
+    def configureItemVariantPopupForItem_(self, item):
+        self.item_variant_popup.removeAllItems()
+        self.item_variant_popup.addItemWithTitle_("Base")
+        for variant in item.variants:
+            self.item_variant_popup.addItemWithTitle_(variant.name)
+        self.item_variant_popup.setHidden_(not bool(item.variants))
+        if item.selected_variant_id:
+            for index, variant in enumerate(item.variants, start=1):
+                if variant.id == item.selected_variant_id:
+                    self.item_variant_popup.selectItemAtIndex_(index)
+                    return
+        self.item_variant_popup.selectItemAtIndex_(0)
+
+    @objc.python_method
+    def selectedItemDisplay(self):
+        item = self.selected_item
+        if item is None or self.item_variant_popup.isHidden():
+            return item
+        index = int(self.item_variant_popup.indexOfSelectedItem())
+        if index <= 0:
+            return item
+        variant_index = index - 1
+        if 0 <= variant_index < len(item.variants):
+            return item.variants[variant_index]
+        return item
+
+    def selectItemVariant_(self, _sender):
+        self.renderSelectedItemDetail()
+
     def resizeItemDetailBody(self):
         if self.item_detail_scroll is None:
             return
@@ -104,12 +134,25 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def showItemInDetail_(self, item):
         self.selected_item = item
         self.setItemDetailHeaderHidden_(False)
+        self.configureItemVariantPopupForItem_(item)
+        self.renderSelectedItemDetail()
+
+    @objc.python_method
+    def renderSelectedItemDetail(self):
+        item = self.selectedItemDisplay()
+        if item is None:
+            return
         self.item_detail_title_label.setStringValue_(item.name)
         self.item_detail_meta_label.setStringValue_(" | ".join(part for part in (item.category, item.cost) if part))
         self.item_detail_meta_label.setTextColor_(theme_color(item_cost_color_name(item.cost)))
 
         fields = []
         fields.append(f"Merchant buys: {merchant_value_text(item.cost)}")
+        source = item.source
+        if item.source_page:
+            source = f"{source} p{item.source_page}" if source else f"p{item.source_page}"
+        if source:
+            fields.append(f"Source: {source}")
         if item.ac:
             fields.append(f"AC: {item.ac}")
         if item.damage:
