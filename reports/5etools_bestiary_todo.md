@@ -1,0 +1,135 @@
+# 5etools Bestiary TODO
+
+Ricordami di migliorare la gestione degli statblock con HP o AC variabili.
+Per ora vengono inclusi nel JSON e visualizzati nello statblock, ma l'iniziativa usa 0 HP quando non c'e un valore numerico stabile.
+
+- Statblock speciali rilevati: 43
+- `_copy` da rivedere: 193
+
+## HP/AC Speciali
+- Aberrant Spirit (TCE): HP `40 + 10 for each spell level above 4th`, AC `11 + the level of the spell`
+- Animated Object (Huge) (PHB): HP `80`, AC `10`
+- Animated Object (Large) (PHB): HP `50`, AC `10`
+- Animated Object (Medium) (PHB): HP `40`, AC `13`
+- Animated Object (Small) (PHB): HP `25`, AC `16`
+- Animated Object (Tiny) (PHB): HP `20`, AC `18`
+- Animated Staff (WDMM): HP `40`, AC `17`
+- Animated Wand (WDMM): HP `20`, AC `18`
+- Avatar of Death (DMG): HP `half the hit point maximum of its summoner`, AC `20`
+- Beast of the Land (TCE): HP `5 + five times your ranger level (the beast has a number of Hit Dice [d8s] equal to your ranger level)`, AC `13 + PB`
+- Beast of the Sea (TCE): HP `5 + five times your ranger level (the beast has a number of Hit Dice [d8s] equal to your ranger level)`, AC `13 + PB`
+- Beast of the Sky (TCE): HP `4 + four times your ranger level (the beast has a number of Hit Dice [d6s] equal to your ranger level)`, AC `13 + PB`
+- Bestial Spirit (TCE): HP `20 (Air only) or 30 (Land and Water only) + 5 for each spell level above 2nd`, AC `11 + the level of the spell`
+- Big Water Slurpent (AWM): HP `58`, AC `13`
+- Birdsquirrel (AWM): HP `10`, AC `13`
+- Boontu Monkey (AWM): HP `3`, AC `12`
+- Celestial Spirit (TCE): HP `40 + 10 for each spell level above 5th`, AC `11 + the level of the spell + 2 (Defender only)`
+- Construct Spirit (TCE): HP `40 + 15 for each spell level above 4th`, AC `13 + the level of the spell`
+- Crystal Cave Merfolk (AWM): HP `11`, AC `11`
+- Dancing Item (TCE): HP `10 + five times your bard level`, AC `16`
+- Dankwood Hag (AWM): HP `82`, AC `17`
+- Deck Defender (BMT): HP `5 + five times your level (the deck defender has a number of Hit Dice [d8s] equal to your level)`, AC `16`
+- Draconic Spirit (FTD): HP `50 + 10 for each spell level above 5th (the dragon has a number of Hit Dice [d10s] equal to the level of the spell)`, AC `14 + the level of the spell`
+- Drake Companion (FTD): HP `5 + five times your ranger level (the drake has a number of Hit Dice [d10s] equal to your ranger level)`, AC `14 + PB`
+- Dum-Dum Goblin (AWM): HP `7`, AC `7`
+- Dwarf (AWM): HP `30`, AC `10`
+- Elemental Spirit (TCE): HP `50 + 10 for each spell level above 4th`, AC `11 + the level of the spell`
+- Fey Spirit (TCE): HP `30 + 10 for each spell level above 3rd`, AC `12 + the level of the spell`
+- Fiendish Spirit (TCE): HP `50 (Demon only) or 40 (Devil only) or 60 (Yugoloth only) + 15 for each spell level above 6th`, AC `12 + the level of the spell`
+- Great Kroom, Purple Worm (AWM): HP `247`, AC `18`
+- Halaster Puppet (WDMM): HP `8`, AC `10`
+- Hangry Otyugh (AWM): HP `114`, AC `14`
+- Hill Giant, Blorbo (AWM): HP `105`, AC `13`
+- Homunculus Servant (TCE): HP `1 + your Intelligence modifier + your artificer level (the homunculus has a number of Hit Dice [d4s] equal to your artificer level)`, AC `13`
+- Iron Spider (WDMM): HP `80`, AC `19`
+- Meeseeks (RMBRE): HP `-(immune to damage)`, AC `10`
+- Ras Nsi (ToA): HP `127 (17d8 + 51) reduced to 107; subtract 1 for each day that passes during the adventure`, AC `15`
+- Reaper Spirit (BMT): HP `40 + 10 for each spell level above 4th`, AC `11 + the level of the spell`
+- Saleeth the Couatl (AWM): HP `97`, AC `19`
+- Shadow Spirit (TCE): HP `35 + 15 for each spell level above 3rd`, AC `11 + the level of the spell`
+- Steel Defender (TCE): HP `2 + your Intelligence modifier + five times your artificer level (the defender has a number of Hit Dice [d8s] equal to your artificer level)`, AC `15`
+- Undead Spirit (TCE): HP `30 (Ghostly and Putrid only) or 20 (Skeletal only) + 10 for each spell level above 3rd`, AC `11 + the level of the spell`
+- Wildfire Spirit (TCE): HP `5 + five times your druid level`, AC `13`
+
+## Copy/Template Da Verificare
+- Flying Dagger (BGDIA): replaceArr target not found: Longsword
+- Sylvira Savikas (BGDIA): templates present; copied base values and explicit overrides, template rules require manual review
+- Traxigor (BGDIA): unsupported mod mode on _: replaceSpells
+- Kharbek (CM): templates present; copied base values and explicit overrides, template rules require manual review
+- Zikran (CM): templates present; copied base values and explicit overrides, template rules require manual review; unsupported mod mode on _: addSpells
+- Cat Skeleton (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Luvash (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Vistana Assassin (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Vistana Bandit (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Vistana Bandit Captain (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Vistana Commoner (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Vistana Guard (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Vistana Spy (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Vistana Thug (CoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Aradrine the Owl (CRCotN): templates present; copied base values and explicit overrides, template rules require manual review
+- Foghome (CRCotN): templates present; copied base values and explicit overrides, template rules require manual review
+- Gryz Alakritos (CRCotN): templates present; copied base values and explicit overrides, template rules require manual review
+- Koris (CRCotN): templates present; copied base values and explicit overrides, template rules require manual review
+- Prolix Yusaf (CRCotN): templates present; copied base values and explicit overrides, template rules require manual review
+- Scribble (CRCotN): templates present; copied base values and explicit overrides, template rules require manual review
+- Xot (CRCotN): templates present; copied base values and explicit overrides, template rules require manual review
+- Cudgel Ironsmile (DSotDQ): templates present; copied base values and explicit overrides, template rules require manual review
+- Tatina Rookledust (DSotDQ): templates present; copied base values and explicit overrides, template rules require manual review
+- Animated Knife (EGW): replaceArr target not found: Longsword
+- Hulil Lutan (EGW): templates present; copied base values and explicit overrides, template rules require manual review
+- Karkethzerethzerus, the Sable Despoiler (EGW): templates present; copied base values and explicit overrides, template rules require manual review
+- Oracs the Enduring (EGW): templates present; copied base values and explicit overrides, template rules require manual review
+- Raegrin Mau (EGW): templates present; copied base values and explicit overrides, template rules require manual review
+- Three Earrings (EGW): templates present; copied base values and explicit overrides, template rules require manual review
+- Corrin Delmaco (ERLW): templates present; copied base values and explicit overrides, template rules require manual review
+- Captain Xendros (GoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Krell Grohlg (GoS): templates present; copied base values and explicit overrides, template rules require manual review; unsupported mod mode on _: replaceSpells
+- Merfolk Scout (GoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Sauriv (GoS): templates present; copied base values and explicit overrides, template rules require manual review
+- Battlehammer Dwarf (IDRotF): templates present; copied base values and explicit overrides, template rules require manual review
+- Kadroth (IDRotF): templates present; copied base values and explicit overrides, template rules require manual review
+- Dwarven Worker (IMR): templates present; copied base values and explicit overrides, template rules require manual review
+- Tiefling Muralist (IMR): templates present; copied base values and explicit overrides, template rules require manual review
+- Afsoun Ghorbani (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Gammon Xungoon (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Jijibisha Manivarshi (JttRC): unsupported mod mode on _: removeSpells
+- Kusa Xungoon (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Laleh Ghorbani (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Lamai Tyenmo (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Madam Kulp (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Myx Nargis Ruba (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Navid (JttRC): unsupported mod mode on _: addSpells
+- Ollin (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Paloma (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Samira Arah (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Tonalli (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Uzoma Baten (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- White Jade Emperor (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Young-Gi (JttRC): templates present; copied base values and explicit overrides, template rules require manual review
+- Gundren Rockseeker (LMoP): templates present; copied base values and explicit overrides, template rules require manual review
+- Nundro Rockseeker (LMoP): templates present; copied base values and explicit overrides, template rules require manual review
+- Aarakocra Spelljammer (LoX): templates present; copied base values and explicit overrides, template rules require manual review
+- Fel Ardra (LoX): templates present; copied base values and explicit overrides, template rules require manual review
+- Fhenimore (LR): unsupported mod mode on _: replaceSpells
+- Whymsee (LR): unsupported mod mode on _: replaceSpells
+- Amarith Coppervein (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Asha Vandree (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Acolyte (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Assassin (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Bandit (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Commoner (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Cultist (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Guard (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Noble (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Scout (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Drow Spy (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Eldeth Feldrun (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Glyphic Shroomlight (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Jimjar (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Khalessa Draga (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Mev Flintknapper (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Peebles (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Sladis Vadir (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Svirfneblin Wererat (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- Topsy (OotA): templates present; copied base values and explicit overrides, template rules require manual review
+- ...altri 113 nel report JSON.

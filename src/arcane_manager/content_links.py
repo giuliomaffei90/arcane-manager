@@ -119,7 +119,9 @@ def _entry_display_text(entry: dict[str, Any]) -> str:
     desc = clean_text(entry.get("desc", ""), MAX_TEXT_FIELD_CHARS)
     damage = clean_text(entry.get("damage_dice", ""), MAX_SHORT_FIELD_CHARS)
     prefix = f"{name}. " if name else ""
-    suffix = f" Damage dice: {damage}." if damage and damage not in desc else ""
+    compact_damage = re.sub(r"\s+", "", damage)
+    compact_desc = re.sub(r"\s+", "", desc)
+    suffix = f" Damage dice: {damage}." if damage and compact_damage not in compact_desc else ""
     if name and desc.endswith(":") and not suffix:
         return f"{name}:\n{desc}"
     return f"{prefix}{desc}{suffix}".strip()

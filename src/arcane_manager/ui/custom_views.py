@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..platform import *
 from ..constants import *
-from ..data import Creature, Item, Spell, creature_summary, display_ac, item_cost_color_name, item_summary
+from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_cost_color_name, item_summary
 from ..text_utils import normalize
 from .core import *
 
@@ -300,9 +300,9 @@ class SearchResultButton(StyledButton):
         self.row_kind = "monster"
         self.primary_text = creature.name
         self.secondary_text = ""
-        self.hp_text = f"HP {creature.hp}"
-        self.ac_text = f"AC {display_ac(creature.ac)}"
-        self.cr_text = f"CR {creature.cr}"
+        self.hp_text = f"HP {display_hp(creature.hp)}"
+        self.ac_text = ""
+        self.cr_text = f"CR {display_cr(creature.cr)}"
         self.meta_text = ""
         self.spell_school = ""
         self.setToolTip_(creature_summary(creature))
@@ -365,20 +365,17 @@ class SearchResultButton(StyledButton):
         muted = theme_color("muted")
         name_attrs = text_attributes(14, primary, True)
         meta_attrs = text_attributes(11, muted, True)
-        ac_text = self.ac_text.replace("AC ", "AC: ")
         cr_text = self.cr_text.replace("CR ", "CR: ")
-        ac_width = text_width(ac_text, meta_attrs)
         cr_width = text_width(cr_text, meta_attrs)
         gap = 6
         x = 14
         y = max(0, (bounds.size.height - 19) / 2 - 1)
-        metadata_width = ac_width + cr_width + gap
+        metadata_width = cr_width
         meta_x = width - x - metadata_width
         name_width = max(54, meta_x - x - gap)
         fitted_name = fit_text_to_width(self.primary_text, name_width, name_attrs)
         NSString.stringWithString_(fitted_name).drawInRect_withAttributes_(NSMakeRect(x, y, name_width, 20), name_attrs)
-        draw_right_fitted_text(ac_text, NSMakeRect(meta_x, y + 2, ac_width, 17), 11, muted, True)
-        draw_right_fitted_text(cr_text, NSMakeRect(meta_x + ac_width + gap, y + 2, cr_width, 17), 11, muted, True)
+        draw_right_fitted_text(cr_text, NSMakeRect(meta_x, y + 2, cr_width, 17), 11, muted, True)
 
     @objc.python_method
     def _drawSpellResult_(self, bounds):
