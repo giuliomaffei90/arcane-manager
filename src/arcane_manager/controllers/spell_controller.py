@@ -246,11 +246,10 @@ class MainWindowController(objc.Category(_MainWindowController)):
         stats = [
             ("Range", spell.range or "-"),
             ("Duration", spell.duration or "-"),
+            ("Ritual", "Yes" if spell.ritual else "No"),
         ]
         if spell.spell_lists:
             stats.append(("Classes", ", ".join(spell.spell_lists)))
-        if spell.ritual:
-            stats.append(("Ritual", "Yes"))
         self.spell_stats_label.setAttributedStringValue_(attributed_spell_stats(stats))
 
         attributed = attributed_spell_body(body)
