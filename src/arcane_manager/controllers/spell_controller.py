@@ -21,6 +21,12 @@ class MainWindowController(objc.Category(_MainWindowController)):
             return None
         return title.removeprefix("CR ").strip() or None
 
+    @objc.python_method
+    def clearHoverStatesForViews_(self, views):
+        for view in views:
+            if hasattr(view, "clearHoverState"):
+                view.clearHoverState()
+
     def ensureMonsterResultRows_(self, count: int):
         while len(self.monster_result_buttons) < count:
             index = len(self.monster_result_buttons)
@@ -41,28 +47,65 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.monster_add_buttons.append(add_button)
             self.monster_results_content.addSubview_(add_button)
 
+        for index in range(count, len(self.monster_result_buttons)):
+            self.monster_result_buttons[index].setHidden_(True)
+            self.monster_result_buttons[index].clearHoverState()
+            if index < len(self.monster_add_buttons):
+                self.monster_add_buttons[index].setHidden_(True)
+                self.monster_add_buttons[index].clearHoverState()
+
+    @objc.python_method
+    def updateMonsterResultRows_(self, force_configure: bool):
+        if self.monster_results_scroll is None:
+            return
+        clip_view = self.monster_results_scroll.contentView()
+        viewport_height = max(0, float(clip_view.bounds().size.height))
+        visible_count = min(len(self.monster_results), int(viewport_height // MONSTER_RESULT_ROW_STEP) + 4)
+        self.ensureMonsterResultRows_(visible_count)
+
+        content_width = max(0, float(self.monster_results_content.frame().size.width))
+        add_w = 30
+        result_gap = 10
+        result_w = max(180, content_width - add_w - result_gap)
+        first_index = max(0, int(float(clip_view.bounds().origin.y) // MONSTER_RESULT_ROW_STEP) - 1)
+        first_index = min(first_index, max(0, len(self.monster_results) - visible_count))
+
+        for pool_index, button in enumerate(self.monster_result_buttons):
+            add_button = self.monster_add_buttons[pool_index] if pool_index < len(self.monster_add_buttons) else None
+            result_index = first_index + pool_index
+            if pool_index >= visible_count or result_index >= len(self.monster_results):
+                button.setHidden_(True)
+                button.clearHoverState()
+                if add_button is not None:
+                    add_button.setHidden_(True)
+                    add_button.clearHoverState()
+                continue
+
+            row_y = result_index * MONSTER_RESULT_ROW_STEP
+            if force_configure or int(button.tag()) != result_index or button.isHidden():
+                button.configureMonsterResult_(self.monster_results[result_index])
+            button.setTag_(result_index)
+            button.setFrame_(NSMakeRect(0, row_y, result_w, MONSTER_RESULT_ROW_HEIGHT))
+            button.setHidden_(False)
+            if add_button is not None:
+                add_button.setTag_(result_index)
+                add_button.setFrame_(NSMakeRect(result_w + result_gap, row_y, add_w, MONSTER_RESULT_ROW_HEIGHT))
+                add_button.setHidden_(False)
+
     def monsterResultsBoundsDidChange_(self, _notification):
+        self.clearHoverStatesForViews_([*self.monster_result_buttons, *self.monster_add_buttons])
+        self.updateMonsterResultRows_(False)
         self.monster_results_indicator.setNeedsDisplay_(True)
 
     def searchMonsters_(self, _sender):
         query = str(self.monster_search_field.stringValue()).strip()
         self.monster_results = search_creatures(query, self.creatures, self.selectedMonsterCrFilter())
-        self.ensureMonsterResultRows_(len(self.monster_results))
-        for index, button in enumerate(self.monster_result_buttons):
-            add_button = self.monster_add_buttons[index] if index < len(self.monster_add_buttons) else None
-            if index >= len(self.monster_results):
-                button.setHidden_(True)
-                if add_button is not None:
-                    add_button.setHidden_(True)
-                continue
-            button.configureMonsterResult_(self.monster_results[index])
-            button.setHidden_(False)
-            if add_button is not None:
-                add_button.setHidden_(False)
+        self.clearHoverStatesForViews_([*self.monster_result_buttons, *self.monster_add_buttons])
         if self.monster_results_scroll is not None:
             self.layoutMainWindow()
             self.monster_results_scroll.contentView().scrollToPoint_(NSMakePoint(0, 0))
             self.monster_results_scroll.reflectScrolledClipView_(self.monster_results_scroll.contentView())
+            self.updateMonsterResultRows_(True)
             self.monster_results_indicator.setNeedsDisplay_(True)
 
     def selectMonsterResult_(self, sender):
@@ -96,6 +139,41 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.spell_result_buttons.append(button)
             self.spell_results_content.addSubview_(button)
 
+        for index in range(count, len(self.spell_result_buttons)):
+            self.spell_result_buttons[index].setHidden_(True)
+            self.spell_result_buttons[index].clearHoverState()
+
+    @objc.python_method
+    def updateSpellResultRows_(self, force_configure: bool):
+        if self.spell_results_scroll is None:
+            return
+        clip_view = self.spell_results_scroll.contentView()
+        viewport_height = max(0, float(clip_view.bounds().size.height))
+        visible_count = min(len(self.displayed_spells), int(viewport_height // SPELL_RESULT_ROW_STEP) + 4)
+        self.ensureSpellResultRows_(visible_count)
+
+        content_width = max(120, float(self.spell_results_content.frame().size.width))
+        first_index = max(0, int(float(clip_view.bounds().origin.y) // SPELL_RESULT_ROW_STEP) - 1)
+        first_index = min(first_index, max(0, len(self.displayed_spells) - visible_count))
+
+        for pool_index, button in enumerate(self.spell_result_buttons):
+            result_index = first_index + pool_index
+            if pool_index >= visible_count or result_index >= len(self.displayed_spells):
+                button.setHidden_(True)
+                button.clearHoverState()
+                continue
+
+            row_y = result_index * SPELL_RESULT_ROW_STEP
+            if force_configure or int(button.tag()) != result_index or button.isHidden():
+                button.configureSpellResult_(self.displayed_spells[result_index])
+            button.setTag_(result_index)
+            button.setFrame_(NSMakeRect(0, row_y, content_width, SPELL_RESULT_ROW_HEIGHT))
+            button.setHidden_(False)
+
+    def spellResultsBoundsDidChange_(self, _notification):
+        self.clearHoverStatesForViews_(self.spell_result_buttons)
+        self.updateSpellResultRows_(False)
+
     def refreshSpellResults_(self, _sender):
         self.refreshSpellResults()
 
@@ -124,18 +202,12 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.selectedSpellLevelFilter(),
             self.selectedSpellSchoolFilter(),
         )
-        self.ensureSpellResultRows_(len(self.displayed_spells))
-        for index, button in enumerate(self.spell_result_buttons):
-            if index >= len(self.displayed_spells):
-                button.setHidden_(True)
-                continue
-            spell = self.displayed_spells[index]
-            button.configureSpellResult_(spell)
-            button.setHidden_(False)
+        self.clearHoverStatesForViews_(self.spell_result_buttons)
         if self.spell_results_scroll is not None:
             self.layoutMainWindow()
             self.spell_results_scroll.contentView().scrollToPoint_(NSMakePoint(0, 0))
             self.spell_results_scroll.reflectScrolledClipView_(self.spell_results_scroll.contentView())
+            self.updateSpellResultRows_(True)
         if self.displayed_spells:
             self.showSpellInDetail_(self.displayed_spells[0])
         else:
@@ -196,13 +268,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.refreshSpellResults()
         if spell not in self.displayed_spells:
             self.displayed_spells = [spell, *self.displayed_spells]
-            self.ensureSpellResultRows_(len(self.displayed_spells))
-            for index, button in enumerate(self.spell_result_buttons):
-                if index >= len(self.displayed_spells):
-                    button.setHidden_(True)
-                    continue
-                button.configureSpellResult_(self.displayed_spells[index])
-                button.setHidden_(False)
+            self.clearHoverStatesForViews_(self.spell_result_buttons)
             self.layoutMainWindow()
+            self.updateSpellResultRows_(True)
         self.showSpellInDetail_(spell)
         self.window.makeKeyAndOrderFront_(None)

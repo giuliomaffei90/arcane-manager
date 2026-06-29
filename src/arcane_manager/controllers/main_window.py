@@ -415,6 +415,13 @@ class MainWindowController(NSObject):
         self.spell_results_scroll.setBorderType_(0)
         self.spell_results_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
         self.spell_results_scroll.setDocumentView_(self.spell_results_content)
+        self.spell_results_scroll.contentView().setPostsBoundsChangedNotifications_(True)
+        NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
+            self,
+            "spellResultsBoundsDidChange:",
+            NSViewBoundsDidChangeNotification,
+            self.spell_results_scroll.contentView(),
+        )
         self.spell_detail_title_label = make_label("", (0, 0, 320, 34), 26, True)
         self.spell_detail_title_label.setLineBreakMode_(4)
         self.spell_detail_italian_label = make_label("", (0, 0, 320, 22), 15)
@@ -484,6 +491,13 @@ class MainWindowController(NSObject):
         self.item_results_scroll.setBorderType_(0)
         self.item_results_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
         self.item_results_scroll.setDocumentView_(self.item_results_content)
+        self.item_results_scroll.contentView().setPostsBoundsChangedNotifications_(True)
+        NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
+            self,
+            "itemResultsBoundsDidChange:",
+            NSViewBoundsDidChangeNotification,
+            self.item_results_scroll.contentView(),
+        )
         self.item_detail_title_label = make_label("", (0, 0, 320, 34), 26, True)
         self.item_detail_title_label.setLineBreakMode_(4)
         self.item_detail_meta_label = make_label("", (0, 0, 320, 24), 15, True)
