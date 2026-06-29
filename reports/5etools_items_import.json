@@ -1,10 +1,11 @@
 {
   "source_commit": "ebd1827660ee61d1a59227d5979a137494dce1c8",
-  "remote_records_written": 1697,
+  "remote_records_written": 1675,
   "local_items_preserved": 260,
   "local_items_replaced_by_5etools": 560,
-  "final_item_count": 1957,
+  "final_item_count": 1935,
   "magic_variants_attached": 207,
+  "numeric_variant_groups_created": 11,
   "item_groups_read": 72,
   "item_groups_written": 0,
   "excluded_sources": [

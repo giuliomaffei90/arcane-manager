@@ -68,12 +68,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
     @objc.python_method
     def configureItemVariantPopupForItem_(self, item):
         self.item_variant_popup.removeAllItems()
-        self.item_variant_popup.addItemWithTitle_("Base")
+        if not item.variant_only:
+            self.item_variant_popup.addItemWithTitle_("Base")
         for variant in item.variants:
             self.item_variant_popup.addItemWithTitle_(variant.name)
         self.item_variant_popup.setHidden_(not bool(item.variants))
         if item.selected_variant_id:
-            for index, variant in enumerate(item.variants, start=1):
+            start_index = 0 if item.variant_only else 1
+            for index, variant in enumerate(item.variants, start=start_index):
                 if variant.id == item.selected_variant_id:
                     self.item_variant_popup.selectItemAtIndex_(index)
                     return
@@ -85,9 +87,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         if item is None or self.item_variant_popup.isHidden():
             return item
         index = int(self.item_variant_popup.indexOfSelectedItem())
-        if index <= 0:
+        if index <= 0 and not item.variant_only:
             return item
-        variant_index = index - 1
+        variant_index = index if item.variant_only else index - 1
         if 0 <= variant_index < len(item.variants):
             return item.variants[variant_index]
         return item
@@ -158,7 +160,15 @@ class MainWindowController(objc.Category(_MainWindowController)):
             fields.append(f"Properties: {item.properties}")
         self.item_detail_fields_label.setStringValue_("\n".join(fields))
 
-        body = item.description.strip() or "No description."
+        body_parts = []
+        if item.damage:
+            body_parts.append(f"Damage: {item.damage}")
+        versatile_match = re.search(r"Versatile \(([^)]+)\)", item.properties or "")
+        if versatile_match:
+            body_parts.append(f"Versatile: {versatile_match.group(1)}")
+        if item.description.strip():
+            body_parts.append(item.description.strip())
+        body = "\n\n".join(body_parts) or "No description."
         attributed = attributed_spell_body(body)
         self.item_detail_view.textStorage().setAttributedString_(attributed)
         self.item_detail_view.setDiceRanges_(dice_ranges_for_body(body))

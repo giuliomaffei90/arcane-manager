@@ -301,6 +301,7 @@ class Item:
     source_commit: str = ""
     variants: tuple[ItemVariant, ...] = ()
     selected_variant_id: str = ""
+    variant_only: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "Item":
@@ -327,6 +328,7 @@ class Item:
             source_abbreviation=base.source_abbreviation,
             source_commit=base.source_commit,
             variants=variants,
+            variant_only=bool(raw.get("variant_only", False)),
         )
 
     def with_selected_variant(self, variant_id: str) -> "Item":
@@ -346,6 +348,7 @@ class Item:
             source_commit=self.source_commit,
             variants=self.variants,
             selected_variant_id=variant_id,
+            variant_only=self.variant_only,
         )
 
 
