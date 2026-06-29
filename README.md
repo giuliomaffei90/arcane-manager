@@ -72,7 +72,8 @@ Run directly from the local environment:
 
 Arcane Manager uses local JSON files:
 
-- `spells.json`
-- `bestiary_srd.json`
+- `dataset/spells.json`
+- `dataset/bestiary.json`
+- `dataset/items.json`
 
 Only put content in those files that you can use and redistribute.

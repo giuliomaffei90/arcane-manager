@@ -8,7 +8,7 @@ def resource_base_dir() -> Path:
         return Path(sys._MEIPASS)
     package_dir = Path(__file__).resolve().parent
     for candidate in (package_dir.parents[1], package_dir.parent, package_dir):
-        if (candidate / "spells.json").exists() or (candidate / "resources").exists():
+        if (candidate / "dataset" / "spells.json").exists() or (candidate / "resources").exists():
             return candidate
     return package_dir.parents[1]
 
@@ -21,9 +21,9 @@ def bundled_resource_path(name: str) -> Path:
 
 
 BASE_DIR = resource_base_dir()
-DEFAULT_SPELLS_FILE = bundled_resource_path("spells.json")
-DEFAULT_BESTIARY_FILE = bundled_resource_path("bestiary_srd.json")
-DEFAULT_ITEMS_FILE = bundled_resource_path("items.json")
+DEFAULT_SPELLS_FILE = bundled_resource_path("dataset/spells.json")
+DEFAULT_BESTIARY_FILE = bundled_resource_path("dataset/bestiary.json")
+DEFAULT_ITEMS_FILE = bundled_resource_path("dataset/items.json")
 DEFAULT_DICE_ROLLER_HTML = bundled_resource_path("assets/dice_roller/index.html")
 DEFAULT_ICON_DIR = bundled_resource_path("assets/icons")
 LOG_FILE = Path.home() / "Library" / "Logs" / "Arcane Manager" / "arcane_manager.log"
