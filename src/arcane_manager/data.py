@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 from .platform import Any, Path, SequenceMatcher, dataclass, json, re
 from .logging_utils import log
 from .resources import MAX_ALIAS_CHARS, MAX_ALIASES_PER_SPELL, MAX_ITEM_FILE_BYTES, MAX_ITEMS, MAX_SHORT_FIELD_CHARS, MAX_SPELL_FILE_BYTES, MAX_SPELLS, MAX_TEXT_FIELD_CHARS
@@ -241,7 +243,7 @@ def search_creatures(query: str, creatures: list[Creature], cr_filter: str | Non
 
 
 @dataclass(frozen=True)
-class Item:
+class ItemVariant:
     id: str
     name: str
     category: str
@@ -251,16 +253,19 @@ class Item:
     classification: str = ""
     damage: str = ""
     properties: str = ""
+    rarity: str = ""
     source_page: int = 0
     source: str = ""
+    source_abbreviation: str = ""
+    source_commit: str = ""
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "Item":
+    def from_dict(cls, raw: dict[str, Any]) -> "ItemVariant":
         if not isinstance(raw, dict):
-            raise ValueError("Item entries must be JSON objects.")
+            raise ValueError("Item variant entries must be JSON objects.")
         name = clean_text(raw.get("name", ""), MAX_SHORT_FIELD_CHARS)
         if not name:
-            raise ValueError(f"Item entry without a name: {raw!r}")
+            raise ValueError(f"Item variant without a name: {raw!r}")
         try:
             source_page = int(raw.get("source_page") or 0)
         except (TypeError, ValueError):
@@ -275,8 +280,82 @@ class Item:
             classification=clean_text(raw.get("classification", ""), MAX_SHORT_FIELD_CHARS),
             damage=clean_text(raw.get("damage", ""), MAX_SHORT_FIELD_CHARS),
             properties=clean_text(raw.get("properties", ""), MAX_SHORT_FIELD_CHARS),
+            rarity=clean_text(raw.get("rarity", ""), MAX_SHORT_FIELD_CHARS),
             source_page=source_page,
             source=clean_text(raw.get("source", ""), MAX_SHORT_FIELD_CHARS),
+            source_abbreviation=clean_text(raw.get("source_abbreviation", ""), MAX_SHORT_FIELD_CHARS),
+            source_commit=clean_text(raw.get("source_commit", ""), MAX_SHORT_FIELD_CHARS),
+        )
+
+
+@dataclass(frozen=True)
+class Item:
+    id: str
+    name: str
+    category: str
+    description: str
+    cost: str
+    ac: str = ""
+    classification: str = ""
+    damage: str = ""
+    properties: str = ""
+    rarity: str = ""
+    source_page: int = 0
+    source: str = ""
+    source_abbreviation: str = ""
+    source_commit: str = ""
+    variants: tuple[ItemVariant, ...] = ()
+    selected_variant_id: str = ""
+    variant_only: bool = False
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "Item":
+        if not isinstance(raw, dict):
+            raise ValueError("Item entries must be JSON objects.")
+        base = ItemVariant.from_dict(raw)
+        variants = tuple(
+            ItemVariant.from_dict(item)
+            for item in raw.get("variants", [])
+            if isinstance(item, dict)
+        )
+        return cls(
+            id=base.id,
+            name=base.name,
+            category=base.category,
+            description=base.description,
+            cost=base.cost,
+            ac=base.ac,
+            classification=base.classification,
+            damage=base.damage,
+            properties=base.properties,
+            rarity=base.rarity,
+            source_page=base.source_page,
+            source=base.source,
+            source_abbreviation=base.source_abbreviation,
+            source_commit=base.source_commit,
+            variants=variants,
+            variant_only=bool(raw.get("variant_only", False)),
+        )
+
+    def with_selected_variant(self, variant_id: str) -> "Item":
+        return Item(
+            id=self.id,
+            name=self.name,
+            category=self.category,
+            description=self.description,
+            cost=self.cost,
+            ac=self.ac,
+            classification=self.classification,
+            damage=self.damage,
+            properties=self.properties,
+            rarity=self.rarity,
+            source_page=self.source_page,
+            source=self.source,
+            source_abbreviation=self.source_abbreviation,
+            source_commit=self.source_commit,
+            variants=self.variants,
+            selected_variant_id=variant_id,
+            variant_only=self.variant_only,
         )
 
 
@@ -317,17 +396,26 @@ def item_summary(item: Item) -> str:
     return " - ".join(parts)
 
 
+def item_display_cost(cost: str) -> str:
+    return cost.strip() if cost and cost.strip() else "-"
+
+
 def item_cost_to_copper(cost: str) -> int | None:
-    match = re.fullmatch(r"\s*(\d+)\s+(Gold|Silver|Copper)\s*", cost or "", re.IGNORECASE)
-    if not match:
+    text = str(cost or "").strip()
+    if not text:
         return None
-    value = int(match.group(1))
-    unit = match.group(2).lower()
-    if unit == "gold":
-        return value * 100
-    if unit == "silver":
-        return value * 10
-    return value
+    if not re.fullmatch(r"(?:\d+(?:\.\d+)?\s+(?:Gold|Silver|Copper)\s*)+", text, re.IGNORECASE):
+        return None
+    multipliers = {"gold": Decimal(100), "silver": Decimal(10), "copper": Decimal(1)}
+    total = Decimal(0)
+    try:
+        for value_text, unit_text in re.findall(r"(\d+(?:\.\d+)?)\s+(Gold|Silver|Copper)", text, re.IGNORECASE):
+            total += Decimal(value_text) * multipliers[unit_text.lower()]
+    except InvalidOperation:
+        return None
+    if total != total.to_integral_value():
+        return None
+    return int(total)
 
 
 def copper_value_text(copper: int) -> str:
@@ -345,17 +433,117 @@ def copper_value_text(copper: int) -> str:
 
 
 def item_value_text(cost: str) -> str:
-    return cost.strip() if cost and cost.strip() else "Loot Only"
+    return item_display_cost(cost)
+
+
+def item_display_properties(properties: str, description: str) -> str:
+    parts = [part.strip() for part in str(properties or "").split(",") if part.strip()]
+    if not parts:
+        return ""
+    description_text = str(description or "")
+    visible_parts = []
+    for part in parts:
+        normalized_part = normalize(part)
+        if normalized_part == "none":
+            continue
+        if normalized_part.startswith(("weight ", "range ", "requires attunement")):
+            visible_parts.append(part)
+            continue
+        label = re.sub(r"\s*\([^)]*\)\s*$", "", part).strip()
+        if label and re.search(rf"(?:^|\n\n){re.escape(label)}\.", description_text, re.IGNORECASE):
+            continue
+        visible_parts.append(part)
+    return ", ".join(visible_parts)
+
+
+def item_property_rule_labels(properties: str) -> set[str]:
+    labels = set()
+    for part in (part.strip() for part in str(properties or "").split(",") if part.strip()):
+        normalized_part = normalize(part)
+        if not normalized_part or normalized_part == "none":
+            continue
+        if normalized_part.startswith("weight "):
+            continue
+        if normalized_part.startswith("range "):
+            labels.add("range")
+            continue
+        if normalized_part.startswith("requires attunement"):
+            continue
+        label = re.sub(r"\s*\([^)]*\)\s*$", "", part).strip()
+        normalized_label = normalize(label)
+        if normalized_label:
+            labels.add(normalized_label)
+    return labels
+
+
+def item_property_rule_display_names(properties: str) -> dict[str, str]:
+    display_names = {}
+    for part in (part.strip() for part in str(properties or "").split(",") if part.strip()):
+        normalized_part = normalize(part)
+        if not normalized_part or normalized_part == "none":
+            continue
+        if normalized_part.startswith("weight ") or normalized_part.startswith("requires attunement"):
+            continue
+        if normalized_part.startswith("range "):
+            display_names["range"] = part
+            continue
+        label = re.sub(r"\s*\([^)]*\)\s*$", "", part).strip()
+        normalized_label = normalize(label)
+        if normalized_label:
+            display_names[normalized_label] = part
+    return display_names
+
+
+def item_description_sections(description: str, properties: str) -> tuple[str, str]:
+    property_display_names = item_property_rule_display_names(properties)
+    if not property_display_names:
+        return str(description or "").strip(), ""
+    practical_parts = []
+    property_parts = []
+    in_property_block = False
+    for paragraph in [part.strip() for part in str(description or "").split("\n\n") if part.strip()]:
+        heading = paragraph.split(".", 1)[0].strip()
+        normalized_heading = normalize(heading)
+        if normalized_heading in property_display_names:
+            rest = paragraph.split(".", 1)[1] if "." in paragraph else ""
+            display_name = property_display_names[normalized_heading]
+            property_parts.append(f"{display_name}{rest}" if display_name.endswith(".") else f"{display_name}.{rest}")
+            in_property_block = True
+        elif in_property_block:
+            property_parts.append(paragraph)
+        else:
+            practical_parts.append(paragraph)
+    return "\n\n".join(practical_parts), "\n\n".join(property_parts)
+
+
+def item_practical_description(item: Item | ItemVariant) -> str:
+    practical_description, _property_description = item_description_sections(item.description, item.properties)
+    if practical_description:
+        return practical_description
+    if item.category == "Weapon":
+        classification = normalize(item.classification)
+        if "martial" in classification and "melee" in classification:
+            return f"A {item.name.lower()} is a martial melee weapon."
+        if "martial" in classification and "ranged" in classification:
+            return f"A {item.name.lower()} is a martial ranged weapon."
+        if "simple" in classification and "melee" in classification:
+            return f"A {item.name.lower()} is a simple melee weapon."
+        if "simple" in classification and "ranged" in classification:
+            return f"A {item.name.lower()} is a simple ranged weapon."
+        return f"A {item.name.lower()} is a weapon."
+    return ""
 
 
 def merchant_value_text(cost: str) -> str:
     copper = item_cost_to_copper(cost)
     if copper is None:
-        return "Loot Only"
+        return ""
     return copper_value_text((copper * 60) // 100)
 
 
 def item_cost_color_name(cost: str) -> str:
+    if not cost or not cost.strip() or cost.strip() == "-":
+        return "no_cost"
     copper = item_cost_to_copper(cost)
     if copper is None:
         return "gold"
@@ -373,35 +561,44 @@ def search_items(query: str, items: list[Item], category_filter: str | None = No
         results = sorted(filtered_items, key=lambda item: normalize(item.name))
         return results if limit is None else results[:limit]
 
-    matched: list[tuple[float, Item]] = []
+    matched: list[tuple[float, str, Item]] = []
     compact_query = normalized_query.replace(" ", "")
     for item in filtered_items:
-        searchable_values = [
-            item.name,
-            item.category,
-            item.cost,
-            item.classification,
-            item.damage,
-            item.properties,
-            item.description,
-        ]
-        normalized_name = normalize(item.name)
-        compact_name = normalized_name.replace(" ", "")
-        haystack = normalize(" ".join(value for value in searchable_values if value))
-        if normalized_name == normalized_query:
-            score = 1.0
-        elif normalized_name.startswith(normalized_query):
-            score = 0.94
-        elif normalized_query in normalized_name:
-            score = 0.88
-        elif compact_query and compact_query in compact_name:
-            score = 0.84
-        elif normalized_query in haystack:
-            score = 0.72
-        else:
-            score = SequenceMatcher(None, normalized_query, normalized_name).ratio() * 0.78
-        if score >= 0.45:
-            matched.append((score, item))
-    matched.sort(key=lambda pair: (-pair[0], normalize(pair[1].name)))
-    results = [item for _score, item in matched]
+        best_score = 0.0
+        best_variant_id = ""
+        for candidate in (item, *item.variants):
+            searchable_values = [
+                candidate.name,
+                candidate.category,
+                candidate.cost,
+                candidate.rarity,
+                candidate.classification,
+                candidate.damage,
+                candidate.properties,
+                candidate.description,
+                candidate.source,
+                candidate.source_abbreviation,
+            ]
+            normalized_name = normalize(candidate.name)
+            compact_name = normalized_name.replace(" ", "")
+            haystack = normalize(" ".join(value for value in searchable_values if value))
+            if normalized_name == normalized_query:
+                score = 1.0
+            elif normalized_name.startswith(normalized_query):
+                score = 0.94
+            elif normalized_query in normalized_name:
+                score = 0.88
+            elif compact_query and compact_query in compact_name:
+                score = 0.84
+            elif normalized_query in haystack:
+                score = 0.72
+            else:
+                score = SequenceMatcher(None, normalized_query, normalized_name).ratio() * 0.55
+            if score > best_score:
+                best_score = score
+                best_variant_id = candidate.id if isinstance(candidate, ItemVariant) else ""
+        if best_score >= 0.45:
+            matched.append((best_score, best_variant_id, item.with_selected_variant(best_variant_id)))
+    matched.sort(key=lambda pair: (-pair[0], normalize(pair[2].name), pair[1]))
+    results = [item for _score, _variant_id, item in matched]
     return results if limit is None else results[:limit]

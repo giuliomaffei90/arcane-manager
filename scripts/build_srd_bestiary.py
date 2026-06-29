@@ -15,7 +15,7 @@ SOURCE_URL = (
     "Obsidian-TTRPG-Community/fantasy-statblocks/main/src/bestiary/srd-bestiary.ts"
 )
 ROOT_DIR = Path(__file__).resolve().parents[1]
-OUTPUT_FILE = ROOT_DIR / "bestiary_srd.json"
+OUTPUT_FILE = ROOT_DIR / "dataset" / "bestiary.json"
 
 
 def main() -> int:
@@ -31,6 +31,7 @@ def main() -> int:
         "license_note": "SRD/OGL content as bundled by Fantasy Statblocks.",
         "creatures": creatures,
     }
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {len(creatures)} creatures to {OUTPUT_FILE}")
     return 0

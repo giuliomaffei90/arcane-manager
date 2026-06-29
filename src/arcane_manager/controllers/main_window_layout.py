@@ -58,6 +58,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.spell_level_filter_popup,
             self.spell_school_filter_popup,
             self.item_category_filter_popup,
+            self.item_variant_popup,
         ):
             popup.setNeedsDisplay_(True)
 
@@ -74,9 +75,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             label.setTextColor_(theme_color("muted"))
         for label in (self.turn_label, self.adventure_dirty_label):
             label.setTextColor_(theme_color("gold"))
-        selected_item = getattr(self, "selected_item", None)
-        item_color_name = item_cost_color_name(selected_item.cost) if selected_item is not None else "gold"
-        self.item_detail_meta_label.setTextColor_(theme_color(item_color_name))
+        self.item_detail_meta_label.setTextColor_(theme_color("gold"))
         for label in (
             self.spell_components_label,
             self.spell_component_material_label,
@@ -394,10 +393,15 @@ class MainWindowController(objc.Category(_MainWindowController)):
         else:
             self.item_detail_title_label.setFrame_(NSMakeRect(item_detail_x, item_top - 36, item_detail_width, 32))
             self.item_detail_meta_label.setFrame_(NSMakeRect(item_detail_x, item_top - 68, item_detail_width, 24))
+            popup_bottom = item_top - 72
+            if not self.item_variant_popup.isHidden():
+                popup_width = min(280, max(180, item_detail_width * 0.42))
+                self.item_variant_popup.setFrame_(NSMakeRect(item_detail_x, item_top - 106, popup_width, 28))
+                popup_bottom = item_top - 110
             fields_text = str(self.item_detail_fields_label.stringValue())
             field_lines = len([line for line in fields_text.splitlines() if line.strip()])
-            fields_height = 0 if field_lines == 0 else min(96, max(24, field_lines * 20))
-            fields_y = item_top - 76 - fields_height
+            fields_height = 0 if field_lines == 0 else min(156, max(24, field_lines * 20))
+            fields_y = popup_bottom - 8 - fields_height
             self.item_detail_fields_label.setFrame_(NSMakeRect(item_detail_x, fields_y, item_detail_width, fields_height))
             scroll_top = fields_y - 14 if fields_height > 0 else item_top - 82
             scroll_height = max(160, scroll_top - item_y)

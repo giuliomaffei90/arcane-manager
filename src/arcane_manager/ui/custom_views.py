@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..platform import *
 from ..constants import *
-from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_cost_color_name, item_summary
+from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_cost_color_name, item_display_cost, item_summary
 from ..text_utils import normalize
 from .core import *
 
@@ -329,10 +329,10 @@ class SearchResultButton(StyledButton):
         self.row_kind = "item"
         self.primary_text = item.name
         self.secondary_text = item.category
-        self.hp_text = ""
+        self.hp_text = item.cost
         self.ac_text = ""
         self.cr_text = ""
-        self.meta_text = item.cost
+        self.meta_text = item_display_cost(item.cost)
         self.spell_school = ""
         self.setToolTip_(item_summary(item))
         self.setNeedsDisplay_(True)
@@ -401,20 +401,20 @@ class SearchResultButton(StyledButton):
     def _drawItemResult_(self, bounds):
         width = bounds.size.width
         primary = theme_color("text")
-        price_color = theme_color(item_cost_color_name(self.meta_text))
+        metadata_color = theme_color(item_cost_color_name(self.hp_text))
         draw_fitted_text(self.primary_text, NSMakeRect(14, 7, width - 28, 17), 13.5, primary, True)
         if width >= 340 and self.meta_text:
             meta_w = min(130, max(82, width * 0.30))
             secondary_w = width - meta_w - 38
-            draw_fitted_text(self.secondary_text, NSMakeRect(14, 25, secondary_w, 15), 11.5, price_color, False)
-            draw_right_fitted_text(self.meta_text, NSMakeRect(width - meta_w - 14, 25, meta_w, 15), 11.5, price_color, True)
+            draw_fitted_text(self.secondary_text, NSMakeRect(14, 25, secondary_w, 15), 11.5, metadata_color, False)
+            draw_right_fitted_text(self.meta_text, NSMakeRect(width - meta_w - 14, 25, meta_w, 15), 11.5, metadata_color, True)
             return
         bottom = self.secondary_text
         if self.secondary_text and self.meta_text:
             bottom = f"{self.secondary_text} - {self.meta_text}"
         elif self.meta_text:
             bottom = self.meta_text
-        draw_fitted_text(bottom, NSMakeRect(14, 25, width - 28, 15), 11.5, price_color, False)
+        draw_fitted_text(bottom, NSMakeRect(14, 25, width - 28, 15), 11.5, metadata_color, False)
 
 
 def color_from_hex(value: str, fallback=None):

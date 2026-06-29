@@ -65,6 +65,38 @@ class MainWindowController(objc.Category(_MainWindowController)):
         for view in self.item_detail_header_views:
             view.setHidden_(hidden)
 
+    @objc.python_method
+    def configureItemVariantPopupForItem_(self, item):
+        self.item_variant_popup.removeAllItems()
+        if not item.variant_only:
+            self.item_variant_popup.addItemWithTitle_("Base")
+        for variant in item.variants:
+            self.item_variant_popup.addItemWithTitle_(variant.name)
+        self.item_variant_popup.setHidden_(not bool(item.variants))
+        if item.selected_variant_id:
+            start_index = 0 if item.variant_only else 1
+            for index, variant in enumerate(item.variants, start=start_index):
+                if variant.id == item.selected_variant_id:
+                    self.item_variant_popup.selectItemAtIndex_(index)
+                    return
+        self.item_variant_popup.selectItemAtIndex_(0)
+
+    @objc.python_method
+    def selectedItemDisplay(self):
+        item = self.selected_item
+        if item is None or self.item_variant_popup.isHidden():
+            return item
+        index = int(self.item_variant_popup.indexOfSelectedItem())
+        if index <= 0 and not item.variant_only:
+            return item
+        variant_index = index if item.variant_only else index - 1
+        if 0 <= variant_index < len(item.variants):
+            return item.variants[variant_index]
+        return item
+
+    def selectItemVariant_(self, _sender):
+        self.renderSelectedItemDetail()
+
     def resizeItemDetailBody(self):
         if self.item_detail_scroll is None:
             return
@@ -104,25 +136,50 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def showItemInDetail_(self, item):
         self.selected_item = item
         self.setItemDetailHeaderHidden_(False)
+        self.configureItemVariantPopupForItem_(item)
+        self.renderSelectedItemDetail()
+
+    @objc.python_method
+    def renderSelectedItemDetail(self):
+        item = self.selectedItemDisplay()
+        if item is None:
+            return
         self.item_detail_title_label.setStringValue_(item.name)
-        self.item_detail_meta_label.setStringValue_(" | ".join(part for part in (item.category, item.cost) if part))
-        self.item_detail_meta_label.setTextColor_(theme_color(item_cost_color_name(item.cost)))
+        self.item_detail_meta_label.setStringValue_(item.category)
+        self.item_detail_meta_label.setTextColor_(theme_color("gold"))
 
         fields = []
-        fields.append(f"Merchant buys: {merchant_value_text(item.cost)}")
+        if item.cost and item.cost.strip():
+            fields.append(("Cost", item_display_cost(item.cost)))
+            merchant_value = merchant_value_text(item.cost)
+            if merchant_value:
+                fields.append(("Merchant Buys", merchant_value))
         if item.ac:
-            fields.append(f"AC: {item.ac}")
-        if item.damage:
-            fields.append(f"Damage: {item.damage}")
-        if item.classification:
-            fields.append(f"Classification: {item.classification}")
-        if item.properties:
-            fields.append(f"Properties: {item.properties}")
-        self.item_detail_fields_label.setStringValue_("\n".join(fields))
+            fields.append(("AC", item.ac))
+        if item.rarity:
+            fields.append(("Rarity", item.rarity))
+        if item.classification and normalize(item.classification) not in {normalize(item.category), normalize(item.rarity)}:
+            fields.append(("Classification", item.classification))
+        display_properties = item_display_properties(item.properties, item.description)
+        if display_properties:
+            fields.append(("Properties", display_properties))
+        if fields:
+            self.item_detail_fields_label.setAttributedStringValue_(attributed_spell_stats(fields))
+        else:
+            self.item_detail_fields_label.setStringValue_("")
 
-        body = item.description.strip() or "No description."
-        attributed = attributed_spell_body(body)
+        body_parts = []
+        practical_description = item_practical_description(item)
+        _raw_practical_description, property_description = item_description_sections(item.description, item.properties)
+        if practical_description:
+            body_parts.append(practical_description)
+        if item.damage:
+            body_parts.append(f"Damage: {item.damage}")
+        if property_description:
+            body_parts.append(f"Properties:\n{property_description}")
+        body = "\n\n".join(body_parts)
+        attributed, rendered_body = attributed_item_body(body)
         self.item_detail_view.textStorage().setAttributedString_(attributed)
-        self.item_detail_view.setDiceRanges_(dice_ranges_for_body(body))
+        self.item_detail_view.setDiceRanges_(dice_ranges_for_body(rendered_body))
         self.layoutMainWindow()
         self.resizeItemDetailBody()
