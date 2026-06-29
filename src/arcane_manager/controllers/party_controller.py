@@ -40,9 +40,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.party_member_labels.append(label)
             self.sidebar_content.addSubview_(label)
 
-            checkbox = NSButton.alloc().initWithFrame_(NSMakeRect(0, 0, 18, 18))
-            checkbox.setButtonType_(NSButtonTypeSwitch)
-            checkbox.setTitle_("")
+            checkbox = ReadyToggleButton.alloc().initWithFrame_(NSMakeRect(0, 0, 22, 22))
             checkbox.setTarget_(self)
             checkbox.setAction_("togglePartyMemberEnabled:")
             checkbox.setHidden_(True)

@@ -41,6 +41,80 @@ class CheckboxSquareView(NSView):
         path.stroke()
 
 
+class ReadyToggleButton(NSButton):
+    hovered = objc.ivar()
+    tracking_area = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(ReadyToggleButton, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.hovered = False
+        self.tracking_area = None
+        self.setTitle_("")
+        self.setBordered_(False)
+        self.setButtonType_(NSButtonTypeSwitch)
+        self.setWantsLayer_(True)
+        return self
+
+    def updateTrackingAreas(self):
+        if self.tracking_area is not None:
+            self.removeTrackingArea_(self.tracking_area)
+        self.tracking_area = NSTrackingArea.alloc().initWithRect_options_owner_userInfo_(
+            self.bounds(),
+            NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways | NSTrackingInVisibleRect,
+            self,
+            None,
+        )
+        self.addTrackingArea_(self.tracking_area)
+        objc.super(ReadyToggleButton, self).updateTrackingAreas()
+
+    def mouseEntered_(self, _event):
+        if self.isEnabled():
+            self.hovered = True
+            self.setNeedsDisplay_(True)
+
+    def mouseExited_(self, _event):
+        self.hovered = False
+        self.setNeedsDisplay_(True)
+
+    def highlight_(self, flag):
+        objc.super(ReadyToggleButton, self).highlight_(flag)
+        self.setNeedsDisplay_(True)
+
+    def setState_(self, state):
+        objc.super(ReadyToggleButton, self).setState_(state)
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        checked = int(self.state()) == NSControlStateValueOn
+        pressed = bool(self.isHighlighted())
+        hovered = bool(self.hovered)
+        inset = 1.5
+        box = NSMakeRect(inset, inset, max(1, bounds.size.width - inset * 2), max(1, bounds.size.height - inset * 2))
+
+        if checked:
+            fill = theme_color("dice", 0.92 if pressed else 0.82)
+            stroke = theme_color("dice")
+        elif pressed:
+            fill = theme_color("surface_hover")
+            stroke = theme_color("muted", 0.9)
+        elif hovered:
+            fill = theme_color("surface_soft")
+            stroke = theme_color("muted", 0.82)
+        else:
+            fill = theme_color("surface")
+            stroke = theme_color("border_soft")
+
+        path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(box, 5, 5)
+        fill.set()
+        path.fill()
+        stroke.set()
+        path.setLineWidth_(1.4 if hovered or checked else 1.0)
+        path.stroke()
+
+
 class FlippedView(NSView):
     def isFlipped(self):
         return True
