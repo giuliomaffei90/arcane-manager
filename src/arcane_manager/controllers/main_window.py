@@ -788,6 +788,14 @@ class MainWindowController(NSObject):
         button.setAction_(action)
         return button
 
+    @objc.python_method
+    def _make_tab_button(self, title: str, frame: tuple[int, int, int, int], action: str):
+        button = TabButton.alloc().initWithFrame_(NSMakeRect(*frame))
+        button.setTitle_(title)
+        button.setTarget_(self)
+        button.setAction_(action)
+        return button
+
 
 def _register_categories():
     from . import main_window_layout  # noqa: F401
