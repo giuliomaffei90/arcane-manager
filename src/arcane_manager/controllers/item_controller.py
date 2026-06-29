@@ -148,11 +148,6 @@ class MainWindowController(objc.Category(_MainWindowController)):
 
         fields = []
         fields.append(f"Merchant buys: {merchant_value_text(item.cost)}")
-        source = item.source
-        if item.source_page:
-            source = f"{source} p{item.source_page}" if source else f"p{item.source_page}"
-        if source:
-            fields.append(f"Source: {source}")
         if item.ac:
             fields.append(f"AC: {item.ac}")
         if item.damage:
