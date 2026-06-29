@@ -50,14 +50,14 @@ def attributed_spell_body(body: str):
         NSForegroundColorAttributeName: theme_color("text"),
     }
     attributed = NSMutableAttributedString.alloc().initWithString_attributes_(body, attributes)
-    marker = "At Higher Levels."
-    marker_start = body.find(marker)
-    if marker_start >= 0:
-        attributed.addAttribute_value_range_(
-            NSFontAttributeName,
-            NSFont.boldSystemFontOfSize_(15),
-            NSMakeRange(marker_start, len(marker)),
-        )
+    for marker in ("At Higher Levels.", "Classes:"):
+        marker_start = body.find(marker)
+        if marker_start >= 0:
+            attributed.addAttribute_value_range_(
+                NSFontAttributeName,
+                NSFont.boldSystemFontOfSize_(15),
+                NSMakeRange(marker_start, len(marker)),
+            )
 
     for start, length, _expression in dice_ranges_for_body(body):
         attributed.addAttribute_value_range_(

@@ -21,6 +21,8 @@ def format_spell_for_detail(spell: Spell) -> tuple[str, str, str]:
         body_parts.append(spell.description.strip())
     if spell.higher_levels.strip():
         body_parts.append(f"At Higher Levels. {spell.higher_levels.strip()}")
+    if spell.spell_lists:
+        body_parts.append(f"Classes: {', '.join(spell.spell_lists)}")
 
     return title, " | ".join(meta_parts) or "Spell found", "\n\n".join(body_parts)
 
