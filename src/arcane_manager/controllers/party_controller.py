@@ -40,7 +40,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.party_member_labels.append(label)
             self.sidebar_content.addSubview_(label)
 
-            checkbox = ReadyToggleButton.alloc().initWithFrame_(NSMakeRect(0, 0, 22, 22))
+            checkbox = ReadyToggleButton.alloc().initWithFrame_(NSMakeRect(0, 0, 18, 18))
             checkbox.setTarget_(self)
             checkbox.setAction_("togglePartyMemberEnabled:")
             checkbox.setHidden_(True)
@@ -53,8 +53,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.sidebar_content.addSubview_(icon_view)
 
             name_label = make_label("", (0, 0, 80, 20), 13, True)
-            class_label = make_label("", (0, 0, 80, 20), 12, True)
-            ac_label = make_label("", (0, 0, 56, 20), 12, True)
+            class_label = make_label("", (0, 0, 80, 20), 13, True)
+            ac_label = make_label("", (0, 0, 56, 20), 13, True)
             for row_label in (name_label, class_label, ac_label):
                 row_label.setUsesSingleLineMode_(True)
                 row_label.setLineBreakMode_(4)
@@ -125,7 +125,6 @@ class MainWindowController(objc.Category(_MainWindowController)):
             character = visible_characters[index]
             name = str(character.get("name") or "Unnamed")
             class_name = str(character.get("class") or "Fighter")
-            ac = str(character.get("ac") or "?")
             label.setStringValue_("")
             label.setHidden_(False)
             if checkbox is not None:
@@ -138,9 +137,10 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 icon_view.setHidden_(image is None)
             self.party_member_name_labels[index].setStringValue_(name)
             self.party_member_class_labels[index].setStringValue_(class_name)
-            self.party_member_ac_labels[index].setStringValue_(f"AC: {ac[:4]}")
-            for row_label in row_labels:
+            self.party_member_ac_labels[index].setStringValue_("")
+            for row_label in row_labels[:2]:
                 row_label.setHidden_(False)
+            self.party_member_ac_labels[index].setHidden_(True)
         if visible_characters:
             selected_count = sum(1 for enabled in enabled_state[: len(visible_characters)] if enabled)
             self.party_status_label.setStringValue_(f"{selected_count}/{len(visible_characters)} member(s) ready")

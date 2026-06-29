@@ -748,6 +748,10 @@ MONSTER_RESULT_ROW_HEIGHT = 42
 MONSTER_RESULT_ROW_STEP = 50
 SPELL_RESULT_ROW_HEIGHT = 42
 SPELL_RESULT_ROW_STEP = 50
+TRACKER_NAME_COLUMN_WIDTH = 172.0
+TRACKER_HP_TEXT_WIDTH = 52.0
+TRACKER_MIN_HP_BAR_WIDTH = 110.0
+TRACKER_NAME_TO_HP_GAP = 10.5
 
 
 class CombatTrackerView(NSView):
@@ -907,16 +911,23 @@ class CombatTrackerView(NSView):
         ac_w = 44
         ac_x = status_x - ac_w - 18
         name_x = left + 132
-        max_display_name = "Adult Green Dragon"
-        max_name_chars = len(max_display_name)
-        name_w = max_name_chars * 8 + 8
-        hp_text_x = name_x + name_w + 16
-        hp_text_w = 76
+        hp_text_w = TRACKER_HP_TEXT_WIDTH
         hp_action_w = 44
         hp_action_x = ac_x - hp_action_w - 18
+        max_name_w = (
+            hp_action_x
+            - 18
+            - TRACKER_MIN_HP_BAR_WIDTH
+            - name_x
+            - hp_text_w
+            - TRACKER_NAME_TO_HP_GAP
+            - 14
+        )
+        name_w = min(TRACKER_NAME_COLUMN_WIDTH, max(60.0, max_name_w))
+        hp_text_x = name_x + name_w + TRACKER_NAME_TO_HP_GAP
         bar_x = hp_text_x + hp_text_w + 14
         bar_right = hp_action_x - 18
-        bar_w = max(110, bar_right - bar_x)
+        bar_w = max(TRACKER_MIN_HP_BAR_WIDTH, bar_right - bar_x)
 
         if not self.combatants:
             draw_text("No combatants yet.", left + 24, 36, 18, white, True)
@@ -974,9 +985,9 @@ class CombatTrackerView(NSView):
             icon_rect = NSMakeRect(left + 84, row_y + 13, 26, 26)
             if not draw_icon(icon_name, icon_rect):
                 draw_text(fallback_icon, left + 92, row_y + 15, 22, fallback_color, True)
-            display_name = ellipsize(str(combatant.get("name") or "Unnamed"), max_name_chars)
-            draw_text(display_name, name_x, row_y + 10, 14, white, True)
-            draw_text(subtitle[:22], name_x, row_y + 30, 12, muted, False)
+            display_name = str(combatant.get("name") or "Unnamed")
+            draw_fitted_text(display_name, NSMakeRect(name_x, row_y + 8, name_w, 20), 14, white, True)
+            draw_fitted_text(subtitle, NSMakeRect(name_x, row_y + 29, name_w, 18), 12, muted, False)
 
             is_monster = combatant.get("kind") == "Monster"
             bar_y = row_y + 24

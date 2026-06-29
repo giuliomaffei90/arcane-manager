@@ -9,7 +9,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def applyTheme(self):
         self.window.setBackgroundColor_(theme_color("app_bg"))
         style_layer(self.content_view, theme_color("app_bg"), None, 0)
-        style_layer(self.sidebar_panel, theme_color("panel_alt"), None, 0)
+        style_layer(self.sidebar_panel, theme_color("app_bg"), None, 0)
         for panel in (self.combat_panel, self.spell_panel, self.item_panel, self.dice_panel, self.adventure_panel):
             style_layer(panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         style_layer(self.monster_sheet_drawer, theme_color("panel_alt"), theme_color("border_soft"), 12, 1)
@@ -137,8 +137,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         content_height = height - 54
         sidebar_width = min(370, max(320, int(width * 0.29)))
         outer_gap = 20
+        sidebar_tracker_gap = 12
         sidebar_margin = 24
-        panel_x = sidebar_width + outer_gap
+        panel_x = sidebar_width + sidebar_tracker_gap
         panel_y = 20
         available_panel_width = max(420, width - panel_x - outer_gap)
         drawer_open = self.current_tab == "initiative" and (
@@ -212,29 +213,34 @@ class MainWindowController(objc.Category(_MainWindowController)):
         y -= 46
 
         card_width = sidebar_width - sidebar_margin * 2
+        party_row_height = 36
+        party_row_step = 42
         for index, label in enumerate(self.party_member_labels):
-            label.setFrame_(NSMakeRect(sidebar_margin, y - index * 42, card_width, 36))
-        checkbox_size = 22
+            label.setFrame_(NSMakeRect(sidebar_margin, y - index * party_row_step, card_width, party_row_height))
+        checkbox_size = 18
         checkbox_gap = 10
-        checkbox_x = sidebar_margin + card_width - checkbox_size - 10
+        checkbox_x = sidebar_margin + card_width - checkbox_size - 12
         for index, checkbox in enumerate(self.party_member_checkboxes):
-            checkbox.setFrame_(NSMakeRect(checkbox_x, y - index * 42 + 7, checkbox_size, checkbox_size))
+            row_bottom = y - index * party_row_step
+            checkbox_y = row_bottom + (party_row_height - checkbox_size) / 2
+            checkbox.setFrame_(NSMakeRect(checkbox_x, checkbox_y, checkbox_size, checkbox_size))
         for index, icon_view in enumerate(self.party_member_icon_views):
-            icon_view.setFrame_(NSMakeRect(sidebar_margin + 18, y - index * 42 + 8, 20, 20))
-        ac_w = 64
-        class_w = min(104, max(70, int(card_width * 0.25)))
+            row_bottom = y - index * party_row_step
+            icon_view.setFrame_(NSMakeRect(sidebar_margin + 18, row_bottom + 8, 20, 20))
+        class_w = min(136, max(86, int(card_width * 0.32)))
         icon_column_w = 50
         column_gap = 8
         row_name_x = sidebar_margin + icon_column_w
-        row_ac_x = checkbox_x - checkbox_gap - ac_w
-        row_class_x = row_ac_x - class_w - column_gap
+        row_class_x = checkbox_x - checkbox_gap - class_w
         row_name_w = max(62, row_class_x - row_name_x - column_gap)
         for index in range(len(self.party_member_labels)):
-            row_y = y - index * 42 + 9
-            self.party_member_name_labels[index].setFrame_(NSMakeRect(row_name_x, row_y, row_name_w, 20))
-            self.party_member_class_labels[index].setFrame_(NSMakeRect(row_class_x, row_y, class_w, 20))
-            self.party_member_ac_labels[index].setFrame_(NSMakeRect(row_ac_x, row_y, ac_w, 20))
-        y -= visible_party_rows * 42 + 8
+            row_bottom = y - index * party_row_step
+            text_height = 20
+            row_y = row_bottom + (party_row_height - text_height) / 2
+            self.party_member_name_labels[index].setFrame_(NSMakeRect(row_name_x, row_y, row_name_w, text_height))
+            self.party_member_class_labels[index].setFrame_(NSMakeRect(row_class_x, row_y, class_w, text_height))
+            self.party_member_ac_labels[index].setFrame_(NSMakeRect(checkbox_x, row_y, 0, text_height))
+        y -= visible_party_rows * party_row_step + 8
         self.party_status_label.setFrame_(NSMakeRect(sidebar_margin, y, card_width, 38))
 
         y -= 34

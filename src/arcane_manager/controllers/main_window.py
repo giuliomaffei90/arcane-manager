@@ -266,7 +266,7 @@ class MainWindowController(NSObject):
         self.dice_tab_button = self._make_tab_button("Dice Roller", (362, height - 38, 112, 30), "showDiceTab:")
         self.adventure_tab_button = self._make_tab_button("Adventure", (482, height - 38, 104, 30), "showAdventureTab:")
         self.sidebar_panel = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
-        style_layer(self.sidebar_panel, theme_color("panel_alt"), None, 0)
+        style_layer(self.sidebar_panel, theme_color("app_bg"), None, 0)
         self.sidebar_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, height))
         self.sidebar_scroll.setHasVerticalScroller_(True)
         self.sidebar_scroll.setAutohidesScrollers_(False)

@@ -55,6 +55,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.current_turn_index = 0
         self.round_number = 1
         self.refreshTracker()
+        self.scrollCurrentTurnIntoView()
 
     def addMonster_(self, sender):
         index = int(sender.tag())
@@ -123,6 +124,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
                     self.round_number += 1
                 break
         self.refreshTracker()
+        self.scrollCurrentTurnIntoView()
 
     def previousTurn_(self, _sender):
         if not self.combatants:
@@ -133,6 +135,39 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 self.current_turn_index = candidate
                 break
         self.refreshTracker()
+        self.scrollCurrentTurnIntoView()
+
+    @objc.python_method
+    def scrollCurrentTurnIntoView(self):
+        if not self.combatants or self.tracker_scroll is None:
+            return
+        if self.current_turn_index < 0 or self.current_turn_index >= len(self.combatants):
+            return
+        clip_view = self.tracker_scroll.contentView()
+        document_view = self.tracker_scroll.documentView()
+        if clip_view is None or document_view is None:
+            return
+
+        row_top = 54 + self.current_turn_index * 68
+        row_bottom = row_top + 56
+        padding = 12
+        visible = clip_view.bounds()
+        visible_top = float(visible.origin.y)
+        visible_bottom = visible_top + float(visible.size.height)
+
+        if row_top >= visible_top + padding and row_bottom <= visible_bottom - padding:
+            return
+
+        if row_top < visible_top + padding:
+            target_y = row_top - padding
+        else:
+            target_y = row_bottom + padding - float(visible.size.height)
+
+        document_height = float(document_view.frame().size.height)
+        max_y = max(0.0, document_height - float(visible.size.height))
+        target_y = max(0.0, min(target_y, max_y))
+        clip_view.scrollToPoint_(NSMakePoint(float(visible.origin.x), target_y))
+        self.tracker_scroll.reflectScrolledClipView_(clip_view)
 
     def clearTracker_(self, _sender):
         self.combatants = []
