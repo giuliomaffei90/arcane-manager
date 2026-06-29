@@ -215,16 +215,19 @@ class MainWindowController(objc.Category(_MainWindowController)):
         card_width = sidebar_width - sidebar_margin * 2
         for index, label in enumerate(self.party_member_labels):
             label.setFrame_(NSMakeRect(sidebar_margin, y - index * 42, card_width, 36))
+        checkbox_size = 22
+        checkbox_gap = 10
+        checkbox_x = sidebar_margin + card_width - checkbox_size - 10
         for index, checkbox in enumerate(self.party_member_checkboxes):
-            checkbox.setFrame_(NSMakeRect(sidebar_margin + 10, y - index * 42 + 8, 20, 20))
+            checkbox.setFrame_(NSMakeRect(checkbox_x, y - index * 42 + 7, checkbox_size, checkbox_size))
         for index, icon_view in enumerate(self.party_member_icon_views):
-            icon_view.setFrame_(NSMakeRect(sidebar_margin + 38, y - index * 42 + 8, 20, 20))
-        ac_w = 68
-        class_w = min(104, max(76, int(card_width * 0.27)))
-        icon_column_w = 68
+            icon_view.setFrame_(NSMakeRect(sidebar_margin + 18, y - index * 42 + 8, 20, 20))
+        ac_w = 64
+        class_w = min(104, max(70, int(card_width * 0.25)))
+        icon_column_w = 50
         column_gap = 8
         row_name_x = sidebar_margin + icon_column_w
-        row_ac_x = sidebar_margin + card_width - ac_w - 10
+        row_ac_x = checkbox_x - checkbox_gap - ac_w
         row_class_x = row_ac_x - class_w - column_gap
         row_name_w = max(62, row_class_x - row_name_x - column_gap)
         for index in range(len(self.party_member_labels)):
