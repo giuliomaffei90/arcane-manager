@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..platform import *
 from ..constants import *
-from ..data import Creature, Item, Spell, creature_summary, display_ac, display_hp, item_cost_color_name, item_summary
+from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_cost_color_name, item_summary
 from ..text_utils import normalize
 from .core import *
 
@@ -302,7 +302,7 @@ class SearchResultButton(StyledButton):
         self.secondary_text = ""
         self.hp_text = f"HP {display_hp(creature.hp)}"
         self.ac_text = ""
-        self.cr_text = f"CR {creature.cr}"
+        self.cr_text = f"CR {display_cr(creature.cr)}"
         self.meta_text = ""
         self.spell_school = ""
         self.setToolTip_(creature_summary(creature))

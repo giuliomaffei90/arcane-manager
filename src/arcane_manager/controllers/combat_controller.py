@@ -70,7 +70,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 "hp": str(monster_hp if monster_hp is not None else 0),
                 "max_hp": str(monster_hp if monster_hp is not None else 0),
                 "initiative": random.randint(1, 20) + ability_modifier(creature.stats[1]),
-                "cr": creature.cr,
+                "cr": display_cr(creature.cr),
                 "creature_name": creature.name,
                 "conditions": [],
             }
@@ -258,7 +258,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             ("Condition Immunities", clean_text(raw.get("condition_immunities", ""), MAX_TEXT_FIELD_CHARS)),
             ("Senses", clean_text(raw.get("senses", ""), MAX_TEXT_FIELD_CHARS)),
             ("Languages", clean_text(raw.get("languages", ""), MAX_TEXT_FIELD_CHARS)),
-            ("Challenge", creature.cr),
+            ("Challenge", display_cr(creature.cr)),
         )
         for label, value in optional_fields:
             if value:

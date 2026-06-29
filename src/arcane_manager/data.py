@@ -178,8 +178,12 @@ def numeric_hp(value: int | str) -> int | None:
         return None
 
 
+def display_cr(value: str) -> str:
+    return clean_text(value, MAX_SHORT_FIELD_CHARS) or "-"
+
+
 def creature_summary(creature: Creature) -> str:
-    return f"{creature.name}   HP: {display_hp(creature.hp)}   AC: {display_ac(creature.ac)}   CR: {creature.cr}"
+    return f"{creature.name}   HP: {display_hp(creature.hp)}   AC: {display_ac(creature.ac)}   CR: {display_cr(creature.cr)}"
 
 
 def cr_sort_value(value: str) -> float:
