@@ -76,6 +76,7 @@ MEDIA_KEYS = {
     "tokenCustom",
 }
 EXCLUDED_SOURCES = {"XMM", "XPHB", "XDMG"}
+EXCLUDED_CREATURE_NAMES = {"mechanical bird"}
 
 TAG_RE = re.compile(r"\{@([a-zA-Z][a-zA-Z0-9]*)\s*([^{}]*?)?\}")
 DICE_RE = re.compile(r"\b\d+d\d+(?:\s*[+-]\s*\d+)?\b")
@@ -704,11 +705,16 @@ def main() -> int:
         raw_by_key[key] = monster
 
     skipped_reprints: list[dict[str, str]] = []
+    skipped_manual: list[dict[str, str]] = []
     skip_keys: set[str] = set()
     present_keys = set(raw_by_key)
     for monster in raw_entries:
         source = monster.get("source", "")
         key = monster_key(monster.get("name", ""), source)
+        if normalize_key(monster.get("name", "")) in EXCLUDED_CREATURE_NAMES:
+            skip_keys.add(key)
+            skipped_manual.append({"name": monster.get("name", ""), "source": source, "reason": "manual exclusion"})
+            continue
         for ref in monster.get("reprintedAs", []) or []:
             parsed = parse_ref(ref)
             if not parsed:
@@ -827,6 +833,7 @@ def main() -> int:
         "creatures_written": len(creatures),
         "allowed_sources": sorted(allowed_sources),
         "excluded_sources": excluded_sources,
+        "skipped_manual": skipped_manual,
         "skipped_reprints": skipped_reprints,
         "duplicate_keys": duplicate_keys,
         "duplicate_names": duplicate_names,

@@ -1,7 +1,7 @@
 {
   "source_commit": "ebd1827660ee61d1a59227d5979a137494dce1c8",
   "raw_entries": 3687,
-  "creatures_written": 3362,
+  "creatures_written": 3361,
   "allowed_sources": [
     "AATM",
     "AI",
@@ -112,6 +112,13 @@
     "XDMG",
     "XMM",
     "XPHB"
+  ],
+  "skipped_manual": [
+    {
+      "name": "Mechanical Bird",
+      "source": "WDH",
+      "reason": "manual exclusion"
+    }
   ],
   "skipped_reprints": [
     {
@@ -3313,12 +3320,6 @@
       "source": "WDMM",
       "hp": "80",
       "ac": "19"
-    },
-    {
-      "name": "Mechanical Bird",
-      "source": "WDH",
-      "hp": "1",
-      "ac": "15"
     },
     {
       "name": "Meeseeks",

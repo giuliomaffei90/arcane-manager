@@ -3,7 +3,7 @@
 Ricordami di migliorare la gestione degli statblock con HP o AC variabili.
 Per ora vengono inclusi nel JSON e visualizzati nello statblock, ma l'iniziativa usa 0 HP quando non c'e un valore numerico stabile.
 
-- Statblock speciali rilevati: 44
+- Statblock speciali rilevati: 43
 - `_copy` da rivedere: 193
 
 ## HP/AC Speciali
@@ -42,7 +42,6 @@ Per ora vengono inclusi nel JSON e visualizzati nello statblock, ma l'iniziativa
 - Hill Giant, Blorbo (AWM): HP `105`, AC `13`
 - Homunculus Servant (TCE): HP `1 + your Intelligence modifier + your artificer level (the homunculus has a number of Hit Dice [d4s] equal to your artificer level)`, AC `13`
 - Iron Spider (WDMM): HP `80`, AC `19`
-- Mechanical Bird (WDH): HP `1`, AC `15`
 - Meeseeks (RMBRE): HP `-(immune to damage)`, AC `10`
 - Ras Nsi (ToA): HP `127 (17d8 + 51) reduced to 107; subtract 1 for each day that passes during the adventure`, AC `15`
 - Reaper Spirit (BMT): HP `40 + 10 for each spell level above 4th`, AC `11 + the level of the spell`
