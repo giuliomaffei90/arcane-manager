@@ -248,19 +248,12 @@ class MainWindowController(objc.Category(_MainWindowController)):
         results_height = max(140, y - 18)
         self.monster_results_scroll.setFrame_(NSMakeRect(sidebar_margin, 18, card_width, results_height))
         self.monster_results_indicator.setFrame_(NSMakeRect(sidebar_margin + card_width - 11, 18, 8, results_height))
-        monster_add_w = 30
-        monster_result_gap = 10
-        monster_result_w = max(180, card_width - monster_add_w - monster_result_gap - 18)
         results_document_height = max(results_height, len(self.monster_results) * MONSTER_RESULT_ROW_STEP)
         self.monster_results_content.setFrame_(NSMakeRect(0, 0, card_width - 18, results_document_height))
         self.monster_results_indicator.setNeedsDisplay_(True)
-        for index, button in enumerate(self.monster_result_buttons):
-            row_y = index * MONSTER_RESULT_ROW_STEP
-            button.setFrame_(NSMakeRect(0, row_y, monster_result_w, MONSTER_RESULT_ROW_HEIGHT))
-            if index < len(self.monster_add_buttons):
-                self.monster_add_buttons[index].setFrame_(
-                    NSMakeRect(monster_result_w + monster_result_gap, row_y, monster_add_w, MONSTER_RESULT_ROW_HEIGHT)
-                )
+        visible_monster_rows = min(len(self.monster_results), int(results_height // MONSTER_RESULT_ROW_STEP) + 4)
+        self.ensureMonsterResultRows_(visible_monster_rows)
+        self.updateMonsterResultRows_(False)
         top_scroll_y = max(0, sidebar_document_height - content_height)
         self.sidebar_scroll.contentView().scrollToPoint_(NSMakePoint(0, top_scroll_y))
         self.sidebar_scroll.reflectScrolledClipView_(self.sidebar_scroll.contentView())
@@ -311,8 +304,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         results_document_width = max(120, list_width - 18)
         results_document_height = max(results_height, len(self.displayed_spells) * SPELL_RESULT_ROW_STEP)
         self.spell_results_content.setFrame_(NSMakeRect(0, 0, results_document_width, results_document_height))
-        for index, button in enumerate(self.spell_result_buttons):
-            button.setFrame_(NSMakeRect(0, index * SPELL_RESULT_ROW_STEP, results_document_width, SPELL_RESULT_ROW_HEIGHT))
+        visible_spell_rows = min(len(self.displayed_spells), int(results_height // SPELL_RESULT_ROW_STEP) + 4)
+        self.ensureSpellResultRows_(visible_spell_rows)
+        self.updateSpellResultRows_(False)
         detail_x = spell_x + list_width + 28
         detail_width = max(300, spell_width - list_width - 28)
         if self.spell_detail_title_label.isHidden():
@@ -381,8 +375,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         item_results_document_width = max(120, item_list_width - 18)
         item_results_document_height = max(item_results_height, len(self.displayed_items) * SPELL_RESULT_ROW_STEP)
         self.item_results_content.setFrame_(NSMakeRect(0, 0, item_results_document_width, item_results_document_height))
-        for index, button in enumerate(self.item_result_buttons):
-            button.setFrame_(NSMakeRect(0, index * SPELL_RESULT_ROW_STEP, item_results_document_width, SPELL_RESULT_ROW_HEIGHT))
+        visible_item_rows = min(len(self.displayed_items), int(item_results_height // SPELL_RESULT_ROW_STEP) + 4)
+        self.ensureItemResultRows_(visible_item_rows)
+        self.updateItemResultRows_(False)
 
         item_detail_x = item_x + item_list_width + 28
         item_detail_width = max(300, item_width - item_list_width - 28)

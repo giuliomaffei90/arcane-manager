@@ -221,6 +221,12 @@ class TabButton(NSButton):
         self.is_active = bool(active)
         self.setNeedsDisplay_(True)
 
+    @objc.python_method
+    def clearHoverState(self):
+        if self.is_hovered:
+            self.is_hovered = False
+            self.setNeedsDisplay_(True)
+
     def updateTrackingAreas(self):
         if self.tracking_area is not None:
             self.removeTrackingArea_(self.tracking_area)
@@ -687,6 +693,12 @@ class StyledPopUpButton(NSPopUpButton):
         self.setBordered_(False)
         return self
 
+    @objc.python_method
+    def clearHoverState(self):
+        if self.hovered:
+            self.hovered = False
+            self.setNeedsDisplay_(True)
+
     def updateTrackingAreas(self):
         if self.tracking_area is not None:
             self.removeTrackingArea_(self.tracking_area)
@@ -715,7 +727,7 @@ class StyledPopUpButton(NSPopUpButton):
     def setEnabled_(self, enabled):
         objc.super(StyledPopUpButton, self).setEnabled_(enabled)
         if not enabled:
-            self.hovered = False
+            self.clearHoverState()
         self.setNeedsDisplay_(True)
 
     def drawRect_(self, _rect):

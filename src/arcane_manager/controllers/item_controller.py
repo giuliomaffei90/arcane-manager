@@ -23,6 +23,41 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.item_result_buttons.append(button)
             self.item_results_content.addSubview_(button)
 
+        for index in range(count, len(self.item_result_buttons)):
+            self.item_result_buttons[index].setHidden_(True)
+            self.item_result_buttons[index].clearHoverState()
+
+    @objc.python_method
+    def updateItemResultRows_(self, force_configure: bool):
+        if self.item_results_scroll is None:
+            return
+        clip_view = self.item_results_scroll.contentView()
+        viewport_height = max(0, float(clip_view.bounds().size.height))
+        visible_count = min(len(self.displayed_items), int(viewport_height // SPELL_RESULT_ROW_STEP) + 4)
+        self.ensureItemResultRows_(visible_count)
+
+        content_width = max(120, float(self.item_results_content.frame().size.width))
+        first_index = max(0, int(float(clip_view.bounds().origin.y) // SPELL_RESULT_ROW_STEP) - 1)
+        first_index = min(first_index, max(0, len(self.displayed_items) - visible_count))
+
+        for pool_index, button in enumerate(self.item_result_buttons):
+            result_index = first_index + pool_index
+            if pool_index >= visible_count or result_index >= len(self.displayed_items):
+                button.setHidden_(True)
+                button.clearHoverState()
+                continue
+
+            row_y = result_index * SPELL_RESULT_ROW_STEP
+            if force_configure or int(button.tag()) != result_index or button.isHidden():
+                button.configureItemResult_(self.displayed_items[result_index])
+            button.setTag_(result_index)
+            button.setFrame_(NSMakeRect(0, row_y, content_width, SPELL_RESULT_ROW_HEIGHT))
+            button.setHidden_(False)
+
+    def itemResultsBoundsDidChange_(self, _notification):
+        self.clearHoverStatesForViews_(self.item_result_buttons)
+        self.updateItemResultRows_(False)
+
     def refreshItemResults_(self, _sender):
         self.refreshItemResults()
 
@@ -45,17 +80,12 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def refreshItemResults(self):
         query = str(self.item_search_field.stringValue()).strip()
         self.displayed_items = search_items(query, self.items, self.selectedItemCategoryFilter())
-        self.ensureItemResultRows_(len(self.displayed_items))
-        for index, button in enumerate(self.item_result_buttons):
-            if index >= len(self.displayed_items):
-                button.setHidden_(True)
-                continue
-            button.configureItemResult_(self.displayed_items[index])
-            button.setHidden_(False)
+        self.clearHoverStatesForViews_(self.item_result_buttons)
         if self.item_results_scroll is not None:
             self.layoutMainWindow()
             self.item_results_scroll.contentView().scrollToPoint_(NSMakePoint(0, 0))
             self.item_results_scroll.reflectScrolledClipView_(self.item_results_scroll.contentView())
+            self.updateItemResultRows_(True)
         if self.displayed_items:
             self.showItemInDetail_(self.displayed_items[0])
         else:

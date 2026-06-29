@@ -285,6 +285,12 @@ class StyledButton(NSButton):
         self.soft_background = bool(soft)
         self.setNeedsDisplay_(True)
 
+    @objc.python_method
+    def clearHoverState(self):
+        if self.hovered:
+            self.hovered = False
+            self.setNeedsDisplay_(True)
+
     def updateTrackingAreas(self):
         if self.tracking_area is not None:
             self.removeTrackingArea_(self.tracking_area)
@@ -313,7 +319,7 @@ class StyledButton(NSButton):
     def setEnabled_(self, enabled):
         objc.super(StyledButton, self).setEnabled_(enabled)
         if not enabled:
-            self.hovered = False
+            self.clearHoverState()
         self.setNeedsDisplay_(True)
 
     def drawRect_(self, _rect):
