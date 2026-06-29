@@ -1,0 +1,1714 @@
+{
+  "source_commit": "ebd1827660ee61d1a59227d5979a137494dce1c8",
+  "raw_entries": 525,
+  "spells_written": 525,
+  "allowed_sources": [
+    "AAG",
+    "AI",
+    "AitFR-AVT",
+    "BMT",
+    "EGW",
+    "FTD",
+    "GGR",
+    "IDRotF",
+    "LLK",
+    "PHB",
+    "SCC",
+    "SatO",
+    "TCE",
+    "XGE"
+  ],
+  "excluded_sources": [
+    "EFA",
+    "FRHoF",
+    "XPHB"
+  ],
+  "skipped_reprints": [],
+  "duplicate_keys": [],
+  "duplicate_names": [],
+  "duplicate_ids": [],
+  "italian_names_preserved": [
+    {
+      "name": "Acid Splash",
+      "italian_name": "Fiotto Acido"
+    },
+    {
+      "name": "Blade Ward",
+      "italian_name": "Interdizione alle Lame"
+    },
+    {
+      "name": "Booming Blade",
+      "italian_name": "Lama Roboante"
+    },
+    {
+      "name": "Chill Touch",
+      "italian_name": "Tocco Gelido"
+    },
+    {
+      "name": "Control Flames",
+      "italian_name": "Controllare Fiamme"
+    },
+    {
+      "name": "Create Bonfire",
+      "italian_name": "Creare Fal\u00f2"
+    },
+    {
+      "name": "Dancing Lights",
+      "italian_name": "Luci Danzanti"
+    },
+    {
+      "name": "Druidcraft",
+      "italian_name": "Artificio Druidico"
+    },
+    {
+      "name": "Eldritch Blast",
+      "italian_name": "Deflagrazione Occulta"
+    },
+    {
+      "name": "Fire Bolt",
+      "italian_name": "Dardo di Fuoco"
+    },
+    {
+      "name": "Friends",
+      "italian_name": "Amicizia"
+    },
+    {
+      "name": "Frostbite",
+      "italian_name": "Morsa Gelida"
+    },
+    {
+      "name": "Green-Flame Blade",
+      "italian_name": "Lama Verdefiamma"
+    },
+    {
+      "name": "Guidance",
+      "italian_name": "Guida"
+    },
+    {
+      "name": "Gust",
+      "italian_name": "Folata"
+    },
+    {
+      "name": "Infestation",
+      "italian_name": "Infestazione"
+    },
+    {
+      "name": "Light",
+      "italian_name": "Luce"
+    },
+    {
+      "name": "Lightning Lure",
+      "italian_name": "Fulmine Adescante"
+    },
+    {
+      "name": "Mage Hand",
+      "italian_name": "Mano Magica"
+    },
+    {
+      "name": "Magic Stone",
+      "italian_name": "Pietra Magica"
+    },
+    {
+      "name": "Mending",
+      "italian_name": "Riparare"
+    },
+    {
+      "name": "Message",
+      "italian_name": "Messaggio"
+    },
+    {
+      "name": "Mind Sliver",
+      "italian_name": "Scheggia Mentale"
+    },
+    {
+      "name": "Minor Illusion",
+      "italian_name": "Illusione Minore"
+    },
+    {
+      "name": "Mold Earth",
+      "italian_name": "Modellare la Terra"
+    },
+    {
+      "name": "Poison Spray",
+      "italian_name": "Spruzzo Velenoso"
+    },
+    {
+      "name": "Prestidigitation",
+      "italian_name": "Prestidigitazione"
+    },
+    {
+      "name": "Produce Flame",
+      "italian_name": "Produrre Fiamma"
+    },
+    {
+      "name": "Ray of Frost",
+      "italian_name": "Raggio di Gelo"
+    },
+    {
+      "name": "Resistance",
+      "italian_name": "Resistenza"
+    },
+    {
+      "name": "Sacred Flame",
+      "italian_name": "Fiamma Sacra"
+    },
+    {
+      "name": "Shape Water",
+      "italian_name": "Modellare Acqua"
+    },
+    {
+      "name": "Shillelagh",
+      "italian_name": "Randello Incantato"
+    },
+    {
+      "name": "Shocking Grasp",
+      "italian_name": "Stretta Folgorante"
+    },
+    {
+      "name": "Spare the Dying",
+      "italian_name": "Salvare i Morenti"
+    },
+    {
+      "name": "Sword Burst",
+      "italian_name": "Esplosione delle Lame"
+    },
+    {
+      "name": "Thaumaturgy",
+      "italian_name": "Taumaturgia"
+    },
+    {
+      "name": "Thorn Whip",
+      "italian_name": "Frusta di Spine"
+    },
+    {
+      "name": "Thunderclap",
+      "italian_name": "Rombo di Tuono"
+    },
+    {
+      "name": "Toll the Dead",
+      "italian_name": "Rintocco di Morte"
+    },
+    {
+      "name": "True Strike",
+      "italian_name": "Colpo Accurato"
+    },
+    {
+      "name": "Vicious Mockery",
+      "italian_name": "Beffa Crudele"
+    },
+    {
+      "name": "Word of Radiance",
+      "italian_name": "Parola Radiosa"
+    },
+    {
+      "name": "Absorb Elements",
+      "italian_name": "Assorbire Elementi"
+    },
+    {
+      "name": "Alarm",
+      "italian_name": "Allarme"
+    },
+    {
+      "name": "Animal Friendship",
+      "italian_name": "Amicizia con gli Animali"
+    },
+    {
+      "name": "Armor of Agathys",
+      "italian_name": "Armatura di Agathys"
+    },
+    {
+      "name": "Arms of Hadar",
+      "italian_name": "Braccia di Hadar"
+    },
+    {
+      "name": "Bane",
+      "italian_name": "Anatema"
+    },
+    {
+      "name": "Bless",
+      "italian_name": "Benedizione"
+    },
+    {
+      "name": "Burning Hands",
+      "italian_name": "Mani Brucianti"
+    },
+    {
+      "name": "Catapult",
+      "italian_name": "Catapulta"
+    },
+    {
+      "name": "Cause Fear",
+      "italian_name": "Incuti Paura"
+    },
+    {
+      "name": "Ceremony",
+      "italian_name": "Cerimonia"
+    },
+    {
+      "name": "Chaos Bolt",
+      "italian_name": "Dardo di Caos"
+    },
+    {
+      "name": "Charm Person",
+      "italian_name": "Charme su Persone"
+    },
+    {
+      "name": "Chromatic Orb",
+      "italian_name": "Globo Cromatico"
+    },
+    {
+      "name": "Color Spray",
+      "italian_name": "Spruzzo Colorato"
+    },
+    {
+      "name": "Command",
+      "italian_name": "Comando"
+    },
+    {
+      "name": "Compelled Duel",
+      "italian_name": "Duello Obbligato"
+    },
+    {
+      "name": "Comprehend Languages",
+      "italian_name": "Comprensione dei Linguaggi"
+    },
+    {
+      "name": "Create or Destroy Water",
+      "italian_name": "Creare o Distruggere Acqua"
+    },
+    {
+      "name": "Cure Wounds",
+      "italian_name": "Cura Ferite"
+    },
+    {
+      "name": "Detect Evil and Good",
+      "italian_name": "Individuazione del Bene e del Male"
+    },
+    {
+      "name": "Detect Magic",
+      "italian_name": "Individuazione del Magico"
+    },
+    {
+      "name": "Detect Poison and Disease",
+      "italian_name": "Individuazione delle Malattie e dei Veleni"
+    },
+    {
+      "name": "Disguise Self",
+      "italian_name": "Camuffare S\u00e9 Stesso"
+    },
+    {
+      "name": "Dissonant Whispers",
+      "italian_name": "Sussurri Dissonanti"
+    },
+    {
+      "name": "Distort Value",
+      "italian_name": "Valore Distorto"
+    },
+    {
+      "name": "Divine Favor",
+      "italian_name": "Favore Divino"
+    },
+    {
+      "name": "Earth Tremor",
+      "italian_name": "Scossa Tellurica"
+    },
+    {
+      "name": "Ensnaring Strike",
+      "italian_name": "Colpo Intrappolante"
+    },
+    {
+      "name": "Entangle",
+      "italian_name": "Intralciare"
+    },
+    {
+      "name": "Expeditious Retreat",
+      "italian_name": "Ritirata Rapida"
+    },
+    {
+      "name": "Faerie Fire",
+      "italian_name": "Luminescenza"
+    },
+    {
+      "name": "False Life",
+      "italian_name": "Vita Falsata"
+    },
+    {
+      "name": "Feather Fall",
+      "italian_name": "Caduta Morbida"
+    },
+    {
+      "name": "Find Familiar",
+      "italian_name": "Trova Famiglio"
+    },
+    {
+      "name": "Fog Cloud",
+      "italian_name": "Nube di Nebbia"
+    },
+    {
+      "name": "Goodberry",
+      "italian_name": "Bacche Benefiche"
+    },
+    {
+      "name": "Grease",
+      "italian_name": "Unto"
+    },
+    {
+      "name": "Guiding Bolt",
+      "italian_name": "Dardo Tracciante"
+    },
+    {
+      "name": "Hail of Thorns",
+      "italian_name": "Raffica di Spine"
+    },
+    {
+      "name": "Healing Word",
+      "italian_name": "Parola Guaritrice"
+    },
+    {
+      "name": "Hellish Rebuke",
+      "italian_name": "Intimorire Infernale"
+    },
+    {
+      "name": "Heroism",
+      "italian_name": "Eroismo"
+    },
+    {
+      "name": "Hex",
+      "italian_name": "Sortilegio"
+    },
+    {
+      "name": "Hunter's Mark",
+      "italian_name": "Marchio del Cacciatore"
+    },
+    {
+      "name": "Ice Knife",
+      "italian_name": "Coltello di Ghiaccio"
+    },
+    {
+      "name": "Identify",
+      "italian_name": "Identificare"
+    },
+    {
+      "name": "Illusory Script",
+      "italian_name": "Scritto Illusorio"
+    },
+    {
+      "name": "Inflict Wounds",
+      "italian_name": "Infliggi Ferite"
+    },
+    {
+      "name": "Jump",
+      "italian_name": "Saltare"
+    },
+    {
+      "name": "Longstrider",
+      "italian_name": "Passo Veloce"
+    },
+    {
+      "name": "Mage Armor",
+      "italian_name": "Armatura Magica"
+    },
+    {
+      "name": "Magic Missile",
+      "italian_name": "Dardo Incantato"
+    },
+    {
+      "name": "Protection from Evil and Good",
+      "italian_name": "Protezione dal Bene e dal Male"
+    },
+    {
+      "name": "Purify Food and Drink",
+      "italian_name": "Purificare Cibo e Acqua"
+    },
+    {
+      "name": "Ray of Sickness",
+      "italian_name": "Raggio di Infermit\u00e0"
+    },
+    {
+      "name": "Sanctuary",
+      "italian_name": "Santuario"
+    },
+    {
+      "name": "Searing Smite",
+      "italian_name": "Punizione Incandescente"
+    },
+    {
+      "name": "Shield",
+      "italian_name": "Scudo"
+    },
+    {
+      "name": "Shield of Faith",
+      "italian_name": "Scudo della Fede"
+    },
+    {
+      "name": "Silent Image",
+      "italian_name": "Immagine Silenziosa"
+    },
+    {
+      "name": "Silvery Barbs",
+      "italian_name": "Punte Argentate"
+    },
+    {
+      "name": "Sleep",
+      "italian_name": "Sonno"
+    },
+    {
+      "name": "Snare",
+      "italian_name": "Trabocchetto"
+    },
+    {
+      "name": "Speak with Animals",
+      "italian_name": "Parlare con gli Animali"
+    },
+    {
+      "name": "Tasha's Caustic Brew",
+      "italian_name": "Miscela Caustica di Tasha"
+    },
+    {
+      "name": "Tasha's Hideous Laughter",
+      "italian_name": "Risata Incontenibile di Tasha"
+    },
+    {
+      "name": "Tenser's Floating Disk",
+      "italian_name": "Disco Fluttuante di Tenser"
+    },
+    {
+      "name": "Thunderous Smite",
+      "italian_name": "Punizione Tonante"
+    },
+    {
+      "name": "Thunderwave",
+      "italian_name": "Onda Tonante"
+    },
+    {
+      "name": "Unseen Servant",
+      "italian_name": "Servitore Inosservato"
+    },
+    {
+      "name": "Witch Bolt",
+      "italian_name": "Dardo Stregato"
+    },
+    {
+      "name": "Wrathful Smite",
+      "italian_name": "Punizione Collerica"
+    },
+    {
+      "name": "Zephyr Strike",
+      "italian_name": "Colpo di Zefiro"
+    },
+    {
+      "name": "Aid",
+      "italian_name": "Aiuto"
+    },
+    {
+      "name": "Air Bubble",
+      "italian_name": "Bolla d'Aria"
+    },
+    {
+      "name": "Alter Self",
+      "italian_name": "Alterare S\u00e9 Stesso"
+    },
+    {
+      "name": "Animal Messenger",
+      "italian_name": "Animale Messaggero"
+    },
+    {
+      "name": "Arcane Lock",
+      "italian_name": "Serratura Arcana"
+    },
+    {
+      "name": "Augury",
+      "italian_name": "Presagio"
+    },
+    {
+      "name": "Barkskin",
+      "italian_name": "Pelle di Corteccia"
+    },
+    {
+      "name": "Beast Sense",
+      "italian_name": "Percezione delle Bestie"
+    },
+    {
+      "name": "Blindness/Deafness",
+      "italian_name": "Cecit\u00e0/Sordit\u00e0"
+    },
+    {
+      "name": "Blur",
+      "italian_name": "Sfocatura"
+    },
+    {
+      "name": "Borrowed Knowledge",
+      "italian_name": "Conoscenza Presa in Prestito"
+    },
+    {
+      "name": "Branding Smite",
+      "italian_name": "Punizione Marchiante"
+    },
+    {
+      "name": "Calm Emotions",
+      "italian_name": "Calmare Emozioni"
+    },
+    {
+      "name": "Cloud of Daggers",
+      "italian_name": "Nube di Pugnali"
+    },
+    {
+      "name": "Continual Flame",
+      "italian_name": "Fiamma Perenne"
+    },
+    {
+      "name": "Cordon of Arrows",
+      "italian_name": "Cordone di Frecce"
+    },
+    {
+      "name": "Crown of Madness",
+      "italian_name": "Corona di Follia"
+    },
+    {
+      "name": "Darkness",
+      "italian_name": "Oscurit\u00e0"
+    },
+    {
+      "name": "Darkvision",
+      "italian_name": "Scurovisione"
+    },
+    {
+      "name": "Detect Thoughts",
+      "italian_name": "Individuazione dei Pensieri"
+    },
+    {
+      "name": "Dragon's Breath",
+      "italian_name": "Soffio del Drago"
+    },
+    {
+      "name": "Dust Devil",
+      "italian_name": "Diavoletto di Sabbia"
+    },
+    {
+      "name": "Earthbind",
+      "italian_name": "Vincolo della Terra"
+    },
+    {
+      "name": "Enhance Ability",
+      "italian_name": "Caratteristica Potenziata"
+    },
+    {
+      "name": "Enlarge/Reduce",
+      "italian_name": "Ingrandire/Ridurre"
+    },
+    {
+      "name": "Enthrall",
+      "italian_name": "Estasiare"
+    },
+    {
+      "name": "Find Steed",
+      "italian_name": "Trova Cavalcatura"
+    },
+    {
+      "name": "Find Traps",
+      "italian_name": "Scopri Trappole"
+    },
+    {
+      "name": "Flame Blade",
+      "italian_name": "Lama Infuocata"
+    },
+    {
+      "name": "Flaming Sphere",
+      "italian_name": "Sfera Infuocata"
+    },
+    {
+      "name": "Flock of Familiars",
+      "italian_name": "Sciame di Famigli"
+    },
+    {
+      "name": "Gentle Repose",
+      "italian_name": "Riposo Inviolato"
+    },
+    {
+      "name": "Gust of Wind",
+      "italian_name": "Folata di Vento"
+    },
+    {
+      "name": "Healing Spirit",
+      "italian_name": "Spirito Guaritore"
+    },
+    {
+      "name": "Heat Metal",
+      "italian_name": "Riscaldare il Metallo"
+    },
+    {
+      "name": "Hold Person",
+      "italian_name": "Blocca Persone"
+    },
+    {
+      "name": "Invisibility",
+      "italian_name": "Invisibilit\u00e0"
+    },
+    {
+      "name": "Knock",
+      "italian_name": "Scassinare"
+    },
+    {
+      "name": "Lesser Restoration",
+      "italian_name": "Ristorare Inferiore"
+    },
+    {
+      "name": "Levitate",
+      "italian_name": "Levitazione"
+    },
+    {
+      "name": "Locate Animals or Plants",
+      "italian_name": "Localizza Animali o Vegetali"
+    },
+    {
+      "name": "Locate Object",
+      "italian_name": "Localizza Oggetto"
+    },
+    {
+      "name": "Magic Mouth",
+      "italian_name": "Bocca Magica"
+    },
+    {
+      "name": "Magic Weapon",
+      "italian_name": "Arma Magica"
+    },
+    {
+      "name": "Maximilian's Earthen Grasp",
+      "italian_name": "Stretta della Terra di Maximilian"
+    },
+    {
+      "name": "Melf's Acid Arrow",
+      "italian_name": "Freccia Acida di Melf"
+    },
+    {
+      "name": "Mind Spike",
+      "italian_name": "Aculeo Mentale"
+    },
+    {
+      "name": "Mirror Image",
+      "italian_name": "Immagine Speculare"
+    },
+    {
+      "name": "Misty Step",
+      "italian_name": "Passo Velato"
+    },
+    {
+      "name": "Moonbeam",
+      "italian_name": "Bagliore Lunare"
+    },
+    {
+      "name": "Nystul's Magic Aura",
+      "italian_name": "Aura Magica di Nystul"
+    },
+    {
+      "name": "Pass without Trace",
+      "italian_name": "Passare Senza Tracce"
+    },
+    {
+      "name": "Phantasmal Force",
+      "italian_name": "Allucinazione di Forza"
+    },
+    {
+      "name": "Prayer of Healing",
+      "italian_name": "Preghiera di Guarigione"
+    },
+    {
+      "name": "Protection from Poison",
+      "italian_name": "Protezione dai Veleni"
+    },
+    {
+      "name": "Ray of Enfeeblement",
+      "italian_name": "Raggio di Affaticamento"
+    },
+    {
+      "name": "Rime's Binding Ice",
+      "italian_name": "Ghiaccio vincolante di Rime"
+    },
+    {
+      "name": "Rope Trick",
+      "italian_name": "Trucco della Corda"
+    },
+    {
+      "name": "Scorching Ray",
+      "italian_name": "Raggio Rovente"
+    },
+    {
+      "name": "See Invisibility",
+      "italian_name": "Vedere Invisibilit\u00e0"
+    },
+    {
+      "name": "Shatter",
+      "italian_name": "Frantumare"
+    },
+    {
+      "name": "Silence",
+      "italian_name": "Silenzio"
+    },
+    {
+      "name": "Spider Climb",
+      "italian_name": "Movimenti del Ragno"
+    },
+    {
+      "name": "Spike Growth",
+      "italian_name": "Crescita di Spine"
+    },
+    {
+      "name": "Spiritual Weapon",
+      "italian_name": "Arma Spirituale"
+    },
+    {
+      "name": "Suggestion",
+      "italian_name": "Suggestione"
+    },
+    {
+      "name": "Tasha's Mind Whip",
+      "italian_name": "Frusta Mentale di Tasha"
+    },
+    {
+      "name": "Warding Bond",
+      "italian_name": "Vincolo di Interdizione"
+    },
+    {
+      "name": "Warding Wind",
+      "italian_name": "Venti d'Interdizione"
+    },
+    {
+      "name": "Web",
+      "italian_name": "Ragnatela"
+    },
+    {
+      "name": "Zone of Truth",
+      "italian_name": "Zona di Verit\u00e0"
+    },
+    {
+      "name": "Animate Dead",
+      "italian_name": "Animare Morti"
+    },
+    {
+      "name": "Aura of Vitality",
+      "italian_name": "Aura di Vitalit\u00e0"
+    },
+    {
+      "name": "Beacon of Hope",
+      "italian_name": "Faro di Speranza"
+    },
+    {
+      "name": "Bestow Curse",
+      "italian_name": "Scagliare Maledizione"
+    },
+    {
+      "name": "Blinding Smite",
+      "italian_name": "Punizione Accecante"
+    },
+    {
+      "name": "Blink",
+      "italian_name": "Intermittenza"
+    },
+    {
+      "name": "Call Lightning",
+      "italian_name": "Invocare il Fulmine"
+    },
+    {
+      "name": "Clairvoyance",
+      "italian_name": "Chiaroveggenza"
+    },
+    {
+      "name": "Conjure Animals",
+      "italian_name": "Evoca Animali"
+    },
+    {
+      "name": "Conjure Barrage",
+      "italian_name": "Evoca Raffica"
+    },
+    {
+      "name": "Counterspell",
+      "italian_name": "Controincantesimo"
+    },
+    {
+      "name": "Create Food and Water",
+      "italian_name": "Creare Cibo e Acqua"
+    },
+    {
+      "name": "Crusader's Mantle",
+      "italian_name": "Manto del Crociato"
+    },
+    {
+      "name": "Daylight",
+      "italian_name": "Luce Diurna"
+    },
+    {
+      "name": "Dispel Magic",
+      "italian_name": "Dissolvi Magie"
+    },
+    {
+      "name": "Elemental Weapon",
+      "italian_name": "Arma Elementale"
+    },
+    {
+      "name": "Erupting Earth",
+      "italian_name": "Eruzione Terrestre"
+    },
+    {
+      "name": "Fear",
+      "italian_name": "Paura"
+    },
+    {
+      "name": "Feign Death",
+      "italian_name": "Morte Apparente"
+    },
+    {
+      "name": "Fireball",
+      "italian_name": "Palla di Fuoco"
+    },
+    {
+      "name": "Flame Arrows",
+      "italian_name": "Frecce Infuocate"
+    },
+    {
+      "name": "Fly",
+      "italian_name": "Volare"
+    },
+    {
+      "name": "Gaseous Form",
+      "italian_name": "Forma Gassosa"
+    },
+    {
+      "name": "Glyph of Warding",
+      "italian_name": "Glifo di Interdizione"
+    },
+    {
+      "name": "Haste",
+      "italian_name": "Velocit\u00e0"
+    },
+    {
+      "name": "Hunger of Hadar",
+      "italian_name": "Fame di Hadar"
+    },
+    {
+      "name": "Hypnotic Pattern",
+      "italian_name": "Trama Ipnotica"
+    },
+    {
+      "name": "Leomund's Tiny Hut",
+      "italian_name": "Capanna di Leomund"
+    },
+    {
+      "name": "Lightning Arrow",
+      "italian_name": "Freccia Folgorante"
+    },
+    {
+      "name": "Lightning Bolt",
+      "italian_name": "Fulmine"
+    },
+    {
+      "name": "Magic Circle",
+      "italian_name": "Cerchio Magico"
+    },
+    {
+      "name": "Major Image",
+      "italian_name": "Immagine Maggiore"
+    },
+    {
+      "name": "Mass Healing Word",
+      "italian_name": "Parola Guaritrice di Massa"
+    },
+    {
+      "name": "Meld into Stone",
+      "italian_name": "Fondersi nella Pietra"
+    },
+    {
+      "name": "Nondetection",
+      "italian_name": "Anti-Individuazione"
+    },
+    {
+      "name": "Phantom Steed",
+      "italian_name": "Destriero Fantomatico"
+    },
+    {
+      "name": "Plant Growth",
+      "italian_name": "Crescita Vegetale"
+    },
+    {
+      "name": "Protection from Energy",
+      "italian_name": "Protezione dall\u2019Energia"
+    },
+    {
+      "name": "Remove Curse",
+      "italian_name": "Rimuovi Maledizione"
+    },
+    {
+      "name": "Revivify",
+      "italian_name": "Rinascita"
+    },
+    {
+      "name": "Sending",
+      "italian_name": "Inviare"
+    },
+    {
+      "name": "Sleet Storm",
+      "italian_name": "Tempesta di Nevischio"
+    },
+    {
+      "name": "Slow",
+      "italian_name": "Lentezza"
+    },
+    {
+      "name": "Speak with Dead",
+      "italian_name": "Parlare con i Morti"
+    },
+    {
+      "name": "Speak with Plants",
+      "italian_name": "Parlare con le Piante"
+    },
+    {
+      "name": "Spirit Guardians",
+      "italian_name": "Guardiani Spirituali"
+    },
+    {
+      "name": "Spirit Shroud",
+      "italian_name": "Sudario spirituale"
+    },
+    {
+      "name": "Stinking Cloud",
+      "italian_name": "Nube Maleodorante"
+    },
+    {
+      "name": "Tidal Wave",
+      "italian_name": "Onda di Marea"
+    },
+    {
+      "name": "Tongues",
+      "italian_name": "Lingue"
+    },
+    {
+      "name": "Vampiric Touch",
+      "italian_name": "Tocco Vampirico"
+    },
+    {
+      "name": "Wall of Sand",
+      "italian_name": "Muro di Sabbia"
+    },
+    {
+      "name": "Water Breathing",
+      "italian_name": "Respirare Sott\u2019Acqua"
+    },
+    {
+      "name": "Water Walk",
+      "italian_name": "Camminare sull\u2019Acqua"
+    },
+    {
+      "name": "Wind Wall",
+      "italian_name": "Muro di Vento"
+    },
+    {
+      "name": "Arcane Eye",
+      "italian_name": "Occhio Arcano"
+    },
+    {
+      "name": "Aura of Life",
+      "italian_name": "Aura di Vita"
+    },
+    {
+      "name": "Aura of Purity",
+      "italian_name": "Aura di Purezza"
+    },
+    {
+      "name": "Banishment",
+      "italian_name": "Esilio"
+    },
+    {
+      "name": "Blight",
+      "italian_name": "Inaridire"
+    },
+    {
+      "name": "Charm Monster",
+      "italian_name": "Charme sui Mostri"
+    },
+    {
+      "name": "Compulsion",
+      "italian_name": "Compulsione"
+    },
+    {
+      "name": "Confusion",
+      "italian_name": "Confusione"
+    },
+    {
+      "name": "Conjure Minor Elementals",
+      "italian_name": "Evoca Elementali Minori"
+    },
+    {
+      "name": "Conjure Woodland Beings",
+      "italian_name": "Evoca Creature Boschive"
+    },
+    {
+      "name": "Control Water",
+      "italian_name": "Controllare Acqua"
+    },
+    {
+      "name": "Death Ward",
+      "italian_name": "Interdizione alla Morte"
+    },
+    {
+      "name": "Dimension Door",
+      "italian_name": "Porta Dimensionale"
+    },
+    {
+      "name": "Divination",
+      "italian_name": "Divinazione"
+    },
+    {
+      "name": "Dominate Beast",
+      "italian_name": "Dominare Bestie"
+    },
+    {
+      "name": "Elemental Bane",
+      "italian_name": "Anatema Elementale"
+    },
+    {
+      "name": "Evard's Black Tentacles",
+      "italian_name": "Tentacoli Neri di Evard"
+    },
+    {
+      "name": "Fabricate",
+      "italian_name": "Fabbricare"
+    },
+    {
+      "name": "Fire Shield",
+      "italian_name": "Scudo di Fuoco"
+    },
+    {
+      "name": "Freedom of Movement",
+      "italian_name": "Libert\u00e0 di Movimento"
+    },
+    {
+      "name": "Giant Insect",
+      "italian_name": "Insetto Gigante"
+    },
+    {
+      "name": "Grasping Vine",
+      "italian_name": "Rampicante Afferrante"
+    },
+    {
+      "name": "Greater Invisibility",
+      "italian_name": "Invisibilit\u00e0 Superiore"
+    },
+    {
+      "name": "Guardian of Faith",
+      "italian_name": "Guardiano della Fede"
+    },
+    {
+      "name": "Hallucinatory Terrain",
+      "italian_name": "Terreno Illusorio"
+    },
+    {
+      "name": "Ice Storm",
+      "italian_name": "Tempesta di Ghiaccio"
+    },
+    {
+      "name": "Leomund's Secret Chest",
+      "italian_name": "Scrigno Segreto di Leomund"
+    },
+    {
+      "name": "Locate Creature",
+      "italian_name": "Localizza Creatura"
+    },
+    {
+      "name": "Mordenkainen's Faithful Hound",
+      "italian_name": "Segugio Fedele di Mordenkainen"
+    },
+    {
+      "name": "Mordenkainen's Private Sanctum",
+      "italian_name": "Santuario Privato di Mordenkainen"
+    },
+    {
+      "name": "Otiluke's Resilient Sphere",
+      "italian_name": "Sfera Elastica di Otiluke"
+    },
+    {
+      "name": "Phantasmal Killer",
+      "italian_name": "Allucinazione Mortale"
+    },
+    {
+      "name": "Polymorph",
+      "italian_name": "Metamorfosi"
+    },
+    {
+      "name": "Staggering Smite",
+      "italian_name": "Punizione Demoralizzante"
+    },
+    {
+      "name": "Stone Shape",
+      "italian_name": "Scolpire Pietra"
+    },
+    {
+      "name": "Stoneskin",
+      "italian_name": "Pelle di Pietra"
+    },
+    {
+      "name": "Wall of Fire",
+      "italian_name": "Muro di Fuoco"
+    },
+    {
+      "name": "Animate Objects",
+      "italian_name": "Animare Oggetti"
+    },
+    {
+      "name": "Antilife Shell",
+      "italian_name": "Guscio Anti-Vita"
+    },
+    {
+      "name": "Awaken",
+      "italian_name": "Risveglio"
+    },
+    {
+      "name": "Banishing Smite",
+      "italian_name": "Punizione Esiliante"
+    },
+    {
+      "name": "Bigby's Hand",
+      "italian_name": "Mano di Bigby"
+    },
+    {
+      "name": "Circle of Power",
+      "italian_name": "Cerchio di Potere"
+    },
+    {
+      "name": "Cloudkill",
+      "italian_name": "Nube Mortale"
+    },
+    {
+      "name": "Commune",
+      "italian_name": "Comunione"
+    },
+    {
+      "name": "Commune with Nature",
+      "italian_name": "Comunione con la Natura"
+    },
+    {
+      "name": "Cone of Cold",
+      "italian_name": "Cono di Freddo"
+    },
+    {
+      "name": "Conjure Elemental",
+      "italian_name": "Evoca Elementale"
+    },
+    {
+      "name": "Conjure Volley",
+      "italian_name": "Evoca Pioggia di Armi"
+    },
+    {
+      "name": "Contact Other Plane",
+      "italian_name": "Contattare Altri Piani"
+    },
+    {
+      "name": "Contagion",
+      "italian_name": "Contagio"
+    },
+    {
+      "name": "Control Winds",
+      "italian_name": "Controllare Venti"
+    },
+    {
+      "name": "Creation",
+      "italian_name": "Creazione"
+    },
+    {
+      "name": "Destructive Wave",
+      "italian_name": "Onda Distruttiva"
+    },
+    {
+      "name": "Dispel Evil and Good",
+      "italian_name": "Dissolvi il Bene e il Male"
+    },
+    {
+      "name": "Dominate Person",
+      "italian_name": "Dominare Persone"
+    },
+    {
+      "name": "Dream",
+      "italian_name": "Sogno"
+    },
+    {
+      "name": "Flame Strike",
+      "italian_name": "Colpo Infuocato"
+    },
+    {
+      "name": "Geas",
+      "italian_name": "Costrizione"
+    },
+    {
+      "name": "Greater Restoration",
+      "italian_name": "Ristorare Superiore"
+    },
+    {
+      "name": "Hallow",
+      "italian_name": "Santificare"
+    },
+    {
+      "name": "Hold Monster",
+      "italian_name": "Blocca Mostri"
+    },
+    {
+      "name": "Insect Plague",
+      "italian_name": "Piaga degli Insetti"
+    },
+    {
+      "name": "Legend Lore",
+      "italian_name": "Conoscenza delle Leggende"
+    },
+    {
+      "name": "Mass Cure Wounds",
+      "italian_name": "Cura Ferite di Massa"
+    },
+    {
+      "name": "Mislead",
+      "italian_name": "Fuorviare"
+    },
+    {
+      "name": "Modify Memory",
+      "italian_name": "Modificare Memoria"
+    },
+    {
+      "name": "Passwall",
+      "italian_name": "Passapareti"
+    },
+    {
+      "name": "Planar Binding",
+      "italian_name": "Legame Planare"
+    },
+    {
+      "name": "Raise Dead",
+      "italian_name": "Rianimare Morti"
+    },
+    {
+      "name": "Rary's Telepathic Bond",
+      "italian_name": "Legame Telepatico di Rary"
+    },
+    {
+      "name": "Reincarnate",
+      "italian_name": "Reincarnazione"
+    },
+    {
+      "name": "Scrying",
+      "italian_name": "Scrutare"
+    },
+    {
+      "name": "Seeming",
+      "italian_name": "Sembrare"
+    },
+    {
+      "name": "Skill Empowerment",
+      "italian_name": "Abilit\u00e0 potenziata"
+    },
+    {
+      "name": "Swift Quiver",
+      "italian_name": "Faretra Rapida"
+    },
+    {
+      "name": "Telekinesis",
+      "italian_name": "Telecinesi"
+    },
+    {
+      "name": "Teleportation Circle",
+      "italian_name": "Cerchio di Teletrasporto"
+    },
+    {
+      "name": "Transmute Rock",
+      "italian_name": "Trasmutare Roccia"
+    },
+    {
+      "name": "Tree Stride",
+      "italian_name": "Traslazione Arborea"
+    },
+    {
+      "name": "Wall of Force",
+      "italian_name": "Muro di Forza"
+    },
+    {
+      "name": "Wall of Stone",
+      "italian_name": "Muro di Pietra"
+    },
+    {
+      "name": "Wrath of Nature",
+      "italian_name": "Collera della Natura"
+    },
+    {
+      "name": "Arcane Gate",
+      "italian_name": "Portale Arcano"
+    },
+    {
+      "name": "Blade Barrier",
+      "italian_name": "Barriera di Lame"
+    },
+    {
+      "name": "Bones of the Earth",
+      "italian_name": "Ossa della Terra"
+    },
+    {
+      "name": "Chain Lightning",
+      "italian_name": "Catena di Fulmini"
+    },
+    {
+      "name": "Circle of Death",
+      "italian_name": "Cerchio di Morte"
+    },
+    {
+      "name": "Conjure Fey",
+      "italian_name": "Evoca Folletto"
+    },
+    {
+      "name": "Contingency",
+      "italian_name": "Contingenza"
+    },
+    {
+      "name": "Create Undead",
+      "italian_name": "Creare Non Morti"
+    },
+    {
+      "name": "Disintegrate",
+      "italian_name": "Disintegrazione"
+    },
+    {
+      "name": "Drawmij's Instant Summons",
+      "italian_name": "Evocazioni Istantanee di Drawmij"
+    },
+    {
+      "name": "Eyebite",
+      "italian_name": "Sguardo Penetrante"
+    },
+    {
+      "name": "Find the Path",
+      "italian_name": "Scopri il Percorso"
+    },
+    {
+      "name": "Flesh to Stone",
+      "italian_name": "Carne in Pietra"
+    },
+    {
+      "name": "Forbiddance",
+      "italian_name": "Proibizione"
+    },
+    {
+      "name": "Globe of Invulnerability",
+      "italian_name": "Globo di Invulnerabilit\u00e0"
+    },
+    {
+      "name": "Guards and Wards",
+      "italian_name": "Vigilanza e Interdizione"
+    },
+    {
+      "name": "Harm",
+      "italian_name": "Ferire"
+    },
+    {
+      "name": "Heal",
+      "italian_name": "Guarigione"
+    },
+    {
+      "name": "Heroes' Feast",
+      "italian_name": "Banchetto degli Eroi"
+    },
+    {
+      "name": "Investiture of Flame",
+      "italian_name": "Investitura della Fiamma"
+    },
+    {
+      "name": "Investiture of Ice",
+      "italian_name": "Investitura del Ghiaccio"
+    },
+    {
+      "name": "Investiture of Stone",
+      "italian_name": "Investitura della Pietra"
+    },
+    {
+      "name": "Investiture of Wind",
+      "italian_name": "Investitura del Vento"
+    },
+    {
+      "name": "Magic Jar",
+      "italian_name": "Giara Magica"
+    },
+    {
+      "name": "Mass Suggestion",
+      "italian_name": "Suggestione di Massa"
+    },
+    {
+      "name": "Move Earth",
+      "italian_name": "Muovere il Terreno"
+    },
+    {
+      "name": "Otiluke's Freezing Sphere",
+      "italian_name": "Sfera Congelante di Otiluke"
+    },
+    {
+      "name": "Otto's Irresistible Dance",
+      "italian_name": "Danza Irresistibile di Otto"
+    },
+    {
+      "name": "Planar Ally",
+      "italian_name": "Alleato Planare"
+    },
+    {
+      "name": "Primordial Ward",
+      "italian_name": "Interdizione Primordiale"
+    },
+    {
+      "name": "Programmed Illusion",
+      "italian_name": "Illusione Programmata"
+    },
+    {
+      "name": "Sunbeam",
+      "italian_name": "Bagliore Solare"
+    },
+    {
+      "name": "Transport via Plants",
+      "italian_name": "Trasporto Vegetale"
+    },
+    {
+      "name": "True Seeing",
+      "italian_name": "Visione del Vero"
+    },
+    {
+      "name": "Wall of Ice",
+      "italian_name": "Muro di Ghiaccio"
+    },
+    {
+      "name": "Wall of Thorns",
+      "italian_name": "Muro di Spine"
+    },
+    {
+      "name": "Wind Walk",
+      "italian_name": "Camminare nel Vento"
+    },
+    {
+      "name": "Word of Recall",
+      "italian_name": "Parola del Ritiro"
+    },
+    {
+      "name": "Conjure Celestial",
+      "italian_name": "Evoca Celestiale"
+    },
+    {
+      "name": "Delayed Blast Fireball",
+      "italian_name": "Palla di Fuoco Ritardata"
+    },
+    {
+      "name": "Divine Word",
+      "italian_name": "Parola Divina"
+    },
+    {
+      "name": "Etherealness",
+      "italian_name": "Forma Eterea"
+    },
+    {
+      "name": "Finger of Death",
+      "italian_name": "Dito della Morte"
+    },
+    {
+      "name": "Fire Storm",
+      "italian_name": "Tempesta di Fuoco"
+    },
+    {
+      "name": "Forcecage",
+      "italian_name": "Gabbia di Forza"
+    },
+    {
+      "name": "Mirage Arcane",
+      "italian_name": "Miraggio Arcano"
+    },
+    {
+      "name": "Mordenkainen's Magnificent Mansion",
+      "italian_name": "Reggia Meravigliosa di Mordenkainen"
+    },
+    {
+      "name": "Mordenkainen's Sword",
+      "italian_name": "Spada di Mordenkainen"
+    },
+    {
+      "name": "Plane Shift",
+      "italian_name": "Spostamento Planare"
+    },
+    {
+      "name": "Prismatic Spray",
+      "italian_name": "Spruzzo Prismatico"
+    },
+    {
+      "name": "Project Image",
+      "italian_name": "Immagine Proiettata"
+    },
+    {
+      "name": "Regenerate",
+      "italian_name": "Rigenerazione"
+    },
+    {
+      "name": "Resurrection",
+      "italian_name": "Resurrezione"
+    },
+    {
+      "name": "Reverse Gravity",
+      "italian_name": "Inversione della Gravit\u00e0"
+    },
+    {
+      "name": "Sequester",
+      "italian_name": "Celare"
+    },
+    {
+      "name": "Simulacrum",
+      "italian_name": "Simulacro"
+    },
+    {
+      "name": "Symbol",
+      "italian_name": "Simbolo"
+    },
+    {
+      "name": "Teleport",
+      "italian_name": "Teletrasporto"
+    },
+    {
+      "name": "Animal Shapes",
+      "italian_name": "Forme Animali"
+    },
+    {
+      "name": "Antimagic Field",
+      "italian_name": "Campo Anti-Magia"
+    },
+    {
+      "name": "Antipathy/Sympathy",
+      "italian_name": "Antipatia/Simpatia"
+    },
+    {
+      "name": "Clone",
+      "italian_name": "Clone"
+    },
+    {
+      "name": "Control Weather",
+      "italian_name": "Controllare Tempo Atmosferico"
+    },
+    {
+      "name": "Demiplane",
+      "italian_name": "Semipiano"
+    },
+    {
+      "name": "Dominate Monster",
+      "italian_name": "Dominare Mostri"
+    },
+    {
+      "name": "Earthquake",
+      "italian_name": "Terremoto"
+    },
+    {
+      "name": "Feeblemind",
+      "italian_name": "Regressione Mentale"
+    },
+    {
+      "name": "Glibness",
+      "italian_name": "Loquacit\u00e0"
+    },
+    {
+      "name": "Holy Aura",
+      "italian_name": "Aura Sacra"
+    },
+    {
+      "name": "Incendiary Cloud",
+      "italian_name": "Nube Incendiaria"
+    },
+    {
+      "name": "Maze",
+      "italian_name": "Labirinto"
+    },
+    {
+      "name": "Mind Blank",
+      "italian_name": "Vuoto Mentale"
+    },
+    {
+      "name": "Power Word Stun",
+      "italian_name": "Parola del Potere Stordire"
+    },
+    {
+      "name": "Sunburst",
+      "italian_name": "Esplosione Solare"
+    },
+    {
+      "name": "Telepathy",
+      "italian_name": "Telepatia"
+    },
+    {
+      "name": "Tsunami",
+      "italian_name": "Tsunami"
+    },
+    {
+      "name": "Astral Projection",
+      "italian_name": "Proiezione Astrale"
+    },
+    {
+      "name": "Foresight",
+      "italian_name": "Previsione"
+    },
+    {
+      "name": "Gate",
+      "italian_name": "Portale"
+    },
+    {
+      "name": "Imprisonment",
+      "italian_name": "Imprigionare"
+    },
+    {
+      "name": "Mass Heal",
+      "italian_name": "Guarigione di Massa"
+    },
+    {
+      "name": "Meteor Swarm",
+      "italian_name": "Sciame di Meteore"
+    },
+    {
+      "name": "Power Word Heal",
+      "italian_name": "Parola del Potere Guarire"
+    },
+    {
+      "name": "Power Word Kill",
+      "italian_name": "Parola del Potere Uccidere"
+    },
+    {
+      "name": "Prismatic Wall",
+      "italian_name": "Muro Prismatico"
+    },
+    {
+      "name": "Shapechange",
+      "italian_name": "Trasformazione"
+    },
+    {
+      "name": "Storm of Vengeance",
+      "italian_name": "Tempesta di Vendetta"
+    },
+    {
+      "name": "Time Stop",
+      "italian_name": "Fermare il Tempo"
+    },
+    {
+      "name": "True Polymorph",
+      "italian_name": "Metamorfosi Pura"
+    },
+    {
+      "name": "True Resurrection",
+      "italian_name": "Resurrezione Pura"
+    },
+    {
+      "name": "Weird",
+      "italian_name": "Fatale"
+    },
+    {
+      "name": "Wish",
+      "italian_name": "Desiderio"
+    }
+  ],
+  "italian_names_preserved_count": 418,
+  "corrected_name_matches": [
+    {
+      "from": "Maximillian's Earthen Grasp",
+      "to": "Maximilian's Earthen Grasp",
+      "italian_name": "Stretta della Terra di Maximilian"
+    }
+  ],
+  "missing_local_italian_spell_names": [],
+  "media_keys_present_in_output": false
+}
