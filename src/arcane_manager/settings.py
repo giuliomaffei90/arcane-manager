@@ -150,11 +150,11 @@ class SettingsController(NSObject):
         y_cursor += 32
         label = make_label("Markdown folder", (40, y_cursor + 5, 230, 20), 13, True)
         label.setTextColor_(theme_color("text"))
-        button = NSButton.alloc().initWithFrame_(NSMakeRect(300, y_cursor - 3, 174, 30))
+        button = StyledButton.alloc().initWithFrame_(NSMakeRect(300, y_cursor - 3, 174, 30))
         button.setTitle_("Change Folder")
         button.setTarget_(self)
         button.setAction_("chooseAdventureFolder:")
-        style_layer(button, theme_color("surface"), theme_color("border_soft"), 8, 1)
+        style_button_layer(button)
         self.content.addSubview_(label)
         self.content.addSubview_(button)
         return y_cursor + 42
@@ -172,12 +172,14 @@ class SettingsController(NSObject):
     @objc.python_method
     def _addThemeSubsection_name_section_rows_y_(self, name, section, rows, y_cursor):
         expanded = self.theme_subsection_expanded.get(str(name), True)
-        button = NSButton.alloc().initWithFrame_(NSMakeRect(40, y_cursor, 260, 26))
+        button = StyledButton.alloc().initWithFrame_(NSMakeRect(40, y_cursor, 260, 26))
         button.setTitle_(f"{'v' if expanded else '>'} {name}")
         button.setTarget_(self)
         button.setAction_("toggleThemeSubsection:")
         button.setTag_(len(self.theme_subsection_names))
         button.setBordered_(False)
+        button.setSoftBackground_(True)
+        style_button_layer(button, soft=True)
         self.theme_subsection_names.append(str(name))
         self.theme_subsection_buttons.append(button)
         self.content.addSubview_(button)

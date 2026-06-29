@@ -154,6 +154,48 @@ def combatant_status_label(combatant: dict[str, Any]) -> str:
     return ", ".join(conditions) if conditions else "Normal"
 
 
+def button_visual_state(
+    hovered: bool = False,
+    pressed: bool = False,
+    enabled: bool = True,
+    selected: bool = False,
+    soft: bool = False,
+):
+    if not enabled:
+        return {
+            "fill": theme_color("surface", 0.42),
+            "stroke": theme_color("border_soft", 0.62),
+            "text": theme_color("muted", 0.62),
+            "stroke_width": 1,
+        }
+    if selected or pressed:
+        return {
+            "fill": theme_color("selection"),
+            "stroke": theme_color("muted"),
+            "text": theme_color("text_strong"),
+            "stroke_width": 1.5,
+        }
+    if hovered:
+        return {
+            "fill": theme_color("surface_hover"),
+            "stroke": theme_color("muted"),
+            "text": theme_color("text_strong"),
+            "stroke_width": 1.5,
+        }
+    return {
+        "fill": theme_color("surface_soft" if soft else "surface"),
+        "stroke": theme_color("border_soft"),
+        "text": theme_color("text"),
+        "stroke_width": 1,
+    }
+
+
+def draw_button_background(rect, hovered: bool = False, pressed: bool = False, enabled: bool = True, selected: bool = False, soft: bool = False, radius: float = 8):
+    state = button_visual_state(hovered, pressed, enabled, selected, soft)
+    draw_rounded_rect(rect, state["fill"], state["stroke"], radius, state["stroke_width"])
+    return state
+
+
 def style_layer(view, background=None, border=None, radius: float = 10.0, border_width: float = 1.0):
     view.setWantsLayer_(True)
     layer = view.layer()
@@ -209,6 +251,83 @@ def style_number_input(field):
     field.setUsesSingleLineMode_(True)
     field.cell().setScrollable_(True)
     style_layer(field, theme_color("surface"), theme_color("border"), 8, 1)
+
+
+def style_button_layer(button, hovered: bool = False, pressed: bool = False, enabled: bool | None = None, selected: bool = False, soft: bool = False):
+    if enabled is None:
+        enabled = bool(button.isEnabled()) if hasattr(button, "isEnabled") else True
+    button.setWantsLayer_(True)
+    layer = button.layer()
+    layer.setCornerRadius_(8)
+    layer.setMasksToBounds_(False)
+    layer.setBorderWidth_(0)
+    if hasattr(button, "setNeedsDisplay_"):
+        button.setNeedsDisplay_(True)
+
+
+class StyledButton(NSButton):
+    hovered = objc.ivar()
+    tracking_area = objc.ivar()
+    soft_background = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(StyledButton, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.hovered = False
+        self.tracking_area = None
+        self.soft_background = False
+        self.setBordered_(False)
+        style_button_layer(self)
+        return self
+
+    def setSoftBackground_(self, soft):
+        self.soft_background = bool(soft)
+        self.setNeedsDisplay_(True)
+
+    def updateTrackingAreas(self):
+        if self.tracking_area is not None:
+            self.removeTrackingArea_(self.tracking_area)
+        self.tracking_area = NSTrackingArea.alloc().initWithRect_options_owner_userInfo_(
+            self.bounds(),
+            NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways | NSTrackingInVisibleRect,
+            self,
+            None,
+        )
+        self.addTrackingArea_(self.tracking_area)
+        objc.super(StyledButton, self).updateTrackingAreas()
+
+    def mouseEntered_(self, _event):
+        if self.isEnabled():
+            self.hovered = True
+            self.setNeedsDisplay_(True)
+
+    def mouseExited_(self, _event):
+        self.hovered = False
+        self.setNeedsDisplay_(True)
+
+    def highlight_(self, flag):
+        objc.super(StyledButton, self).highlight_(flag)
+        self.setNeedsDisplay_(True)
+
+    def setEnabled_(self, enabled):
+        objc.super(StyledButton, self).setEnabled_(enabled)
+        if not enabled:
+            self.hovered = False
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        state = draw_button_background(
+            NSMakeRect(0.5, 0.5, max(1, bounds.size.width - 1), max(1, bounds.size.height - 1)),
+            bool(self.hovered),
+            bool(self.isHighlighted()),
+            bool(self.isEnabled()),
+            False,
+            bool(self.soft_background),
+            8,
+        )
+        draw_centered_fitted_text_in_rect(str(self.title()), bounds, 13, state["text"], True)
 
 
 def draw_text(text: str, x: float, y: float, size: float = 13, color=None, bold: bool = False):
@@ -290,6 +409,20 @@ def draw_centered_text_in_rect(text: str, rect, size: float = 13, color=None, bo
         rect.origin.x + (rect.size.width - text_size.width) / 2,
         rect.origin.y + (rect.size.height - text_size.height) / 2,
         text_size.width,
+        text_size.height,
+    )
+    string.drawInRect_withAttributes_(draw_rect, attributes)
+
+
+def draw_centered_fitted_text_in_rect(text: str, rect, size: float = 13, color=None, bold: bool = False):
+    attributes = text_attributes(size, color, bold)
+    fitted = fit_text_to_width(text, rect.size.width - 12, attributes)
+    string = NSString.stringWithString_(fitted)
+    text_size = string.sizeWithAttributes_(attributes)
+    draw_rect = NSMakeRect(
+        rect.origin.x + (rect.size.width - min(rect.size.width, text_size.width)) / 2,
+        rect.origin.y + (rect.size.height - text_size.height) / 2,
+        min(rect.size.width, text_size.width),
         text_size.height,
     )
     string.drawInRect_withAttributes_(draw_rect, attributes)

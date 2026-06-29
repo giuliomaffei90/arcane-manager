@@ -52,6 +52,7 @@ class MainWindowController(NSObject):
     monster_sheet_roll_label: NSTextField
     monster_sheet_ability_buttons: list[StatBlockAbilityButton]
     monster_sheet_combatant_index: int
+    monster_sheet_creature: Creature | None
     notes_title: NSTextField
     notes_hint: NSTextField
     notes_scroll: NSScrollView
@@ -233,6 +234,7 @@ class MainWindowController(NSObject):
         self.monster_sheet_roll_label = None
         self.monster_sheet_ability_buttons = []
         self.monster_sheet_combatant_index = -1
+        self.monster_sheet_creature = None
 
         screen = NSScreen.mainScreen().visibleFrame()
         width = int(screen.size.width)
@@ -770,12 +772,20 @@ class MainWindowController(NSObject):
 
     @objc.python_method
     def _make_button(self, title: str, frame: tuple[int, int, int, int], action: str):
-        button = NSButton.alloc().initWithFrame_(NSMakeRect(*frame))
+        button = StyledButton.alloc().initWithFrame_(NSMakeRect(*frame))
         button.setTitle_(title)
         button.setTarget_(self)
         button.setAction_(action)
         button.setBordered_(False)
-        style_layer(button, theme_color("surface"), theme_color("border_soft"), 8, 1)
+        style_button_layer(button)
+        return button
+
+    @objc.python_method
+    def _make_tab_button(self, title: str, frame: tuple[int, int, int, int], action: str):
+        button = TabButton.alloc().initWithFrame_(NSMakeRect(*frame))
+        button.setTitle_(title)
+        button.setTarget_(self)
+        button.setAction_(action)
         return button
 
     @objc.python_method

@@ -26,6 +26,11 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.items_tab_button,
             self.dice_tab_button,
             self.adventure_tab_button,
+        ):
+            if button is not None:
+                style_layer(button, theme_color("surface"), theme_color("border_soft"), 8, 1)
+
+        for button in (
             self.new_party_button,
             self.edit_party_button,
             self.delete_party_button,
@@ -43,7 +48,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             *self.dice_preset_buttons,
         ):
             if button is not None:
-                style_layer(button, theme_color("surface"), theme_color("border_soft"), 8, 1)
+                style_button_layer(button)
 
         for field in (self.monster_search_field, self.spell_search_field, self.item_search_field):
             style_text_input(field)
@@ -137,7 +142,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         panel_x = sidebar_width + outer_gap
         panel_y = 20
         available_panel_width = max(420, width - panel_x - outer_gap)
-        drawer_open = self.current_tab == "initiative" and self.monster_sheet_combatant_index >= 0
+        drawer_open = self.current_tab == "initiative" and (
+            self.monster_sheet_combatant_index >= 0 or self.monster_sheet_creature is not None
+        )
         drawer_gap = 16
         drawer_width = 0
         if drawer_open:

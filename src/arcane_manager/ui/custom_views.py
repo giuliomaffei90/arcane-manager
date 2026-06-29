@@ -263,7 +263,7 @@ class TabButton(NSButton):
         draw_center_fitted_text(str(self.title()), NSMakeRect(10, 6, bounds.size.width - 20, 18), 12, text_color, True)
 
 
-class SearchResultButton(NSButton):
+class SearchResultButton(StyledButton):
     row_kind = objc.ivar()
     primary_text = objc.ivar()
     secondary_text = objc.ivar()
@@ -287,6 +287,7 @@ class SearchResultButton(NSButton):
         self.spell_school = ""
         self.setBordered_(False)
         self.setTitle_("")
+        self.setSoftBackground_(True)
         return self
 
     def configureMonsterResult_(self, creature: Creature):
@@ -332,15 +333,14 @@ class SearchResultButton(NSButton):
 
     def drawRect_(self, _rect):
         bounds = self.bounds()
-        highlighted = self.isHighlighted()
-        fill = theme_color("surface_hover") if highlighted else theme_color("surface_soft")
-        stroke = theme_color("border") if highlighted else theme_color("border_soft")
-        draw_rounded_rect(
+        draw_button_background(
             NSMakeRect(0.5, 0.5, max(1, bounds.size.width - 1), max(1, bounds.size.height - 1)),
-            fill,
-            stroke,
+            bool(self.hovered),
+            bool(self.isHighlighted()),
+            bool(self.isEnabled()),
+            False,
+            True,
             7,
-            1,
         )
         if self.row_kind == "monster":
             self._drawMonsterResult_(bounds)
@@ -350,8 +350,6 @@ class SearchResultButton(NSButton):
             self._drawItemResult_(bounds)
 
     def mouseDown_(self, event):
-        if self.row_kind == "monster":
-            return
         objc.super(SearchResultButton, self).mouseDown_(event)
 
     @objc.python_method
@@ -559,7 +557,7 @@ class AdventureDividerView(NSView):
         path.stroke()
 
 
-class StatBlockAbilityButton(NSButton):
+class StatBlockAbilityButton(StyledButton):
     ability_name = objc.ivar()
     score_text = objc.ivar()
     bonus_text = objc.ivar()
@@ -577,6 +575,7 @@ class StatBlockAbilityButton(NSButton):
         self.roll_target = None
         self.setBordered_(False)
         self.setTitle_("")
+        self.setSoftBackground_(True)
         return self
 
     def configure_stat(self, name, score, bonus, target):
@@ -597,16 +596,20 @@ class StatBlockAbilityButton(NSButton):
 
     def drawRect_(self, _rect):
         bounds = self.bounds()
-        highlighted = self.isHighlighted()
-        fill = theme_color("surface_soft")
-        stroke = theme_color("border") if highlighted else theme_color("border_soft")
+        state = button_visual_state(
+            bool(self.hovered),
+            bool(self.isHighlighted()),
+            bool(self.isEnabled()),
+            False,
+            True,
+        )
         circle_fill = theme_color("panel_alt")
         text = theme_color("text_strong")
         muted = theme_color("muted")
         green = theme_color("dice")
 
         rect = self._bonusRect()
-        draw_rounded_rect(rect, fill, stroke, 7, 1.25)
+        draw_rounded_rect(rect, state["fill"], state["stroke"], 7, state["stroke_width"])
         circle_side = min(bounds.size.width - 4, bounds.size.height * 0.43)
         circle = NSMakeRect(
             (bounds.size.width - circle_side) / 2,
@@ -618,7 +621,7 @@ class StatBlockAbilityButton(NSButton):
         circle_fill.set()
         oval.fill()
 
-        stroke.set()
+        state["stroke"].set()
         oval.setLineWidth_(1.25)
         oval.stroke()
 
@@ -638,7 +641,7 @@ class StatBlockAbilityButton(NSButton):
         objc.super(StatBlockAbilityButton, self).mouseDown_(event)
 
 
-class RowAddButton(NSButton):
+class RowAddButton(StyledButton):
     def initWithFrame_(self, frame):
         self = objc.super(RowAddButton, self).initWithFrame_(frame)
         if self is None:
@@ -649,19 +652,17 @@ class RowAddButton(NSButton):
 
     def drawRect_(self, _rect):
         bounds = self.bounds()
-        highlighted = self.isHighlighted()
-        icon_color = theme_color("text_strong") if highlighted else theme_color("text")
-        fill = theme_color("surface_hover") if highlighted else theme_color("surface")
-        stroke = theme_color("border") if highlighted else theme_color("border_soft")
         side = min(30, bounds.size.width, bounds.size.height)
-        draw_rounded_rect(
+        state = draw_button_background(
             NSMakeRect((bounds.size.width - side) / 2, (bounds.size.height - side) / 2, side, side),
-            fill,
-            stroke,
+            bool(self.hovered),
+            bool(self.isHighlighted()),
+            bool(self.isEnabled()),
+            False,
+            False,
             8,
-            1,
         )
-        attributes = text_attributes(16, icon_color, True)
+        attributes = text_attributes(16, state["text"], True)
         glyph = NSString.stringWithString_("+")
         glyph_size = glyph.sizeWithAttributes_(attributes)
         glyph.drawAtPoint_withAttributes_(
@@ -674,29 +675,64 @@ class RowAddButton(NSButton):
 
 
 class StyledPopUpButton(NSPopUpButton):
+    hovered = objc.ivar()
+    tracking_area = objc.ivar()
+
     def initWithFrame_(self, frame):
         self = objc.super(StyledPopUpButton, self).initWithFrame_(frame)
         if self is None:
             return None
+        self.hovered = False
+        self.tracking_area = None
         self.setBordered_(False)
         return self
 
+    def updateTrackingAreas(self):
+        if self.tracking_area is not None:
+            self.removeTrackingArea_(self.tracking_area)
+        self.tracking_area = NSTrackingArea.alloc().initWithRect_options_owner_userInfo_(
+            self.bounds(),
+            NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways | NSTrackingInVisibleRect,
+            self,
+            None,
+        )
+        self.addTrackingArea_(self.tracking_area)
+        objc.super(StyledPopUpButton, self).updateTrackingAreas()
+
+    def mouseEntered_(self, _event):
+        if self.isEnabled():
+            self.hovered = True
+            self.setNeedsDisplay_(True)
+
+    def mouseExited_(self, _event):
+        self.hovered = False
+        self.setNeedsDisplay_(True)
+
+    def highlight_(self, flag):
+        objc.super(StyledPopUpButton, self).highlight_(flag)
+        self.setNeedsDisplay_(True)
+
+    def setEnabled_(self, enabled):
+        objc.super(StyledPopUpButton, self).setEnabled_(enabled)
+        if not enabled:
+            self.hovered = False
+        self.setNeedsDisplay_(True)
+
     def drawRect_(self, _rect):
         bounds = self.bounds()
-        highlighted = self.isHighlighted()
-        fill = theme_color("surface_hover") if highlighted else theme_color("surface")
-        stroke = theme_color("border") if highlighted else theme_color("border_soft")
-        draw_rounded_rect(
+        state = draw_button_background(
             NSMakeRect(0.5, 0.5, max(1, bounds.size.width - 1), max(1, bounds.size.height - 1)),
-            fill,
-            stroke,
+            bool(self.hovered),
+            bool(self.isHighlighted()),
+            bool(self.isEnabled()),
+            False,
+            False,
             7,
-            1,
         )
         item = self.selectedItem()
         title = str(item.title()) if item is not None else str(self.title())
-        draw_fitted_text(title, NSMakeRect(12, 8, max(20, bounds.size.width - 42), 18), 13, theme_color("text"), True)
-        draw_right_fitted_text("⌄", NSMakeRect(bounds.size.width - 28, 7, 16, 18), 14, theme_color("muted"), True)
+        draw_fitted_text(title, NSMakeRect(12, 8, max(20, bounds.size.width - 42), 18), 13, state["text"], True)
+        draw_right_fitted_text("⌄", NSMakeRect(bounds.size.width - 28, 7, 16, 18), 14, state["text"], True)
 
 
 MONSTER_RESULT_ROW_HEIGHT = 42
@@ -713,6 +749,7 @@ class CombatTrackerView(NSView):
     status_rects: list[tuple[Any, int]]
     target: Any
     tracking_area: Any
+    hovered_hit: Any
 
     def initWithFrame_(self, frame):
         self = objc.super(CombatTrackerView, self).initWithFrame_(frame)
@@ -725,6 +762,7 @@ class CombatTrackerView(NSView):
         self.status_rects = []
         self.target = None
         self.tracking_area = None
+        self.hovered_hit = None
         return self
 
     def isFlipped(self):
@@ -736,6 +774,7 @@ class CombatTrackerView(NSView):
     def setPayload_(self, payload):
         self.combatants = list(payload.get("combatants", []))
         self.current_turn_index = int(payload.get("current_turn_index", 0))
+        self.hovered_hit = None
         width = max(780, self.frame().size.width)
         height = max(420, 144 + len(self.combatants) * 70 + 96)
         self.setFrame_(NSMakeRect(0, 0, width, height))
@@ -784,12 +823,17 @@ class CombatTrackerView(NSView):
 
     def mouseMoved_(self, event):
         hit = self._hit_test(event)
+        if hit != self.hovered_hit:
+            self.hovered_hit = hit
+            self.setNeedsDisplay_(True)
         if hit is not None:
             NSCursor.pointingHandCursor().set()
         else:
             NSCursor.arrowCursor().set()
 
     def mouseExited_(self, _event):
+        self.hovered_hit = None
+        self.setNeedsDisplay_(True)
         NSCursor.arrowCursor().set()
 
     def mouseDown_(self, event):
@@ -871,6 +915,7 @@ class CombatTrackerView(NSView):
             self.name_rects = []
             self.hp_button_rects = []
             self.status_rects = []
+            self.hovered_hit = None
             return
 
         self.name_rects = []
@@ -933,14 +978,16 @@ class CombatTrackerView(NSView):
                 hp_button_y = row_y + (row_h - hp_button_h) / 2
                 hp_button_rect = NSMakeRect(hp_action_x, hp_button_y, hp_button_w, hp_button_h)
                 self.hp_button_rects.append((hp_button_rect, index))
-                draw_rounded_rect(
+                hp_button_state = draw_button_background(
                     hp_button_rect,
-                    theme_color("surface"),
-                    theme_color("border"),
+                    self.hovered_hit == ("hp", index, None),
+                    False,
+                    True,
+                    False,
+                    False,
                     7,
-                    1,
                 )
-                draw_centered_text_in_rect("+/-", hp_button_rect, 13, white, True)
+                draw_centered_text_in_rect("+/-", hp_button_rect, 13, hp_button_state["text"], True)
 
                 current_hp, max_hp = self._hp_values(combatant)
                 bar_rect = NSMakeRect(bar_x, bar_y, bar_w, bar_h)
@@ -976,12 +1023,14 @@ class CombatTrackerView(NSView):
             status_color = dead_red if is_dead else condition_color(conditions[0]) if conditions else muted
             status_rect = NSMakeRect(status_x, row_y + 14, status_w, 28)
             self.status_rects.append((status_rect, index))
-            draw_rounded_rect(
+            draw_button_background(
                 status_rect,
-                theme_color("surface", 0.88 if not is_down else 0.52),
-                theme_color("border_soft"),
+                self.hovered_hit == ("status", index, None),
+                False,
+                True,
+                False,
+                False,
                 7,
-                1,
             )
             draw_center_fitted_text(status_label, NSMakeRect(status_x + 8, row_y + 19, status_w - 16, 18), 12, status_color, True)
 
