@@ -242,7 +242,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             hit_points = f"{hit_points} ({hit_dice})"
         lines = [
             f"{creature.size} {creature.creature_type}, {creature.alignment}".strip(" ,"),
-            f"Armor Class: {display_ac(creature.ac)}",
+            f"Armor Class: {clean_text(raw.get('ac_detail', '') or display_ac(creature.ac), MAX_SHORT_FIELD_CHARS)}",
             hit_points,
             f"Speed: {creature.speed or '-'}",
             "",

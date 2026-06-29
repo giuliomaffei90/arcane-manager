@@ -3108,49 +3108,49 @@
       "name": "Aberrant Spirit",
       "source": "TCE",
       "hp": "40 + 10 for each spell level above 4th",
-      "ac": "11 + the level of the spell (natural armor)"
+      "ac": "11 + the level of the spell"
     },
     {
       "name": "Animated Object (Huge)",
       "source": "PHB",
       "hp": "80",
-      "ac": "10 (natural armor)"
+      "ac": "10"
     },
     {
       "name": "Animated Object (Large)",
       "source": "PHB",
       "hp": "50",
-      "ac": "10 (natural armor)"
+      "ac": "10"
     },
     {
       "name": "Animated Object (Medium)",
       "source": "PHB",
       "hp": "40",
-      "ac": "13 (natural armor)"
+      "ac": "13"
     },
     {
       "name": "Animated Object (Small)",
       "source": "PHB",
       "hp": "25",
-      "ac": "16 (natural armor)"
+      "ac": "16"
     },
     {
       "name": "Animated Object (Tiny)",
       "source": "PHB",
       "hp": "20",
-      "ac": "18 (natural armor)"
+      "ac": "18"
     },
     {
       "name": "Animated Staff",
       "source": "WDMM",
       "hp": "40",
-      "ac": "17 (natural armor)"
+      "ac": "17"
     },
     {
       "name": "Animated Wand",
       "source": "WDMM",
       "hp": "20",
-      "ac": "18 (natural armor)"
+      "ac": "18"
     },
     {
       "name": "Avatar of Death",
@@ -3162,25 +3162,25 @@
       "name": "Beast of the Land",
       "source": "TCE",
       "hp": "5 + five times your ranger level (the beast has a number of Hit Dice [d8s] equal to your ranger level)",
-      "ac": "13 + PB (natural armor)"
+      "ac": "13 + PB"
     },
     {
       "name": "Beast of the Sea",
       "source": "TCE",
       "hp": "5 + five times your ranger level (the beast has a number of Hit Dice [d8s] equal to your ranger level)",
-      "ac": "13 + PB (natural armor)"
+      "ac": "13 + PB"
     },
     {
       "name": "Beast of the Sky",
       "source": "TCE",
       "hp": "4 + four times your ranger level (the beast has a number of Hit Dice [d6s] equal to your ranger level)",
-      "ac": "13 + PB (natural armor)"
+      "ac": "13 + PB"
     },
     {
       "name": "Bestial Spirit",
       "source": "TCE",
       "hp": "20 (Air only) or 30 (Land and Water only) + 5 for each spell level above 2nd",
-      "ac": "11 + the level of the spell (natural armor)"
+      "ac": "11 + the level of the spell"
     },
     {
       "name": "Big Water Slurpent",
@@ -3204,13 +3204,13 @@
       "name": "Celestial Spirit",
       "source": "TCE",
       "hp": "40 + 10 for each spell level above 5th",
-      "ac": "11 + the level of the spell (natural armor) + 2 (Defender only)"
+      "ac": "11 + the level of the spell + 2 (Defender only)"
     },
     {
       "name": "Construct Spirit",
       "source": "TCE",
       "hp": "40 + 15 for each spell level above 4th",
-      "ac": "13 + the level of the spell (natural armor)"
+      "ac": "13 + the level of the spell"
     },
     {
       "name": "Crystal Cave Merfolk",
@@ -3222,7 +3222,7 @@
       "name": "Dancing Item",
       "source": "TCE",
       "hp": "10 + five times your bard level",
-      "ac": "16 (natural armor)"
+      "ac": "16"
     },
     {
       "name": "Dankwood Hag",
@@ -3234,19 +3234,19 @@
       "name": "Deck Defender",
       "source": "BMT",
       "hp": "5 + five times your level (the deck defender has a number of Hit Dice [d8s] equal to your level)",
-      "ac": "16 (natural armor)"
+      "ac": "16"
     },
     {
       "name": "Draconic Spirit",
       "source": "FTD",
       "hp": "50 + 10 for each spell level above 5th (the dragon has a number of Hit Dice [d10s] equal to the level of the spell)",
-      "ac": "14 + the level of the spell (natural armor)"
+      "ac": "14 + the level of the spell"
     },
     {
       "name": "Drake Companion",
       "source": "FTD",
       "hp": "5 + five times your ranger level (the drake has a number of Hit Dice [d10s] equal to your ranger level)",
-      "ac": "14 + PB (natural armor)"
+      "ac": "14 + PB"
     },
     {
       "name": "Dum-Dum Goblin",
@@ -3264,25 +3264,25 @@
       "name": "Elemental Spirit",
       "source": "TCE",
       "hp": "50 + 10 for each spell level above 4th",
-      "ac": "11 + the level of the spell (natural armor)"
+      "ac": "11 + the level of the spell"
     },
     {
       "name": "Fey Spirit",
       "source": "TCE",
       "hp": "30 + 10 for each spell level above 3rd",
-      "ac": "12 + the level of the spell (natural armor)"
+      "ac": "12 + the level of the spell"
     },
     {
       "name": "Fiendish Spirit",
       "source": "TCE",
       "hp": "50 (Demon only) or 40 (Devil only) or 60 (Yugoloth only) + 15 for each spell level above 6th",
-      "ac": "12 + the level of the spell (natural armor)"
+      "ac": "12 + the level of the spell"
     },
     {
       "name": "Great Kroom, Purple Worm",
       "source": "AWM",
       "hp": "247",
-      "ac": "18 (natural armor)"
+      "ac": "18"
     },
     {
       "name": "Halaster Puppet",
@@ -3306,7 +3306,7 @@
       "name": "Homunculus Servant",
       "source": "TCE",
       "hp": "1 + your Intelligence modifier + your artificer level (the homunculus has a number of Hit Dice [d4s] equal to your artificer level)",
-      "ac": "13 (natural armor)"
+      "ac": "13"
     },
     {
       "name": "Iron Spider",
@@ -3330,43 +3330,43 @@
       "name": "Ras Nsi",
       "source": "ToA",
       "hp": "127 (17d8 + 51) reduced to 107; subtract 1 for each day that passes during the adventure",
-      "ac": "15 (bracers of defense)"
+      "ac": "15"
     },
     {
       "name": "Reaper Spirit",
       "source": "BMT",
       "hp": "40 + 10 for each spell level above 4th",
-      "ac": "11 + the level of the spell (natural armor)"
+      "ac": "11 + the level of the spell"
     },
     {
       "name": "Saleeth the Couatl",
       "source": "AWM",
       "hp": "97",
-      "ac": "19 (natural armor)"
+      "ac": "19"
     },
     {
       "name": "Shadow Spirit",
       "source": "TCE",
       "hp": "35 + 15 for each spell level above 3rd",
-      "ac": "11 + the level of the spell (natural armor)"
+      "ac": "11 + the level of the spell"
     },
     {
       "name": "Steel Defender",
       "source": "TCE",
       "hp": "2 + your Intelligence modifier + five times your artificer level (the defender has a number of Hit Dice [d8s] equal to your artificer level)",
-      "ac": "15 (natural armor)"
+      "ac": "15"
     },
     {
       "name": "Undead Spirit",
       "source": "TCE",
       "hp": "30 (Ghostly and Putrid only) or 20 (Skeletal only) + 10 for each spell level above 3rd",
-      "ac": "11 + the level of the spell (natural armor)"
+      "ac": "11 + the level of the spell"
     },
     {
       "name": "Wildfire Spirit",
       "source": "TCE",
       "hp": "5 + five times your druid level",
-      "ac": "13 (natural armor)"
+      "ac": "13"
     }
   ]
 }

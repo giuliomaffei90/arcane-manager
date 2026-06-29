@@ -280,19 +280,39 @@ def render_list_value(value: Any) -> str:
     return render_tags(value)
 
 
-def render_ac(raw_ac: Any) -> int | str:
+def clean_armor_note(text: str) -> str:
+    parts = [part.strip() for part in text.split(",")]
+    kept = [part for part in parts if part.lower() != "natural armor"]
+    return ", ".join(kept)
+
+
+def clean_ac_text(text: str) -> str:
+    text = re.sub(r"\s*\(\s*(?:see\s+)?natural armor(?:\s+feature)?\s*\)", "", text, flags=re.I)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def render_ac(raw_ac: Any) -> tuple[int | str, str]:
     if not isinstance(raw_ac, list):
-        return render_tags(raw_ac)
+        value = clean_ac_text(render_tags(raw_ac))
+        return value, value
     parts: list[str] = []
+    base_value: int | str = ""
     for item in raw_ac:
         if isinstance(item, int):
-            parts.append(str(item))
+            text = str(item)
+            if base_value == "":
+                base_value = item
+            parts.append(text)
         elif isinstance(item, dict):
             if "special" in item:
-                parts.append(render_tags(item.get("special", "")))
+                text = clean_ac_text(render_tags(item.get("special", "")))
+                if base_value == "":
+                    base_value = text
+                parts.append(text)
                 continue
             ac = str(item.get("ac", "")).strip()
-            from_text = render_list_value(item.get("from", []))
+            from_text = clean_armor_note(render_list_value(item.get("from", [])))
             condition = render_tags(item.get("condition", ""))
             text = ac
             if from_text:
@@ -300,12 +320,22 @@ def render_ac(raw_ac: Any) -> int | str:
             if condition:
                 text = f"{text} {condition}"
             if text.strip():
-                parts.append(text.strip())
+                text = clean_ac_text(text)
+                if base_value == "":
+                    try:
+                        base_value = int(ac)
+                    except (TypeError, ValueError):
+                        base_value = text
+                parts.append(text)
         else:
-            parts.append(render_tags(item))
-    if len(parts) == 1 and parts[0].isdigit():
-        return int(parts[0])
-    return "; ".join(parts)
+            text = clean_ac_text(render_tags(item))
+            if base_value == "":
+                base_value = text
+            parts.append(text)
+    detail = "; ".join(part for part in parts if part)
+    if base_value == "" and detail:
+        base_value = detail
+    return base_value, detail
 
 
 def render_hp(raw_hp: Any) -> tuple[int | str, str]:
@@ -580,6 +610,7 @@ def convert_creature(raw: dict[str, Any], metadata: dict[str, dict[str, str]], p
     raw = strip_media(raw)
     source = raw.get("source", "")
     hp, hit_dice = render_hp(raw.get("hp"))
+    ac, ac_detail = render_ac(raw.get("ac", []))
     creature_type, subtype = render_type(raw.get("type", ""))
     senses = render_list_value(raw.get("senses", []))
     passive = raw.get("passive")
@@ -596,7 +627,8 @@ def convert_creature(raw: dict[str, Any], metadata: dict[str, dict[str, str]], p
         "type": creature_type,
         "subtype": subtype,
         "alignment": render_alignment(raw.get("alignment")),
-        "ac": render_ac(raw.get("ac", [])),
+        "ac": ac,
+        "ac_detail": ac_detail,
         "hp": hp,
         "hit_dice": hit_dice,
         "speed": render_speed(raw.get("speed", {})),
