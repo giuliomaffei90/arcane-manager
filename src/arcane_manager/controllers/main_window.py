@@ -447,7 +447,7 @@ class MainWindowController(NSObject):
         self.spell_m_box = CheckboxSquareView.alloc().initWithFrame_(NSMakeRect(0, 0, 16, 16))
         self.spell_component_material_label = make_multiline(make_label("", (0, 0, 320, 36), 13))
         self.spell_component_material_label.setTextColor_(theme_color("text"))
-        self.spell_stats_label = make_multiline(make_label("", (0, 0, 320, 42), 13))
+        self.spell_stats_label = make_multiline(make_label("", (0, 0, 320, 76), 13))
         self.spell_stats_label.setTextColor_(theme_color("text"))
         self.spell_detail_header_views = [
             self.spell_detail_title_label,

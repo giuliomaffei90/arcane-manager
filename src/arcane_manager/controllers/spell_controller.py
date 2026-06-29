@@ -244,12 +244,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.spell_component_material_label.setStringValue_(component_material(spell.components))
 
         stats = [
-            f"Range: {spell.range or '-'}",
-            f"Duration: {spell.duration or '-'}",
+            ("Range", spell.range or "-"),
+            ("Duration", spell.duration or "-"),
         ]
         if spell.spell_lists:
-            stats.append(f"Classes: {', '.join(spell.spell_lists)}")
-        self.spell_stats_label.setStringValue_("\n".join(stats))
+            stats.append(("Classes", ", ".join(spell.spell_lists)))
+        if spell.ritual:
+            stats.append(("Ritual", "Yes"))
+        self.spell_stats_label.setAttributedStringValue_(attributed_spell_stats(stats))
 
         attributed = attributed_spell_body(body)
         self.spell_detail_view.textStorage().setAttributedString_(attributed)

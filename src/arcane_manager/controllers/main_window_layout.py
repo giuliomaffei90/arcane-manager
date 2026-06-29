@@ -340,15 +340,16 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 component_x += 52
             material_x = component_x + 2
             material_width = detail_x + detail_width - material_x
-            stats_y = component_y - 44
+            stats_height = 76
+            stats_y = component_y - stats_height - 10
             if material_width >= 140:
                 self.spell_component_material_label.setFrame_(
                     centered_text_rect(self.spell_component_material_label, material_x, component_center_y, material_width)
                 )
             else:
                 self.spell_component_material_label.setFrame_(NSMakeRect(detail_x, component_y - 30, detail_width, 28))
-                stats_y = component_y - 66
-            self.spell_stats_label.setFrame_(NSMakeRect(detail_x, stats_y, detail_width, 42))
+                stats_y = component_y - stats_height - 38
+            self.spell_stats_label.setFrame_(NSMakeRect(detail_x, stats_y, detail_width, stats_height))
 
             scroll_top = stats_y - 12
             scroll_height = max(160, scroll_top - spell_y)

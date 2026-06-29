@@ -21,6 +21,27 @@ def add_colored_ranges(attributed, ranges: list[tuple[int, int, Any]], color):
         attributed.addAttribute_value_range_(NSForegroundColorAttributeName, color, NSMakeRange(start, length))
 
 
+def attributed_spell_stats(lines: list[tuple[str, str]]):
+    text = "\n".join(f"{label}: {value}" for label, value in lines)
+    paragraph_style = NSMutableParagraphStyle.alloc().init()
+    paragraph_style.setLineSpacing_(4.0)
+    attributes = {
+        NSFontAttributeName: NSFont.systemFontOfSize_(13),
+        NSForegroundColorAttributeName: theme_color("text"),
+        NSParagraphStyleAttributeName: paragraph_style,
+    }
+    attributed = NSMutableAttributedString.alloc().initWithString_attributes_(text, attributes)
+    cursor = 0
+    for label, value in lines:
+        attributed.addAttribute_value_range_(
+            NSFontAttributeName,
+            NSFont.boldSystemFontOfSize_(13),
+            NSMakeRange(cursor, len(label) + 1),
+        )
+        cursor += len(label) + len(value) + 3
+    return attributed
+
+
 def attributed_spell_body(body: str):
     dice_color = theme_color("dice")
     component_color = theme_color("gold")

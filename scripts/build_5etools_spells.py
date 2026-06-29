@@ -68,6 +68,7 @@ MEDIA_KEYS = {
 }
 
 TAG_RE = re.compile(r"\{@([a-zA-Z][a-zA-Z0-9]*)\s*([^{}]*?)?\}")
+NOTE_RE = re.compile(r"\{@note\s+[^{}]*?\}")
 
 
 def fetch_text(path: str) -> str:
@@ -143,6 +144,8 @@ def tag_text(tag: str, payload: str | None) -> str:
         return f"DC {first}" if first else ""
     if tag == "recharge":
         return f"(Recharge {first}-6)" if first else "(Recharge 6)"
+    if tag == "note":
+        return ""
     if tag in {"spell", "condition", "status", "creature", "item", "sense", "skill", "action", "hazard", "feat"}:
         return display
     if tag in {"book", "adventure", "filter", "quickref", "note", "variantrule"}:
@@ -155,7 +158,14 @@ def tag_text(tag: str, payload: str | None) -> str:
 def render_tags(text: Any) -> str:
     if text is None:
         return ""
-    return clean_text(TAG_RE.sub(lambda match: tag_text(match.group(1), match.group(2)), str(text)))
+    rendered = str(text)
+    for _ in range(4):
+        previous = rendered
+        rendered = TAG_RE.sub(lambda match: tag_text(match.group(1), match.group(2)), rendered)
+        rendered = NOTE_RE.sub("", rendered)
+        if rendered == previous:
+            break
+    return clean_text(rendered)
 
 
 def render_entry(entry: Any) -> str:

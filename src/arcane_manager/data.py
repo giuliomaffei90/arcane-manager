@@ -22,6 +22,7 @@ class Spell:
     higher_levels: str = ""
     spell_lists: tuple[str, ...] = ()
     source: str = ""
+    ritual: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "Spell":
@@ -54,6 +55,7 @@ class Spell:
             higher_levels=clean_text(raw.get("higher_levels", ""), MAX_TEXT_FIELD_CHARS),
             spell_lists=clean_text_list(raw.get("spell_lists", []), 40, MAX_SHORT_FIELD_CHARS),
             source=clean_text(raw.get("source", ""), MAX_SHORT_FIELD_CHARS),
+            ritual=bool(raw.get("ritual", False)),
         )
 
 
