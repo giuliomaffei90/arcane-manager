@@ -75,9 +75,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             label.setTextColor_(theme_color("muted"))
         for label in (self.turn_label, self.adventure_dirty_label):
             label.setTextColor_(theme_color("gold"))
-        selected_item = self.selectedItemDisplay() if hasattr(self, "selectedItemDisplay") else getattr(self, "selected_item", None)
-        item_color_name = item_cost_color_name(selected_item.cost) if selected_item is not None else "gold"
-        self.item_detail_meta_label.setTextColor_(theme_color(item_color_name))
+        self.item_detail_meta_label.setTextColor_(theme_color("gold"))
         for label in (
             self.spell_components_label,
             self.spell_component_material_label,
@@ -402,7 +400,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 popup_bottom = item_top - 110
             fields_text = str(self.item_detail_fields_label.stringValue())
             field_lines = len([line for line in fields_text.splitlines() if line.strip()])
-            fields_height = 0 if field_lines == 0 else min(96, max(24, field_lines * 20))
+            fields_height = 0 if field_lines == 0 else min(156, max(24, field_lines * 20))
             fields_y = popup_bottom - 8 - fields_height
             self.item_detail_fields_label.setFrame_(NSMakeRect(item_detail_x, fields_y, item_detail_width, fields_height))
             scroll_top = fields_y - 14 if fields_height > 0 else item_top - 82

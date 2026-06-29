@@ -145,32 +145,41 @@ class MainWindowController(objc.Category(_MainWindowController)):
         if item is None:
             return
         self.item_detail_title_label.setStringValue_(item.name)
-        self.item_detail_meta_label.setStringValue_(" | ".join(part for part in (item.category, item.cost) if part))
-        self.item_detail_meta_label.setTextColor_(theme_color(item_cost_color_name(item.cost)))
+        self.item_detail_meta_label.setStringValue_(item.category)
+        self.item_detail_meta_label.setTextColor_(theme_color("gold"))
 
         fields = []
-        fields.append(f"Merchant buys: {merchant_value_text(item.cost)}")
+        if item.cost and item.cost.strip():
+            fields.append(("Cost", item_display_cost(item.cost)))
+            merchant_value = merchant_value_text(item.cost)
+            if merchant_value:
+                fields.append(("Merchant Buys", merchant_value))
         if item.ac:
-            fields.append(f"AC: {item.ac}")
-        if item.damage:
-            fields.append(f"Damage: {item.damage}")
-        if item.classification:
-            fields.append(f"Classification: {item.classification}")
-        if item.properties:
-            fields.append(f"Properties: {item.properties}")
-        self.item_detail_fields_label.setStringValue_("\n".join(fields))
+            fields.append(("AC", item.ac))
+        if item.rarity:
+            fields.append(("Rarity", item.rarity))
+        if item.classification and normalize(item.classification) not in {normalize(item.category), normalize(item.rarity)}:
+            fields.append(("Classification", item.classification))
+        display_properties = item_display_properties(item.properties, item.description)
+        if display_properties:
+            fields.append(("Properties", display_properties))
+        if fields:
+            self.item_detail_fields_label.setAttributedStringValue_(attributed_spell_stats(fields))
+        else:
+            self.item_detail_fields_label.setStringValue_("")
 
         body_parts = []
+        practical_description = item_practical_description(item)
+        _raw_practical_description, property_description = item_description_sections(item.description, item.properties)
+        if practical_description:
+            body_parts.append(practical_description)
         if item.damage:
             body_parts.append(f"Damage: {item.damage}")
-        versatile_match = re.search(r"Versatile \(([^)]+)\)", item.properties or "")
-        if versatile_match:
-            body_parts.append(f"Versatile: {versatile_match.group(1)}")
-        if item.description.strip():
-            body_parts.append(item.description.strip())
-        body = "\n\n".join(body_parts) or "No description."
-        attributed = attributed_spell_body(body)
+        if property_description:
+            body_parts.append(f"Properties:\n{property_description}")
+        body = "\n\n".join(body_parts)
+        attributed, rendered_body = attributed_item_body(body)
         self.item_detail_view.textStorage().setAttributedString_(attributed)
-        self.item_detail_view.setDiceRanges_(dice_ranges_for_body(body))
+        self.item_detail_view.setDiceRanges_(dice_ranges_for_body(rendered_body))
         self.layoutMainWindow()
         self.resizeItemDetailBody()
