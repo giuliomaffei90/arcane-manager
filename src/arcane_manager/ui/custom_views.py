@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..platform import *
 from ..constants import *
-from ..data import Creature, Item, Spell, creature_summary, display_ac, item_cost_color_name, item_summary
+from ..data import Creature, Item, Spell, creature_summary, display_ac, display_hp, item_cost_color_name, item_summary
 from ..text_utils import normalize
 from .core import *
 
@@ -300,7 +300,7 @@ class SearchResultButton(StyledButton):
         self.row_kind = "monster"
         self.primary_text = creature.name
         self.secondary_text = ""
-        self.hp_text = f"HP {creature.hp}"
+        self.hp_text = f"HP {display_hp(creature.hp)}"
         self.ac_text = f"AC {display_ac(creature.ac)}"
         self.cr_text = f"CR {creature.cr}"
         self.meta_text = ""

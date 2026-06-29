@@ -1,0 +1,3372 @@
+{
+  "source_commit": "ebd1827660ee61d1a59227d5979a137494dce1c8",
+  "raw_entries": 3687,
+  "creatures_written": 3362,
+  "allowed_sources": [
+    "AATM",
+    "AI",
+    "AWM",
+    "AitFR-DN",
+    "AitFR-FCD",
+    "AitFR-ISF",
+    "AitFR-THP",
+    "BAM",
+    "BGDIA",
+    "BGG",
+    "BMT",
+    "CM",
+    "CRCotN",
+    "CoA",
+    "CoS",
+    "DC",
+    "DIP",
+    "DMG",
+    "DSotDQ",
+    "DoD",
+    "DoSI",
+    "EGW",
+    "ERLW",
+    "ESK",
+    "FTD",
+    "GGR",
+    "GoS",
+    "GotSF",
+    "HAT-TG",
+    "HftT",
+    "HoL",
+    "HotDQ",
+    "IDRotF",
+    "IMR",
+    "JttRC",
+    "KKW",
+    "KftGV",
+    "LLK",
+    "LMoP",
+    "LR",
+    "LoX",
+    "MCV1SC",
+    "MCV2DC",
+    "MCV3MC",
+    "MCV4EC",
+    "MFF",
+    "MGELFT",
+    "MM",
+    "MOT",
+    "MPMM",
+    "MPP",
+    "MTF",
+    "MaBJoV",
+    "MisMV1",
+    "NRH-ASS",
+    "NRH-AT",
+    "NRH-AVitW",
+    "NRH-AWoL",
+    "NRH-CoI",
+    "NRH-TCMC",
+    "NRH-TLT",
+    "OoW",
+    "OotA",
+    "PHB",
+    "PSA",
+    "PSD",
+    "PSI",
+    "PSK",
+    "PSX",
+    "PSZ",
+    "PaBTSO",
+    "PotA",
+    "RMBRE",
+    "RoT",
+    "RtG",
+    "SADS",
+    "SCC",
+    "SDW",
+    "SKT",
+    "SLW",
+    "TCE",
+    "TTP",
+    "TftYP",
+    "ToA",
+    "ToFW",
+    "VD",
+    "VGM",
+    "VRGR",
+    "WBtW",
+    "WDH",
+    "WDMM",
+    "XGE"
+  ],
+  "excluded_sources": [
+    "ABH",
+    "DitLCoT",
+    "EFA",
+    "FRAiF",
+    "HotB",
+    "LFL",
+    "LRDT",
+    "NF",
+    "QftIS",
+    "RHW",
+    "VEoR",
+    "WttHC",
+    "XDMG",
+    "XMM",
+    "XPHB"
+  ],
+  "skipped_reprints": [
+    {
+      "name": "Guard Drake",
+      "source": "HotDQ",
+      "reprinted_as": "Guard Drake|MPMM"
+    },
+    {
+      "name": "Ash Zombie",
+      "source": "LMoP",
+      "reprinted_as": "Ash Zombie|PaBTSO"
+    },
+    {
+      "name": "Gundren Rockseeker",
+      "source": "LMoP",
+      "reprinted_as": "Gundren Rockseeker|PaBTSO"
+    },
+    {
+      "name": "Mormesk the Wraith",
+      "source": "LMoP",
+      "reprinted_as": "Mormesk the Wraith|PaBTSO"
+    },
+    {
+      "name": "Nezznar the Black Spider",
+      "source": "LMoP",
+      "reprinted_as": "Nezznar the Spider|PaBTSO"
+    },
+    {
+      "name": "Nundro Rockseeker",
+      "source": "LMoP",
+      "reprinted_as": "Nundro Rockseeker|PaBTSO"
+    },
+    {
+      "name": "Redbrand Ruffian",
+      "source": "LMoP",
+      "reprinted_as": "Redbrand Ruffian|PaBTSO"
+    },
+    {
+      "name": "Sildar Hallwinter",
+      "source": "LMoP",
+      "reprinted_as": "Sildar Hallwinter|PaBTSO"
+    },
+    {
+      "name": "Adult Kruthik",
+      "source": "MTF",
+      "reprinted_as": "Adult Kruthik|MPMM"
+    },
+    {
+      "name": "Adult Oblex",
+      "source": "MTF",
+      "reprinted_as": "Adult Oblex|MPMM"
+    },
+    {
+      "name": "Air Elemental Myrmidon",
+      "source": "MTF",
+      "reprinted_as": "Air Elemental Myrmidon|MPMM"
+    },
+    {
+      "name": "Alkilith",
+      "source": "MTF",
+      "reprinted_as": "Alkilith|MPMM"
+    },
+    {
+      "name": "Allip",
+      "source": "MTF",
+      "reprinted_as": "Allip|MPMM"
+    },
+    {
+      "name": "Amnizu",
+      "source": "MTF",
+      "reprinted_as": "Amnizu|MPMM"
+    },
+    {
+      "name": "Armanite",
+      "source": "MTF",
+      "reprinted_as": "Armanite|MPMM"
+    },
+    {
+      "name": "Astral Dreadnought",
+      "source": "MTF",
+      "reprinted_as": "Astral Dreadnought|MPMM"
+    },
+    {
+      "name": "Autumn Eladrin",
+      "source": "MTF",
+      "reprinted_as": "Autumn Eladrin|MPMM"
+    },
+    {
+      "name": "Bael",
+      "source": "MTF",
+      "reprinted_as": "Bael|MPMM"
+    },
+    {
+      "name": "Balhannoth",
+      "source": "MTF",
+      "reprinted_as": "Balhannoth|MPMM"
+    },
+    {
+      "name": "Baphomet",
+      "source": "MTF",
+      "reprinted_as": "Baphomet|MPMM"
+    },
+    {
+      "name": "Berbalang",
+      "source": "MTF",
+      "reprinted_as": "Berbalang|MPMM"
+    },
+    {
+      "name": "Black Abishai",
+      "source": "MTF",
+      "reprinted_as": "Black Abishai|MPMM"
+    },
+    {
+      "name": "Blue Abishai",
+      "source": "MTF",
+      "reprinted_as": "Blue Abishai|MPMM"
+    },
+    {
+      "name": "Boneclaw",
+      "source": "MTF",
+      "reprinted_as": "Boneclaw|MPMM"
+    },
+    {
+      "name": "Bronze Scout",
+      "source": "MTF",
+      "reprinted_as": "Clockwork Bronze Scout|MPMM"
+    },
+    {
+      "name": "Bulezau",
+      "source": "MTF",
+      "reprinted_as": "Bulezau|MPMM"
+    },
+    {
+      "name": "Cadaver Collector",
+      "source": "MTF",
+      "reprinted_as": "Cadaver Collector|MPMM"
+    },
+    {
+      "name": "Canoloth",
+      "source": "MTF",
+      "reprinted_as": "Canoloth|MPMM"
+    },
+    {
+      "name": "Choker",
+      "source": "MTF",
+      "reprinted_as": "Choker|MPMM"
+    },
+    {
+      "name": "Corpse Flower",
+      "source": "MTF",
+      "reprinted_as": "Corpse Flower|MPMM"
+    },
+    {
+      "name": "Deathlock",
+      "source": "MTF",
+      "reprinted_as": "Deathlock|MPMM"
+    },
+    {
+      "name": "Deathlock Mastermind",
+      "source": "MTF",
+      "reprinted_as": "Deathlock Mastermind|MPMM"
+    },
+    {
+      "name": "Deathlock Wight",
+      "source": "MTF",
+      "reprinted_as": "Deathlock Wight|MPMM"
+    },
+    {
+      "name": "Demogorgon",
+      "source": "MTF",
+      "reprinted_as": "Demogorgon|MPMM"
+    },
+    {
+      "name": "Derro",
+      "source": "MTF",
+      "reprinted_as": "Derro|MPMM"
+    },
+    {
+      "name": "Derro Savant",
+      "source": "MTF",
+      "reprinted_as": "Derro Savant|MPMM"
+    },
+    {
+      "name": "Dhergoloth",
+      "source": "MTF",
+      "reprinted_as": "Dhergoloth|MPMM"
+    },
+    {
+      "name": "Dire Troll",
+      "source": "MTF",
+      "reprinted_as": "Dire Troll|MPMM"
+    },
+    {
+      "name": "Drow Arachnomancer",
+      "source": "MTF",
+      "reprinted_as": "Drow Arachnomancer|MPMM"
+    },
+    {
+      "name": "Drow Favored Consort",
+      "source": "MTF",
+      "reprinted_as": "Drow Favored Consort|MPMM"
+    },
+    {
+      "name": "Drow House Captain",
+      "source": "MTF",
+      "reprinted_as": "Drow House Captain|MPMM"
+    },
+    {
+      "name": "Drow Inquisitor",
+      "source": "MTF",
+      "reprinted_as": "Drow Inquisitor|MPMM"
+    },
+    {
+      "name": "Drow Matron Mother",
+      "source": "MTF",
+      "reprinted_as": "Drow Matron Mother|MPMM"
+    },
+    {
+      "name": "Drow Shadowblade",
+      "source": "MTF",
+      "reprinted_as": "Drow Shadowblade|MPMM"
+    },
+    {
+      "name": "Duergar Despot",
+      "source": "MTF",
+      "reprinted_as": "Duergar Despot|MPMM"
+    },
+    {
+      "name": "Duergar Hammerer",
+      "source": "MTF",
+      "reprinted_as": "Duergar Hammerer|MPMM"
+    },
+    {
+      "name": "Duergar Kavalrachni",
+      "source": "MTF",
+      "reprinted_as": "Duergar Kavalrachni|MPMM"
+    },
+    {
+      "name": "Duergar Mind Master",
+      "source": "MTF",
+      "reprinted_as": "Duergar Mind Master|MPMM"
+    },
+    {
+      "name": "Duergar Screamer",
+      "source": "MTF",
+      "reprinted_as": "Duergar Screamer|MPMM"
+    },
+    {
+      "name": "Duergar Soulblade",
+      "source": "MTF",
+      "reprinted_as": "Duergar Soulblade|MPMM"
+    },
+    {
+      "name": "Duergar Stone Guard",
+      "source": "MTF",
+      "reprinted_as": "Duergar Stone Guard|MPMM"
+    },
+    {
+      "name": "Duergar Warlord",
+      "source": "MTF",
+      "reprinted_as": "Duergar Warlord|MPMM"
+    },
+    {
+      "name": "Duergar Xarrorn",
+      "source": "MTF",
+      "reprinted_as": "Duergar Xarrorn|MPMM"
+    },
+    {
+      "name": "Dybbuk",
+      "source": "MTF",
+      "reprinted_as": "Dybbuk|MPMM"
+    },
+    {
+      "name": "Earth Elemental Myrmidon",
+      "source": "MTF",
+      "reprinted_as": "Earth Elemental Myrmidon|MPMM"
+    },
+    {
+      "name": "Eidolon",
+      "source": "MTF",
+      "reprinted_as": "Eidolon|MPMM"
+    },
+    {
+      "name": "Elder Oblex",
+      "source": "MTF",
+      "reprinted_as": "Elder Oblex|MPMM"
+    },
+    {
+      "name": "Elder Tempest",
+      "source": "MTF",
+      "reprinted_as": "Elder Tempest|MPMM"
+    },
+    {
+      "name": "Female Steeder",
+      "source": "MTF",
+      "reprinted_as": "Female Steeder|MPMM"
+    },
+    {
+      "name": "Fire Elemental Myrmidon",
+      "source": "MTF",
+      "reprinted_as": "Fire Elemental Myrmidon|MPMM"
+    },
+    {
+      "name": "Fraz-Urb'luu",
+      "source": "MTF",
+      "reprinted_as": "Fraz-Urb'luu|MPMM"
+    },
+    {
+      "name": "Frost Salamander",
+      "source": "MTF",
+      "reprinted_as": "Frost Salamander|MPMM"
+    },
+    {
+      "name": "Geryon",
+      "source": "MTF",
+      "reprinted_as": "Geryon|MPMM"
+    },
+    {
+      "name": "Giff",
+      "source": "MTF",
+      "reprinted_as": "Giff|MPMM"
+    },
+    {
+      "name": "Githyanki Gish",
+      "source": "MTF",
+      "reprinted_as": "Githyanki Gish|MPMM"
+    },
+    {
+      "name": "Githyanki Kith'rak",
+      "source": "MTF",
+      "reprinted_as": "Githyanki Kith'rak|MPMM"
+    },
+    {
+      "name": "Githyanki Supreme Commander",
+      "source": "MTF",
+      "reprinted_as": "Githyanki Supreme Commander|MPMM"
+    },
+    {
+      "name": "Githzerai Anarch",
+      "source": "MTF",
+      "reprinted_as": "Githzerai Anarch|MPMM"
+    },
+    {
+      "name": "Githzerai Enlightened",
+      "source": "MTF",
+      "reprinted_as": "Githzerai Enlightened|MPMM"
+    },
+    {
+      "name": "Gloom Weaver",
+      "source": "MTF",
+      "reprinted_as": "Shadar-kai Gloom Weaver|MPMM"
+    },
+    {
+      "name": "Gray Render",
+      "source": "MTF",
+      "reprinted_as": "Gray Render|MPMM"
+    },
+    {
+      "name": "Graz'zt",
+      "source": "MTF",
+      "reprinted_as": "Graz'zt|MPMM"
+    },
+    {
+      "name": "Green Abishai",
+      "source": "MTF",
+      "reprinted_as": "Green Abishai|MPMM"
+    },
+    {
+      "name": "Hellfire Engine",
+      "source": "MTF",
+      "reprinted_as": "Hellfire Engine|MPMM"
+    },
+    {
+      "name": "Howler",
+      "source": "MTF",
+      "reprinted_as": "Howler|MPMM"
+    },
+    {
+      "name": "Hutijin",
+      "source": "MTF",
+      "reprinted_as": "Hutijin|MPMM"
+    },
+    {
+      "name": "Hydroloth",
+      "source": "MTF",
+      "reprinted_as": "Hydroloth|MPMM"
+    },
+    {
+      "name": "Iron Cobra",
+      "source": "MTF",
+      "reprinted_as": "Clockwork Iron Cobra|MPMM"
+    },
+    {
+      "name": "Juiblex",
+      "source": "MTF",
+      "reprinted_as": "Juiblex|MPMM"
+    },
+    {
+      "name": "Kruthik Hive Lord",
+      "source": "MTF",
+      "reprinted_as": "Kruthik Hive Lord|MPMM"
+    },
+    {
+      "name": "Leviathan",
+      "source": "MTF",
+      "reprinted_as": "Leviathan|MPMM"
+    },
+    {
+      "name": "Male Steeder",
+      "source": "MTF",
+      "reprinted_as": "Male Steeder|MPMM"
+    },
+    {
+      "name": "Marut",
+      "source": "MTF",
+      "reprinted_as": "Marut|MPMM"
+    },
+    {
+      "name": "Maurezhi",
+      "source": "MTF",
+      "reprinted_as": "Maurezhi|MPMM"
+    },
+    {
+      "name": "Meazel",
+      "source": "MTF",
+      "reprinted_as": "Meazel|MPMM"
+    },
+    {
+      "name": "Merregon",
+      "source": "MTF",
+      "reprinted_as": "Merregon|MPMM"
+    },
+    {
+      "name": "Merrenoloth",
+      "source": "MTF",
+      "reprinted_as": "Merrenoloth|MPMM"
+    },
+    {
+      "name": "Moloch",
+      "source": "MTF",
+      "reprinted_as": "Moloch|MPMM"
+    },
+    {
+      "name": "Molydeus",
+      "source": "MTF",
+      "reprinted_as": "Molydeus|MPMM"
+    },
+    {
+      "name": "Nabassu",
+      "source": "MTF",
+      "reprinted_as": "Nabassu|MPMM"
+    },
+    {
+      "name": "Nagpa",
+      "source": "MTF",
+      "reprinted_as": "Nagpa|MPMM"
+    },
+    {
+      "name": "Narzugon",
+      "source": "MTF",
+      "reprinted_as": "Narzugon|MPMM"
+    },
+    {
+      "name": "Nightwalker",
+      "source": "MTF",
+      "reprinted_as": "Nightwalker|MPMM"
+    },
+    {
+      "name": "Nupperibo",
+      "source": "MTF",
+      "reprinted_as": "Nupperibo|MPMM"
+    },
+    {
+      "name": "Oaken Bolter",
+      "source": "MTF",
+      "reprinted_as": "Clockwork Oaken Bolter|MPMM"
+    },
+    {
+      "name": "Oblex Spawn",
+      "source": "MTF",
+      "reprinted_as": "Oblex Spawn|MPMM"
+    },
+    {
+      "name": "Ogre Battering Ram",
+      "source": "MTF",
+      "reprinted_as": "Ogre Battering Ram|MPMM"
+    },
+    {
+      "name": "Ogre Bolt Launcher",
+      "source": "MTF",
+      "reprinted_as": "Ogre Bolt Launcher|MPMM"
+    },
+    {
+      "name": "Ogre Chain Brute",
+      "source": "MTF",
+      "reprinted_as": "Ogre Chain Brute|MPMM"
+    },
+    {
+      "name": "Ogre Howdah",
+      "source": "MTF",
+      "reprinted_as": "Ogre Howdah|MPMM"
+    },
+    {
+      "name": "Oinoloth",
+      "source": "MTF",
+      "reprinted_as": "Oinoloth|MPMM"
+    },
+    {
+      "name": "Orcus",
+      "source": "MTF",
+      "reprinted_as": "Orcus|MPMM"
+    },
+    {
+      "name": "Orthon",
+      "source": "MTF",
+      "reprinted_as": "Orthon|MPMM"
+    },
+    {
+      "name": "Phoenix",
+      "source": "MTF",
+      "reprinted_as": "Phoenix|MPMM"
+    },
+    {
+      "name": "Red Abishai",
+      "source": "MTF",
+      "reprinted_as": "Red Abishai|MPMM"
+    },
+    {
+      "name": "Retriever",
+      "source": "MTF",
+      "reprinted_as": "Retriever|MPMM"
+    },
+    {
+      "name": "Rot Troll",
+      "source": "MTF",
+      "reprinted_as": "Rot Troll|MPMM"
+    },
+    {
+      "name": "Rutterkin",
+      "source": "MTF",
+      "reprinted_as": "Rutterkin|MPMM"
+    },
+    {
+      "name": "Sacred Statue",
+      "source": "MTF",
+      "reprinted_as": "Sacred Statue|MPMM"
+    },
+    {
+      "name": "Shadow Dancer",
+      "source": "MTF",
+      "reprinted_as": "Shadar-kai Shadow Dancer|MPMM"
+    },
+    {
+      "name": "Sibriex",
+      "source": "MTF",
+      "reprinted_as": "Sibriex|MPMM"
+    },
+    {
+      "name": "Skulk",
+      "source": "MTF",
+      "reprinted_as": "Skulk|MPMM"
+    },
+    {
+      "name": "Skull Lord",
+      "source": "MTF",
+      "reprinted_as": "Skull Lord|MPMM"
+    },
+    {
+      "name": "Soul Monger",
+      "source": "MTF",
+      "reprinted_as": "Shadar-kai Soul Monger|MPMM"
+    },
+    {
+      "name": "Spirit Troll",
+      "source": "MTF",
+      "reprinted_as": "Spirit Troll|MPMM"
+    },
+    {
+      "name": "Spring Eladrin",
+      "source": "MTF",
+      "reprinted_as": "Spring Eladrin|MPMM"
+    },
+    {
+      "name": "Star Spawn Grue",
+      "source": "MTF",
+      "reprinted_as": "Star Spawn Grue|MPMM"
+    },
+    {
+      "name": "Star Spawn Hulk",
+      "source": "MTF",
+      "reprinted_as": "Star Spawn Hulk|MPMM"
+    },
+    {
+      "name": "Star Spawn Larva Mage",
+      "source": "MTF",
+      "reprinted_as": "Star Spawn Larva Mage|MPMM"
+    },
+    {
+      "name": "Star Spawn Mangler",
+      "source": "MTF",
+      "reprinted_as": "Star Spawn Mangler|MPMM"
+    },
+    {
+      "name": "Star Spawn Seer",
+      "source": "MTF",
+      "reprinted_as": "Star Spawn Seer|MPMM"
+    },
+    {
+      "name": "Steel Predator",
+      "source": "MTF",
+      "reprinted_as": "Steel Predator|MPMM"
+    },
+    {
+      "name": "Stone Cursed",
+      "source": "MTF",
+      "reprinted_as": "Stone Cursed|MPMM"
+    },
+    {
+      "name": "Stone Defender",
+      "source": "MTF",
+      "reprinted_as": "Clockwork Stone Defender|MPMM"
+    },
+    {
+      "name": "Summer Eladrin",
+      "source": "MTF",
+      "reprinted_as": "Summer Eladrin|MPMM"
+    },
+    {
+      "name": "Sword Wraith Commander",
+      "source": "MTF",
+      "reprinted_as": "Sword Wraith Commander|MPMM"
+    },
+    {
+      "name": "Sword Wraith Warrior",
+      "source": "MTF",
+      "reprinted_as": "Sword Wraith Warrior|MPMM"
+    },
+    {
+      "name": "The Angry",
+      "source": "MTF",
+      "reprinted_as": "Angry Sorrowsworn|MPMM"
+    },
+    {
+      "name": "The Hungry",
+      "source": "MTF",
+      "reprinted_as": "Hungry Sorrowsworn|MPMM"
+    },
+    {
+      "name": "The Lonely",
+      "source": "MTF",
+      "reprinted_as": "Lonely Sorrowsworn|MPMM"
+    },
+    {
+      "name": "The Lost",
+      "source": "MTF",
+      "reprinted_as": "Lost Sorrowsworn|MPMM"
+    },
+    {
+      "name": "The Wretched",
+      "source": "MTF",
+      "reprinted_as": "Wretched Sorrowsworn|MPMM"
+    },
+    {
+      "name": "Titivilus",
+      "source": "MTF",
+      "reprinted_as": "Titivilus|MPMM"
+    },
+    {
+      "name": "Tortle",
+      "source": "MTF",
+      "reprinted_as": "Tortle|MPMM"
+    },
+    {
+      "name": "Tortle Druid",
+      "source": "MTF",
+      "reprinted_as": "Tortle Druid|MPMM"
+    },
+    {
+      "name": "Vampiric Mist",
+      "source": "MTF",
+      "reprinted_as": "Vampiric Mist|MPMM"
+    },
+    {
+      "name": "Venom Troll",
+      "source": "MTF",
+      "reprinted_as": "Venom Troll|MPMM"
+    },
+    {
+      "name": "Wastrilith",
+      "source": "MTF",
+      "reprinted_as": "Wastrilith|MPMM"
+    },
+    {
+      "name": "Water Elemental Myrmidon",
+      "source": "MTF",
+      "reprinted_as": "Water Elemental Myrmidon|MPMM"
+    },
+    {
+      "name": "White Abishai",
+      "source": "MTF",
+      "reprinted_as": "White Abishai|MPMM"
+    },
+    {
+      "name": "Winter Eladrin",
+      "source": "MTF",
+      "reprinted_as": "Winter Eladrin|MPMM"
+    },
+    {
+      "name": "Yagnoloth",
+      "source": "MTF",
+      "reprinted_as": "Yagnoloth|MPMM"
+    },
+    {
+      "name": "Yeenoghu",
+      "source": "MTF",
+      "reprinted_as": "Yeenoghu|MPMM"
+    },
+    {
+      "name": "Young Kruthik",
+      "source": "MTF",
+      "reprinted_as": "Young Kruthik|MPMM"
+    },
+    {
+      "name": "Zaratan",
+      "source": "MTF",
+      "reprinted_as": "Zaratan|MPMM"
+    },
+    {
+      "name": "Zariel",
+      "source": "MTF",
+      "reprinted_as": "Zariel|MPMM"
+    },
+    {
+      "name": "Zuggtmoy",
+      "source": "MTF",
+      "reprinted_as": "Zuggtmoy|MPMM"
+    },
+    {
+      "name": "Derro",
+      "source": "OotA",
+      "reprinted_as": "Derro|MTF"
+    },
+    {
+      "name": "Derro Savant",
+      "source": "OotA",
+      "reprinted_as": "Derro Savant|MTF"
+    },
+    {
+      "name": "Female Steeder",
+      "source": "OotA",
+      "reprinted_as": "Female Steeder|MTF"
+    },
+    {
+      "name": "Male Steeder",
+      "source": "OotA",
+      "reprinted_as": "Male Steeder|MTF"
+    },
+    {
+      "name": "Abjurer",
+      "source": "VGM",
+      "reprinted_as": "Abjurer Wizard|MPMM"
+    },
+    {
+      "name": "Alhoon",
+      "source": "VGM",
+      "reprinted_as": "Alhoon|MPMM"
+    },
+    {
+      "name": "Annis Hag",
+      "source": "VGM",
+      "reprinted_as": "Annis Hag|MPMM"
+    },
+    {
+      "name": "Apprentice Wizard",
+      "source": "VGM",
+      "reprinted_as": "Apprentice Wizard|MPMM"
+    },
+    {
+      "name": "Archdruid",
+      "source": "VGM",
+      "reprinted_as": "Archdruid|MPMM"
+    },
+    {
+      "name": "Archer",
+      "source": "VGM",
+      "reprinted_as": "Archer|MPMM"
+    },
+    {
+      "name": "Aurochs",
+      "source": "VGM",
+      "reprinted_as": "Aurochs|MPMM"
+    },
+    {
+      "name": "Babau",
+      "source": "VGM",
+      "reprinted_as": "Babau|MPMM"
+    },
+    {
+      "name": "Banderhobb",
+      "source": "VGM",
+      "reprinted_as": "Banderhobb|MPMM"
+    },
+    {
+      "name": "Bard",
+      "source": "VGM",
+      "reprinted_as": "Bard|MPMM"
+    },
+    {
+      "name": "Barghest",
+      "source": "VGM",
+      "reprinted_as": "Barghest|MPMM"
+    },
+    {
+      "name": "Bheur Hag",
+      "source": "VGM",
+      "reprinted_as": "Bheur Hag|MPMM"
+    },
+    {
+      "name": "Black Guard Drake",
+      "source": "VGM",
+      "reprinted_as": "Guard Drake|MPMM"
+    },
+    {
+      "name": "Blackguard",
+      "source": "VGM",
+      "reprinted_as": "Blackguard|MPMM"
+    },
+    {
+      "name": "Blue Guard Drake",
+      "source": "VGM",
+      "reprinted_as": "Guard Drake|MPMM"
+    },
+    {
+      "name": "Bodak",
+      "source": "VGM",
+      "reprinted_as": "Bodak|MPMM"
+    },
+    {
+      "name": "Boggle",
+      "source": "VGM",
+      "reprinted_as": "Boggle|MPMM"
+    },
+    {
+      "name": "Brontosaurus",
+      "source": "VGM",
+      "reprinted_as": "Brontosaurus|MPMM"
+    },
+    {
+      "name": "Catoblepas",
+      "source": "VGM",
+      "reprinted_as": "Catoblepas|MPMM"
+    },
+    {
+      "name": "Cave Fisher",
+      "source": "VGM",
+      "reprinted_as": "Cave Fisher|MPMM"
+    },
+    {
+      "name": "Champion",
+      "source": "VGM",
+      "reprinted_as": "Champion|MPMM"
+    },
+    {
+      "name": "Chitine",
+      "source": "VGM",
+      "reprinted_as": "Chitine|MPMM"
+    },
+    {
+      "name": "Choldrith",
+      "source": "VGM",
+      "reprinted_as": "Choldrith|MPMM"
+    },
+    {
+      "name": "Cloud Giant Smiling One",
+      "source": "VGM",
+      "reprinted_as": "Cloud Giant Smiling One|MPMM"
+    },
+    {
+      "name": "Conjurer",
+      "source": "VGM",
+      "reprinted_as": "Conjurer Wizard|MPMM"
+    },
+    {
+      "name": "Cranium Rat",
+      "source": "VGM",
+      "reprinted_as": "Cranium Rat|MPMM"
+    },
+    {
+      "name": "Darkling",
+      "source": "VGM",
+      "reprinted_as": "Darkling|MPMM"
+    },
+    {
+      "name": "Darkling Elder",
+      "source": "VGM",
+      "reprinted_as": "Darkling Elder|MPMM"
+    },
+    {
+      "name": "Death Kiss",
+      "source": "VGM",
+      "reprinted_as": "Death Kiss|MPMM"
+    },
+    {
+      "name": "Deep Roth\u00e9",
+      "source": "VGM",
+      "reprinted_as": "Deep Roth\u00e9|MPMM"
+    },
+    {
+      "name": "Deep Scion",
+      "source": "VGM",
+      "reprinted_as": "Deep Scion|MPMM"
+    },
+    {
+      "name": "Deinonychus",
+      "source": "VGM",
+      "reprinted_as": "Deinonychus|MPMM"
+    },
+    {
+      "name": "Devourer",
+      "source": "VGM",
+      "reprinted_as": "Devourer|MPMM"
+    },
+    {
+      "name": "Dimetrodon",
+      "source": "VGM",
+      "reprinted_as": "Dimetrodon|MPMM"
+    },
+    {
+      "name": "Diviner",
+      "source": "VGM",
+      "reprinted_as": "Diviner Wizard|MPMM"
+    },
+    {
+      "name": "Dolphin",
+      "source": "VGM",
+      "reprinted_as": "Dolphin|MPMM"
+    },
+    {
+      "name": "Draegloth",
+      "source": "VGM",
+      "reprinted_as": "Draegloth|MPMM"
+    },
+    {
+      "name": "Elder Brain",
+      "source": "VGM",
+      "reprinted_as": "Elder Brain|MPMM"
+    },
+    {
+      "name": "Enchanter",
+      "source": "VGM",
+      "reprinted_as": "Enchanter Wizard|MPMM"
+    },
+    {
+      "name": "Evoker",
+      "source": "VGM",
+      "reprinted_as": "Evoker Wizard|MPMM"
+    },
+    {
+      "name": "Fire Giant Dreadnought",
+      "source": "VGM",
+      "reprinted_as": "Fire Giant Dreadnought|MPMM"
+    },
+    {
+      "name": "Firenewt Warlock of Imix",
+      "source": "VGM",
+      "reprinted_as": "Firenewt Warlock of Imix|MPMM"
+    },
+    {
+      "name": "Firenewt Warrior",
+      "source": "VGM",
+      "reprinted_as": "Firenewt Warrior|MPMM"
+    },
+    {
+      "name": "Flail Snail",
+      "source": "VGM",
+      "reprinted_as": "Flail Snail|MPMM"
+    },
+    {
+      "name": "Flind",
+      "source": "VGM",
+      "reprinted_as": "Flind|MPMM"
+    },
+    {
+      "name": "Froghemoth",
+      "source": "VGM",
+      "reprinted_as": "Froghemoth|MPMM"
+    },
+    {
+      "name": "Frost Giant Everlasting One",
+      "source": "VGM",
+      "reprinted_as": "Frost Giant Everlasting One|MPMM"
+    },
+    {
+      "name": "Gauth",
+      "source": "VGM",
+      "reprinted_as": "Gauth|MPMM"
+    },
+    {
+      "name": "Gazer",
+      "source": "VGM",
+      "reprinted_as": "Gazer|MPMM"
+    },
+    {
+      "name": "Giant Strider",
+      "source": "VGM",
+      "reprinted_as": "Giant Strider|MPMM"
+    },
+    {
+      "name": "Girallon",
+      "source": "VGM",
+      "reprinted_as": "Girallon|MPMM"
+    },
+    {
+      "name": "Gnoll Flesh Gnawer",
+      "source": "VGM",
+      "reprinted_as": "Gnoll Flesh Gnawer|MPMM"
+    },
+    {
+      "name": "Gnoll Hunter",
+      "source": "VGM",
+      "reprinted_as": "Gnoll Hunter|MPMM"
+    },
+    {
+      "name": "Gnoll Witherling",
+      "source": "VGM",
+      "reprinted_as": "Gnoll Witherling|MPMM"
+    },
+    {
+      "name": "Green Guard Drake",
+      "source": "VGM",
+      "reprinted_as": "Guard Drake|MPMM"
+    },
+    {
+      "name": "Grung",
+      "source": "VGM",
+      "reprinted_as": "Grung|MPMM"
+    },
+    {
+      "name": "Grung Elite Warrior",
+      "source": "VGM",
+      "reprinted_as": "Grung Elite Warrior|MPMM"
+    },
+    {
+      "name": "Grung Wildling",
+      "source": "VGM",
+      "reprinted_as": "Grung Wildling|MPMM"
+    },
+    {
+      "name": "Hadrosaurus",
+      "source": "VGM",
+      "reprinted_as": "Hadrosaurus|MPMM"
+    },
+    {
+      "name": "Hobgoblin Devastator",
+      "source": "VGM",
+      "reprinted_as": "Hobgoblin Devastator|MPMM"
+    },
+    {
+      "name": "Hobgoblin Iron Shadow",
+      "source": "VGM",
+      "reprinted_as": "Hobgoblin Iron Shadow|MPMM"
+    },
+    {
+      "name": "Illusionist",
+      "source": "VGM",
+      "reprinted_as": "Illusionist Wizard|MPMM"
+    },
+    {
+      "name": "Ki-rin",
+      "source": "VGM",
+      "reprinted_as": "Ki-rin|MPMM"
+    },
+    {
+      "name": "Kobold Dragonshield",
+      "source": "VGM",
+      "reprinted_as": "Kobold Dragonshield|MPMM"
+    },
+    {
+      "name": "Kobold Inventor",
+      "source": "VGM",
+      "reprinted_as": "Kobold Inventor|MPMM"
+    },
+    {
+      "name": "Kobold Scale Sorcerer",
+      "source": "VGM",
+      "reprinted_as": "Kobold Scale Sorcerer|MPMM"
+    },
+    {
+      "name": "Korred",
+      "source": "VGM",
+      "reprinted_as": "Korred|MPMM"
+    },
+    {
+      "name": "Kraken Priest",
+      "source": "VGM",
+      "reprinted_as": "Kraken Priest|MPMM"
+    },
+    {
+      "name": "Leucrotta",
+      "source": "VGM",
+      "reprinted_as": "Leucrotta|MPMM"
+    },
+    {
+      "name": "Martial Arts Adept",
+      "source": "VGM",
+      "reprinted_as": "Martial Arts Adept|MPMM"
+    },
+    {
+      "name": "Master Thief",
+      "source": "VGM",
+      "reprinted_as": "Master Thief|MPMM"
+    },
+    {
+      "name": "Maw Demon",
+      "source": "VGM",
+      "reprinted_as": "Maw Demon|MPMM"
+    },
+    {
+      "name": "Meenlock",
+      "source": "VGM",
+      "reprinted_as": "Meenlock|MPMM"
+    },
+    {
+      "name": "Mindwitness",
+      "source": "VGM",
+      "reprinted_as": "Mindwitness|MPMM"
+    },
+    {
+      "name": "Morkoth",
+      "source": "VGM",
+      "reprinted_as": "Morkoth|MPMM"
+    },
+    {
+      "name": "Mouth of Grolantor",
+      "source": "VGM",
+      "reprinted_as": "Mouth of Grolantor|MPMM"
+    },
+    {
+      "name": "Necromancer",
+      "source": "VGM",
+      "reprinted_as": "Necromancer Wizard|MPMM"
+    },
+    {
+      "name": "Neogi",
+      "source": "VGM",
+      "reprinted_as": "Neogi|MPMM"
+    },
+    {
+      "name": "Neogi Hatchling",
+      "source": "VGM",
+      "reprinted_as": "Neogi Hatchling|MPMM"
+    },
+    {
+      "name": "Neogi Master",
+      "source": "VGM",
+      "reprinted_as": "Neogi Master|MPMM"
+    },
+    {
+      "name": "Neothelid",
+      "source": "VGM",
+      "reprinted_as": "Neothelid|MPMM"
+    },
+    {
+      "name": "Nilbog",
+      "source": "VGM",
+      "reprinted_as": "Nilbog|MPMM"
+    },
+    {
+      "name": "Ox",
+      "source": "VGM",
+      "reprinted_as": "Ox|MPMM"
+    },
+    {
+      "name": "Quetzalcoatlus",
+      "source": "VGM",
+      "reprinted_as": "Quetzalcoatlus|MPMM"
+    },
+    {
+      "name": "Quickling",
+      "source": "VGM",
+      "reprinted_as": "Quickling|MPMM"
+    },
+    {
+      "name": "Red Guard Drake",
+      "source": "VGM",
+      "reprinted_as": "Guard Drake|MPMM"
+    },
+    {
+      "name": "Redcap",
+      "source": "VGM",
+      "reprinted_as": "Redcap|MPMM"
+    },
+    {
+      "name": "Sea Spawn",
+      "source": "VGM",
+      "reprinted_as": "Sea Spawn|MPMM"
+    },
+    {
+      "name": "Shadow Mastiff",
+      "source": "VGM",
+      "reprinted_as": "Shadow Mastiff Alpha|MPMM"
+    },
+    {
+      "name": "Shoosuva",
+      "source": "VGM",
+      "reprinted_as": "Shoosuva|MPMM"
+    },
+    {
+      "name": "Slithering Tracker",
+      "source": "VGM",
+      "reprinted_as": "Slithering Tracker|MPMM"
+    },
+    {
+      "name": "Spawn of Kyuss",
+      "source": "VGM",
+      "reprinted_as": "Spawn of Kyuss|MPMM"
+    },
+    {
+      "name": "Stegosaurus",
+      "source": "VGM",
+      "reprinted_as": "Stegosaurus|MPMM"
+    },
+    {
+      "name": "Stench Kow",
+      "source": "VGM",
+      "reprinted_as": "Stench Kow|MPMM"
+    },
+    {
+      "name": "Stone Giant Dreamwalker",
+      "source": "VGM",
+      "reprinted_as": "Stone Giant Dreamwalker|MPMM"
+    },
+    {
+      "name": "Storm Giant Quintessent",
+      "source": "VGM",
+      "reprinted_as": "Storm Giant Quintessent|MPMM"
+    },
+    {
+      "name": "Swarm of Cranium Rats",
+      "source": "VGM",
+      "reprinted_as": "Swarm of Cranium Rats|MPMM"
+    },
+    {
+      "name": "Swarm of Rot Grubs",
+      "source": "VGM",
+      "reprinted_as": "Swarm of Rot Grubs|MPMM"
+    },
+    {
+      "name": "Swashbuckler",
+      "source": "VGM",
+      "reprinted_as": "Swashbuckler|MPMM"
+    },
+    {
+      "name": "Tanarukk",
+      "source": "VGM",
+      "reprinted_as": "Tanarukk|MPMM"
+    },
+    {
+      "name": "Thorny",
+      "source": "VGM",
+      "reprinted_as": "Thorny Vegepygmy|MPMM"
+    },
+    {
+      "name": "Tlincalli",
+      "source": "VGM",
+      "reprinted_as": "Tlincalli|MPMM"
+    },
+    {
+      "name": "Transmuter",
+      "source": "VGM",
+      "reprinted_as": "Transmuter Wizard|MPMM"
+    },
+    {
+      "name": "Trapper",
+      "source": "VGM",
+      "reprinted_as": "Trapper|MPMM"
+    },
+    {
+      "name": "Ulitharid",
+      "source": "VGM",
+      "reprinted_as": "Ulitharid|MPMM"
+    },
+    {
+      "name": "Vargouille",
+      "source": "VGM",
+      "reprinted_as": "Vargouille|MPMM"
+    },
+    {
+      "name": "Vegepygmy",
+      "source": "VGM",
+      "reprinted_as": "Vegepygmy|MPMM"
+    },
+    {
+      "name": "Vegepygmy Chief",
+      "source": "VGM",
+      "reprinted_as": "Vegepygmy Chief|MPMM"
+    },
+    {
+      "name": "Velociraptor",
+      "source": "VGM",
+      "reprinted_as": "Velociraptor|MPMM"
+    },
+    {
+      "name": "War Priest",
+      "source": "VGM",
+      "reprinted_as": "War Priest|MPMM"
+    },
+    {
+      "name": "Warlock of the Archfey",
+      "source": "VGM",
+      "reprinted_as": "Warlock of the Archfey|MPMM"
+    },
+    {
+      "name": "Warlock of the Fiend",
+      "source": "VGM",
+      "reprinted_as": "Warlock of the Fiend|MPMM"
+    },
+    {
+      "name": "Warlock of the Great Old One",
+      "source": "VGM",
+      "reprinted_as": "Warlock of the Great Old One|MPMM"
+    },
+    {
+      "name": "Warlord",
+      "source": "VGM",
+      "reprinted_as": "Warlord|MPMM"
+    },
+    {
+      "name": "White Guard Drake",
+      "source": "VGM",
+      "reprinted_as": "Guard Drake|MPMM"
+    },
+    {
+      "name": "Wood Woad",
+      "source": "VGM",
+      "reprinted_as": "Wood Woad|MPMM"
+    },
+    {
+      "name": "Xvart",
+      "source": "VGM",
+      "reprinted_as": "Xvart|MPMM"
+    },
+    {
+      "name": "Xvart Warlock of Raxivort",
+      "source": "VGM",
+      "reprinted_as": "Xvart Warlock of Raxivort|MPMM"
+    },
+    {
+      "name": "Yeth Hound",
+      "source": "VGM",
+      "reprinted_as": "Yeth Hound|MPMM"
+    },
+    {
+      "name": "Yuan-ti Anathema",
+      "source": "VGM",
+      "reprinted_as": "Yuan-ti Anathema|MPMM"
+    },
+    {
+      "name": "Yuan-ti Broodguard",
+      "source": "VGM",
+      "reprinted_as": "Yuan-ti Broodguard|MPMM"
+    },
+    {
+      "name": "Yuan-ti Mind Whisperer",
+      "source": "VGM",
+      "reprinted_as": "Yuan-ti Mind Whisperer|MPMM"
+    },
+    {
+      "name": "Yuan-ti Nightmare Speaker",
+      "source": "VGM",
+      "reprinted_as": "Yuan-ti Nightmare Speaker|MPMM"
+    },
+    {
+      "name": "Yuan-ti Pit Master",
+      "source": "VGM",
+      "reprinted_as": "Yuan-ti Pit Master|MPMM"
+    }
+  ],
+  "duplicate_keys": [],
+  "duplicate_names": [
+    {
+      "name": "Bel",
+      "kept_source": "CoA",
+      "discarded_source": "BGDIA"
+    },
+    {
+      "name": "Expert",
+      "kept_source": "DC",
+      "discarded_source": "ESK"
+    },
+    {
+      "name": "Warrior",
+      "kept_source": "DC",
+      "discarded_source": "ESK"
+    },
+    {
+      "name": "Chwinga",
+      "kept_source": "CM",
+      "discarded_source": "IDRotF"
+    },
+    {
+      "name": "Evil Mage",
+      "kept_source": "HftT",
+      "discarded_source": "LMoP"
+    },
+    {
+      "name": "Baalzebul",
+      "kept_source": "CoA",
+      "discarded_source": "MaBJoV"
+    },
+    {
+      "name": "Mephistopheles",
+      "kept_source": "CoA",
+      "discarded_source": "MaBJoV"
+    },
+    {
+      "name": "Sarevok",
+      "kept_source": "CoA",
+      "discarded_source": "MaBJoV"
+    },
+    {
+      "name": "Yeti Tyke",
+      "kept_source": "MGELFT",
+      "discarded_source": "IDRotF"
+    },
+    {
+      "name": "Violet Fungus",
+      "kept_source": "DoSI",
+      "discarded_source": "MM"
+    },
+    {
+      "name": "Demogorgon",
+      "kept_source": "MPMM",
+      "discarded_source": "HftT"
+    },
+    {
+      "name": "Zariel",
+      "kept_source": "CoA",
+      "discarded_source": "MPMM"
+    },
+    {
+      "name": "Medusa",
+      "kept_source": "MOT",
+      "discarded_source": "MM"
+    },
+    {
+      "name": "Naiad",
+      "kept_source": "CM",
+      "discarded_source": "MOT"
+    },
+    {
+      "name": "Chimeric Fox",
+      "kept_source": "NRH-AVitW",
+      "discarded_source": "IDRotF"
+    },
+    {
+      "name": "Hydra",
+      "kept_source": "PSK",
+      "discarded_source": "MM"
+    },
+    {
+      "name": "Wurm",
+      "kept_source": "GGR",
+      "discarded_source": "PSK"
+    },
+    {
+      "name": "Altisaur",
+      "kept_source": "BGG",
+      "discarded_source": "PSX"
+    },
+    {
+      "name": "Ceratops",
+      "kept_source": "BGG",
+      "discarded_source": "PSX"
+    },
+    {
+      "name": "Demon",
+      "kept_source": "PSX",
+      "discarded_source": "PSK"
+    },
+    {
+      "name": "Dryad",
+      "kept_source": "PSX",
+      "discarded_source": "MM"
+    },
+    {
+      "name": "Harpy",
+      "kept_source": "PSX",
+      "discarded_source": "MM"
+    },
+    {
+      "name": "Angel",
+      "kept_source": "PSK",
+      "discarded_source": "PSZ"
+    },
+    {
+      "name": "Drake (Large)",
+      "kept_source": "PSK",
+      "discarded_source": "PSZ"
+    },
+    {
+      "name": "Drake (Small)",
+      "kept_source": "PSK",
+      "discarded_source": "PSZ"
+    },
+    {
+      "name": "Felidar",
+      "kept_source": "GGR",
+      "discarded_source": "PSZ"
+    },
+    {
+      "name": "Kraken",
+      "kept_source": "PSZ",
+      "discarded_source": "MM"
+    },
+    {
+      "name": "Wraith",
+      "kept_source": "PSZ",
+      "discarded_source": "MM"
+    },
+    {
+      "name": "Wurm",
+      "kept_source": "GGR",
+      "discarded_source": "PSZ"
+    },
+    {
+      "name": "Gar Shatterkeel",
+      "kept_source": "LR",
+      "discarded_source": "PotA"
+    },
+    {
+      "name": "Shoalar Quanderil",
+      "kept_source": "LR",
+      "discarded_source": "PotA"
+    },
+    {
+      "name": "Ice Troll",
+      "kept_source": "IDRotF",
+      "discarded_source": "RoT"
+    },
+    {
+      "name": "Adult Sapphire Dragon",
+      "kept_source": "FTD",
+      "discarded_source": "SADS"
+    },
+    {
+      "name": "Expert",
+      "kept_source": "SDW",
+      "discarded_source": "DC"
+    },
+    {
+      "name": "Spellcaster (Healer)",
+      "kept_source": "SDW",
+      "discarded_source": "DC"
+    },
+    {
+      "name": "Spellcaster (Mage)",
+      "kept_source": "SDW",
+      "discarded_source": "DC"
+    },
+    {
+      "name": "Warrior",
+      "kept_source": "SDW",
+      "discarded_source": "DC"
+    },
+    {
+      "name": "Darathra Shendrel",
+      "kept_source": "SKT",
+      "discarded_source": "PotA"
+    },
+    {
+      "name": "Tressym",
+      "kept_source": "BGDIA",
+      "discarded_source": "SKT"
+    },
+    {
+      "name": "Expert",
+      "kept_source": "SLW",
+      "discarded_source": "SDW"
+    },
+    {
+      "name": "Spellcaster (Healer)",
+      "kept_source": "SLW",
+      "discarded_source": "SDW"
+    },
+    {
+      "name": "Spellcaster (Mage)",
+      "kept_source": "SLW",
+      "discarded_source": "SDW"
+    },
+    {
+      "name": "Warrior",
+      "kept_source": "SLW",
+      "discarded_source": "SDW"
+    },
+    {
+      "name": "Amphisbaena",
+      "kept_source": "GoS",
+      "discarded_source": "TftYP"
+    },
+    {
+      "name": "Chwinga",
+      "kept_source": "CM",
+      "discarded_source": "ToA"
+    },
+    {
+      "name": "Roth\u00e9",
+      "kept_source": "CoA",
+      "discarded_source": "VGM"
+    },
+    {
+      "name": "Brain in a Jar",
+      "kept_source": "VRGR",
+      "discarded_source": "LLK"
+    },
+    {
+      "name": "Sergeant",
+      "kept_source": "ERLW",
+      "discarded_source": "WDH"
+    },
+    {
+      "name": "Large Mimic",
+      "kept_source": "RMBRE",
+      "discarded_source": "WDMM"
+    },
+    {
+      "name": "Space Hamster",
+      "kept_source": "BAM",
+      "discarded_source": "WDMM"
+    }
+  ],
+  "copy_warnings": [
+    {
+      "name": "Flying Dagger",
+      "source": "BGDIA",
+      "warnings": [
+        "replaceArr target not found: Longsword"
+      ]
+    },
+    {
+      "name": "Sylvira Savikas",
+      "source": "BGDIA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Traxigor",
+      "source": "BGDIA",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Kharbek",
+      "source": "CM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Zikran",
+      "source": "CM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review",
+        "unsupported mod mode on _: addSpells"
+      ]
+    },
+    {
+      "name": "Cat Skeleton",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Luvash",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vistana Assassin",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vistana Bandit",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vistana Bandit Captain",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vistana Commoner",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vistana Guard",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vistana Spy",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vistana Thug",
+      "source": "CoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Aradrine the Owl",
+      "source": "CRCotN",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Foghome",
+      "source": "CRCotN",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gryz Alakritos",
+      "source": "CRCotN",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Koris",
+      "source": "CRCotN",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Prolix Yusaf",
+      "source": "CRCotN",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Scribble",
+      "source": "CRCotN",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Xot",
+      "source": "CRCotN",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Cudgel Ironsmile",
+      "source": "DSotDQ",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Tatina Rookledust",
+      "source": "DSotDQ",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Animated Knife",
+      "source": "EGW",
+      "warnings": [
+        "replaceArr target not found: Longsword"
+      ]
+    },
+    {
+      "name": "Hulil Lutan",
+      "source": "EGW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Karkethzerethzerus, the Sable Despoiler",
+      "source": "EGW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Oracs the Enduring",
+      "source": "EGW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Raegrin Mau",
+      "source": "EGW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Three Earrings",
+      "source": "EGW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Corrin Delmaco",
+      "source": "ERLW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Captain Xendros",
+      "source": "GoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Krell Grohlg",
+      "source": "GoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review",
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Merfolk Scout",
+      "source": "GoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Sauriv",
+      "source": "GoS",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Battlehammer Dwarf",
+      "source": "IDRotF",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Kadroth",
+      "source": "IDRotF",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Dwarven Worker",
+      "source": "IMR",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Tiefling Muralist",
+      "source": "IMR",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Afsoun Ghorbani",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gammon Xungoon",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Jijibisha Manivarshi",
+      "source": "JttRC",
+      "warnings": [
+        "unsupported mod mode on _: removeSpells"
+      ]
+    },
+    {
+      "name": "Kusa Xungoon",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Laleh Ghorbani",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Lamai Tyenmo",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Madam Kulp",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Myx Nargis Ruba",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Navid",
+      "source": "JttRC",
+      "warnings": [
+        "unsupported mod mode on _: addSpells"
+      ]
+    },
+    {
+      "name": "Ollin",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Paloma",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Samira Arah",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Tonalli",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Uzoma Baten",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "White Jade Emperor",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Young-Gi",
+      "source": "JttRC",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gundren Rockseeker",
+      "source": "LMoP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Nundro Rockseeker",
+      "source": "LMoP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Aarakocra Spelljammer",
+      "source": "LoX",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Fel Ardra",
+      "source": "LoX",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Fhenimore",
+      "source": "LR",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Whymsee",
+      "source": "LR",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Amarith Coppervein",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Asha Vandree",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Acolyte",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Assassin",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Bandit",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Commoner",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Cultist",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Guard",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Noble",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Scout",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drow Spy",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Eldeth Feldrun",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Glyphic Shroomlight",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Jimjar",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Khalessa Draga",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Mev Flintknapper",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Peebles",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Sladis Vadir",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Svirfneblin Wererat",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Topsy",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Turvy",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Viln Tirin",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Vizeran DeVir",
+      "source": "OotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Dagdra Deepforge",
+      "source": "OoW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Devil Dog",
+      "source": "OoW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gildha Duhn",
+      "source": "OoW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Two Dry Cloaks",
+      "source": "OoW",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gundren Rockseeker",
+      "source": "PaBTSO",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gwyn Oresong",
+      "source": "PaBTSO",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Nundro Rockseeker",
+      "source": "PaBTSO",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Bruna",
+      "source": "PSI",
+      "warnings": [
+        "unsupported mod mode on _: addSpells"
+      ]
+    },
+    {
+      "name": "Flight Alabaster Angel",
+      "source": "PSI",
+      "warnings": [
+        "unsupported mod mode on _: addSpells"
+      ]
+    },
+    {
+      "name": "Emrakul",
+      "source": "PSZ",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Kozilek",
+      "source": "PSZ",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Ulamog",
+      "source": "PSZ",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Nurvureem, The Dark Lady",
+      "source": "PotA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Half-Blue Dragon Gladiator",
+      "source": "RoT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Half-Green Dragon Assassin",
+      "source": "RoT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Half-Red Dragon Gladiator",
+      "source": "RoT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Maccath the Crimson",
+      "source": "RoT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Varram",
+      "source": "RoT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Axe of Mirabar Soldier",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Elister",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Felbarren Dwarf",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Jasper Dimmerchasm",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Knight of the Mithral Shield",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Morak Ur'gray",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Narbeck Horn",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Rool",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Shield Dwarf Guard",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Shield Dwarf Noble",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "The Weevil",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Wiri Fleagol",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Wood Elf",
+      "source": "SKT",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Adult Red Dracolich",
+      "source": "TCE",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Ashdra",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Curran Corvalin",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drevin",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Eira",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Goblin Commoner",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gorvan Ironheart",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Irisoth",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Kelson Darktreader",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Kobold Commoner",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Obmi",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Ogre Skeleton",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Orc Commoner",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Aboleth",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Basilisk",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Behir",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Beholder",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Black Pudding",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Carrion Crawler",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Clay Golem",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Darkmantle",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Displacer Beast",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Dragon Turtle",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Ettercap",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Flesh Golem",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Glabrezu",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Gray Ooze",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Helmed Horror",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Hezrou",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Hook Horror",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Ochre Jelly",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Otyugh",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Owlbear",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Peryton",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Remorhaz",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Stone Golem",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Vrock",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Wight",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Reduced-Threat Wyvern",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Shalendra Floshin",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Therzt",
+      "source": "TftYP",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Gondolo",
+      "source": "ToA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Ortimay Swift and Dark",
+      "source": "ToA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Sekelok",
+      "source": "ToA",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Booyahg Booyahg Booyahg",
+      "source": "VGM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Booyahg Slave of the Archfey",
+      "source": "VGM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Booyahg Slave of the Fiend",
+      "source": "VGM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Booyahg Slave of the Great Old One",
+      "source": "VGM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Bepis Honeymaker",
+      "source": "WDH",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Engineer",
+      "source": "WDH",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Fala Lefaliir",
+      "source": "WDH",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Kaevja Cynavern",
+      "source": "WDH",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Losser Mirklav",
+      "source": "WDH",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review",
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Manafret Cherryport",
+      "source": "WDH",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Samara Strongbones",
+      "source": "WDH",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Zhent Martial Arts Adept",
+      "source": "WDH",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Animated Statue",
+      "source": "WDMM",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Awakened Brown Bear",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Awakened Elk",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Awakened Giant Wasp",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Copper Stormforge",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Drivvin Freth",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Flying Trident",
+      "source": "WDMM",
+      "warnings": [
+        "replaceArr target not found: Longsword"
+      ]
+    },
+    {
+      "name": "Horned Sister",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Junior Drow Priestess of Lolth",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Left Hand of Manshoon",
+      "source": "WDMM",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Marta Moonshadow",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review",
+        "unsupported mod mode on _: addSpells"
+      ]
+    },
+    {
+      "name": "Melissara Shadowdusk",
+      "source": "WDMM",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Nester",
+      "source": "WDMM",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Sing-Along",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Thwad Underbrew",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Torbit",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Umbraxakar",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Valtagar Steelshadow",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review",
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Vertrand Shadowdusk",
+      "source": "WDMM",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Wyllow",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Xarann A'Daragon",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review"
+      ]
+    },
+    {
+      "name": "Zalthar Shadowdusk",
+      "source": "WDMM",
+      "warnings": [
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    },
+    {
+      "name": "Zox Clammersham",
+      "source": "WDMM",
+      "warnings": [
+        "templates present; copied base values and explicit overrides, template rules require manual review",
+        "unsupported mod mode on _: replaceSpells"
+      ]
+    }
+  ],
+  "unresolved_copies": [],
+  "special_statblocks": [
+    {
+      "name": "Aberrant Spirit",
+      "source": "TCE",
+      "hp": "40 + 10 for each spell level above 4th",
+      "ac": "11 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Animated Object (Huge)",
+      "source": "PHB",
+      "hp": "80",
+      "ac": "10 (natural armor)"
+    },
+    {
+      "name": "Animated Object (Large)",
+      "source": "PHB",
+      "hp": "50",
+      "ac": "10 (natural armor)"
+    },
+    {
+      "name": "Animated Object (Medium)",
+      "source": "PHB",
+      "hp": "40",
+      "ac": "13 (natural armor)"
+    },
+    {
+      "name": "Animated Object (Small)",
+      "source": "PHB",
+      "hp": "25",
+      "ac": "16 (natural armor)"
+    },
+    {
+      "name": "Animated Object (Tiny)",
+      "source": "PHB",
+      "hp": "20",
+      "ac": "18 (natural armor)"
+    },
+    {
+      "name": "Animated Staff",
+      "source": "WDMM",
+      "hp": "40",
+      "ac": "17 (natural armor)"
+    },
+    {
+      "name": "Animated Wand",
+      "source": "WDMM",
+      "hp": "20",
+      "ac": "18 (natural armor)"
+    },
+    {
+      "name": "Avatar of Death",
+      "source": "DMG",
+      "hp": "half the hit point maximum of its summoner",
+      "ac": "20"
+    },
+    {
+      "name": "Beast of the Land",
+      "source": "TCE",
+      "hp": "5 + five times your ranger level (the beast has a number of Hit Dice [d8s] equal to your ranger level)",
+      "ac": "13 + PB (natural armor)"
+    },
+    {
+      "name": "Beast of the Sea",
+      "source": "TCE",
+      "hp": "5 + five times your ranger level (the beast has a number of Hit Dice [d8s] equal to your ranger level)",
+      "ac": "13 + PB (natural armor)"
+    },
+    {
+      "name": "Beast of the Sky",
+      "source": "TCE",
+      "hp": "4 + four times your ranger level (the beast has a number of Hit Dice [d6s] equal to your ranger level)",
+      "ac": "13 + PB (natural armor)"
+    },
+    {
+      "name": "Bestial Spirit",
+      "source": "TCE",
+      "hp": "20 (Air only) or 30 (Land and Water only) + 5 for each spell level above 2nd",
+      "ac": "11 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Big Water Slurpent",
+      "source": "AWM",
+      "hp": "58",
+      "ac": "13"
+    },
+    {
+      "name": "Birdsquirrel",
+      "source": "AWM",
+      "hp": "10",
+      "ac": "13"
+    },
+    {
+      "name": "Boontu Monkey",
+      "source": "AWM",
+      "hp": "3",
+      "ac": "12"
+    },
+    {
+      "name": "Celestial Spirit",
+      "source": "TCE",
+      "hp": "40 + 10 for each spell level above 5th",
+      "ac": "11 + the level of the spell (natural armor) + 2 (Defender only)"
+    },
+    {
+      "name": "Construct Spirit",
+      "source": "TCE",
+      "hp": "40 + 15 for each spell level above 4th",
+      "ac": "13 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Crystal Cave Merfolk",
+      "source": "AWM",
+      "hp": "11",
+      "ac": "11"
+    },
+    {
+      "name": "Dancing Item",
+      "source": "TCE",
+      "hp": "10 + five times your bard level",
+      "ac": "16 (natural armor)"
+    },
+    {
+      "name": "Dankwood Hag",
+      "source": "AWM",
+      "hp": "82",
+      "ac": "17"
+    },
+    {
+      "name": "Deck Defender",
+      "source": "BMT",
+      "hp": "5 + five times your level (the deck defender has a number of Hit Dice [d8s] equal to your level)",
+      "ac": "16 (natural armor)"
+    },
+    {
+      "name": "Draconic Spirit",
+      "source": "FTD",
+      "hp": "50 + 10 for each spell level above 5th (the dragon has a number of Hit Dice [d10s] equal to the level of the spell)",
+      "ac": "14 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Drake Companion",
+      "source": "FTD",
+      "hp": "5 + five times your ranger level (the drake has a number of Hit Dice [d10s] equal to your ranger level)",
+      "ac": "14 + PB (natural armor)"
+    },
+    {
+      "name": "Dum-Dum Goblin",
+      "source": "AWM",
+      "hp": "7",
+      "ac": "7"
+    },
+    {
+      "name": "Dwarf",
+      "source": "AWM",
+      "hp": "30",
+      "ac": "10"
+    },
+    {
+      "name": "Elemental Spirit",
+      "source": "TCE",
+      "hp": "50 + 10 for each spell level above 4th",
+      "ac": "11 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Fey Spirit",
+      "source": "TCE",
+      "hp": "30 + 10 for each spell level above 3rd",
+      "ac": "12 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Fiendish Spirit",
+      "source": "TCE",
+      "hp": "50 (Demon only) or 40 (Devil only) or 60 (Yugoloth only) + 15 for each spell level above 6th",
+      "ac": "12 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Great Kroom, Purple Worm",
+      "source": "AWM",
+      "hp": "247",
+      "ac": "18 (natural armor)"
+    },
+    {
+      "name": "Halaster Puppet",
+      "source": "WDMM",
+      "hp": "8",
+      "ac": "10"
+    },
+    {
+      "name": "Hangry Otyugh",
+      "source": "AWM",
+      "hp": "114",
+      "ac": "14"
+    },
+    {
+      "name": "Hill Giant, Blorbo",
+      "source": "AWM",
+      "hp": "105",
+      "ac": "13"
+    },
+    {
+      "name": "Homunculus Servant",
+      "source": "TCE",
+      "hp": "1 + your Intelligence modifier + your artificer level (the homunculus has a number of Hit Dice [d4s] equal to your artificer level)",
+      "ac": "13 (natural armor)"
+    },
+    {
+      "name": "Iron Spider",
+      "source": "WDMM",
+      "hp": "80",
+      "ac": "19"
+    },
+    {
+      "name": "Mechanical Bird",
+      "source": "WDH",
+      "hp": "1",
+      "ac": "15"
+    },
+    {
+      "name": "Meeseeks",
+      "source": "RMBRE",
+      "hp": "-(immune to damage)",
+      "ac": "10"
+    },
+    {
+      "name": "Ras Nsi",
+      "source": "ToA",
+      "hp": "127 (17d8 + 51) reduced to 107; subtract 1 for each day that passes during the adventure",
+      "ac": "15 (bracers of defense)"
+    },
+    {
+      "name": "Reaper Spirit",
+      "source": "BMT",
+      "hp": "40 + 10 for each spell level above 4th",
+      "ac": "11 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Saleeth the Couatl",
+      "source": "AWM",
+      "hp": "97",
+      "ac": "19 (natural armor)"
+    },
+    {
+      "name": "Shadow Spirit",
+      "source": "TCE",
+      "hp": "35 + 15 for each spell level above 3rd",
+      "ac": "11 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Steel Defender",
+      "source": "TCE",
+      "hp": "2 + your Intelligence modifier + five times your artificer level (the defender has a number of Hit Dice [d8s] equal to your artificer level)",
+      "ac": "15 (natural armor)"
+    },
+    {
+      "name": "Undead Spirit",
+      "source": "TCE",
+      "hp": "30 (Ghostly and Putrid only) or 20 (Skeletal only) + 10 for each spell level above 3rd",
+      "ac": "11 + the level of the spell (natural armor)"
+    },
+    {
+      "name": "Wildfire Spirit",
+      "source": "TCE",
+      "hp": "5 + five times your druid level",
+      "ac": "13 (natural armor)"
+    }
+  ]
+}

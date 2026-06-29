@@ -6,7 +6,7 @@ from .data import Spell
 from .spell_format import component_flags, component_material
 from .ui.core import theme_color
 
-MONSTER_SECTION_HEADINGS = {"traits", "spells", "actions", "legendary actions"}
+MONSTER_SECTION_HEADINGS = {"traits", "spells", "actions", "bonus actions", "reactions", "legendary actions", "mythic actions"}
 
 def component_badge_text(components: str) -> str:
     flags = component_flags(components)

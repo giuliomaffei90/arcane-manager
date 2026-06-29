@@ -61,13 +61,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
         if index < 0 or index >= len(self.monster_results):
             return
         creature = self.monster_results[index]
+        monster_hp = numeric_hp(creature.hp)
         self.combatants.append(
             {
                 "name": creature.name,
                 "kind": "Monster",
                 "ac": display_ac(creature.ac),
-                "hp": str(creature.hp),
-                "max_hp": str(creature.hp),
+                "hp": str(monster_hp if monster_hp is not None else 0),
+                "max_hp": str(monster_hp if monster_hp is not None else 0),
                 "initiative": random.randint(1, 20) + ability_modifier(creature.stats[1]),
                 "cr": creature.cr,
                 "creature_name": creature.name,
@@ -196,7 +197,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
             desc = clean_text(entry.get("desc", ""), MAX_TEXT_FIELD_CHARS)
             damage = clean_text(entry.get("damage_dice", ""), MAX_SHORT_FIELD_CHARS)
             prefix = f"{name}. " if name else ""
-            suffix = f" Damage dice: {damage}." if damage and damage not in desc else ""
+            compact_damage = re.sub(r"\s+", "", damage)
+            compact_desc = re.sub(r"\s+", "", desc)
+            suffix = f" Damage dice: {damage}." if damage and compact_damage not in compact_desc else ""
             text = f"{prefix}{desc}{suffix}".strip()
             if name and desc.endswith(":") and not suffix:
                 if lines and lines[-1]:
@@ -234,7 +237,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def _monster_body_for_creature(self, creature: Creature) -> str:
         raw = creature.raw
         hit_dice = clean_text(raw.get("hit_dice", ""), MAX_SHORT_FIELD_CHARS)
-        hit_points = f"Hit Points: {creature.hp}"
+        hit_points = f"Hit Points: {display_hp(creature.hp)}"
         if hit_dice:
             hit_points = f"{hit_points} ({hit_dice})"
         lines = [
@@ -264,7 +267,10 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self._append_named_entries(lines, "Traits", creature.traits)
         self._append_spells(lines, raw.get("spells"))
         self._append_named_entries(lines, "Actions", creature.actions)
+        self._append_named_entries(lines, "Bonus Actions", creature.bonus_actions)
+        self._append_named_entries(lines, "Reactions", creature.reactions)
         self._append_named_entries(lines, "Legendary Actions", creature.legendary_actions)
+        self._append_named_entries(lines, "Mythic Actions", creature.mythic_actions)
         return "\n".join(line for line in lines if line is not None)
 
     def openCombatantIndex_(self, index):
@@ -532,7 +538,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.monster_sheet_combatant_index = index
         self.monster_sheet_creature = None
         self._showMonsterSheetForCreature_(creature)
-        self.monster_sheet_hp_field.setStringValue_(str(combatant.get("hp") or creature.hp))
+        self.monster_sheet_hp_field.setStringValue_(str(combatant.get("hp") or numeric_hp(creature.hp) or 0))
 
     def openMonsterSheetForCreature_(self, creature: Creature):
         self.monster_sheet_combatant_index = -1
@@ -553,7 +559,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
             spell_ranges_for_body(body, self.spells, spell_section_ranges(body))
             + explicit_spell_ranges_for_entries(
                 body,
-                [creature.traits, creature.actions, creature.legendary_actions],
+                [
+                    creature.traits,
+                    creature.actions,
+                    creature.bonus_actions,
+                    creature.reactions,
+                    creature.legendary_actions,
+                    creature.mythic_actions,
+                ],
                 self.spells,
                 self.spell_lookup,
             ),

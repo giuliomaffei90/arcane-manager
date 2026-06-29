@@ -96,13 +96,16 @@ class Creature:
     creature_type: str
     alignment: str
     ac: int | str
-    hp: int
+    hp: int | str
     speed: str
     stats: tuple[int, int, int, int, int, int]
     cr: str
     traits: tuple[dict[str, Any], ...]
     actions: tuple[dict[str, Any], ...]
+    bonus_actions: tuple[dict[str, Any], ...]
+    reactions: tuple[dict[str, Any], ...]
     legendary_actions: tuple[dict[str, Any], ...]
+    mythic_actions: tuple[dict[str, Any], ...]
     raw: dict[str, Any]
 
     @classmethod
@@ -112,6 +115,11 @@ class Creature:
             stats = []
         padded_stats = [int(value or 10) for value in stats[:6]]
         padded_stats.extend([10] * (6 - len(padded_stats)))
+        raw_hp = raw.get("hp") or 0
+        try:
+            hp: int | str = int(raw_hp)
+        except (TypeError, ValueError):
+            hp = clean_text(raw_hp, MAX_SHORT_FIELD_CHARS)
         return cls(
             name=clean_text(raw.get("name", ""), MAX_SHORT_FIELD_CHARS),
             source=clean_text(raw.get("source", ""), MAX_SHORT_FIELD_CHARS),
@@ -119,13 +127,16 @@ class Creature:
             creature_type=clean_text(raw.get("type", ""), MAX_SHORT_FIELD_CHARS),
             alignment=clean_text(raw.get("alignment", ""), MAX_SHORT_FIELD_CHARS),
             ac=raw.get("ac", ""),
-            hp=int(raw.get("hp") or 0),
+            hp=hp,
             speed=clean_text(raw.get("speed", ""), MAX_SHORT_FIELD_CHARS),
             stats=tuple(padded_stats),  # type: ignore[arg-type]
             cr=clean_text(raw.get("cr", ""), MAX_SHORT_FIELD_CHARS),
             traits=tuple(item for item in raw.get("traits", []) if isinstance(item, dict)),
             actions=tuple(item for item in raw.get("actions", []) if isinstance(item, dict)),
+            bonus_actions=tuple(item for item in raw.get("bonus_actions", []) if isinstance(item, dict)),
+            reactions=tuple(item for item in raw.get("reactions", []) if isinstance(item, dict)),
             legendary_actions=tuple(item for item in raw.get("legendary_actions", []) if isinstance(item, dict)),
+            mythic_actions=tuple(item for item in raw.get("mythic_actions", []) if isinstance(item, dict)),
             raw=dict(raw),
         )
 
@@ -154,8 +165,21 @@ def display_ac(value: int | str) -> str:
     return clean_text(value, MAX_SHORT_FIELD_CHARS) or "?"
 
 
+def display_hp(value: int | str) -> str:
+    if isinstance(value, int):
+        return str(value)
+    return clean_text(value, MAX_SHORT_FIELD_CHARS) or "0"
+
+
+def numeric_hp(value: int | str) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def creature_summary(creature: Creature) -> str:
-    return f"{creature.name}   HP: {creature.hp}   AC: {display_ac(creature.ac)}   CR: {creature.cr}"
+    return f"{creature.name}   HP: {display_hp(creature.hp)}   AC: {display_ac(creature.ac)}   CR: {creature.cr}"
 
 
 def cr_sort_value(value: str) -> float:
