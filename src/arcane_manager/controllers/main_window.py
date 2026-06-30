@@ -28,6 +28,18 @@ class MainWindowController(NSObject):
     scroll_calculator_price_caption_label: NSTextField
     scroll_calculator_price_value_label: NSTextField
     scroll_calculator_status_label: NSTextField
+    scroll_add_to_cart_button: NSButton
+    item_add_to_cart_button: NSButton
+    cart_button: NSButton
+    cart_overlay_backdrop: NSView
+    cart_overlay_panel: NSView
+    cart_title_label: NSTextField
+    cart_empty_label: NSTextField
+    cart_scroll: NSScrollView
+    cart_content: FlippedView
+    cart_total_label: NSTextField
+    cart_close_button: NSButton
+    cart_checkout_button: NSButton
     dice_panel: NSView
     adventure_panel: NSView
     sidebar_logo_label: NSTextField
@@ -131,6 +143,10 @@ class MainWindowController(NSObject):
     scroll_calculator_spell: Spell | None
     scroll_calculator_level_values: list[int]
     scroll_calculator_views: list[Any]
+    cart_lines: dict[str, dict[str, Any]]
+    cart_row_views: list[dict[str, Any]]
+    cart_overlay_views: list[Any]
+    cart_overlay_visible: bool
     dice_title_label: NSTextField
     dice_hint_label: NSTextField
     dice_formula_label: NSTextField
@@ -205,6 +221,10 @@ class MainWindowController(NSObject):
         self.scroll_calculator_spell = None
         self.scroll_calculator_level_values = []
         self.scroll_calculator_views = []
+        self.cart_lines = {}
+        self.cart_row_views = []
+        self.cart_overlay_views = []
+        self.cart_overlay_visible = False
         self.dice_preset_buttons = []
         self.dice_pool = {4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0}
         self.adventure_vault_path = None
@@ -575,6 +595,8 @@ class MainWindowController(NSObject):
         self.scroll_calculator_status_label = make_label("Enter a spell.", (0, 0, 220, 40), 13)
         self.scroll_calculator_status_label.setTextColor_(theme_color("muted"))
         self.scroll_calculator_status_label.setLineBreakMode_(4)
+        self.scroll_add_to_cart_button = self._make_button("Add scroll", (0, 0, 140, 34), "addScrollToCart:")
+        self.scroll_add_to_cart_button.setEnabled_(False)
         self.scroll_calculator_views = [
             self.item_scroll_calculator_title_label,
             self.scroll_calculator_spell_label,
@@ -587,7 +609,43 @@ class MainWindowController(NSObject):
             self.scroll_calculator_price_caption_label,
             self.scroll_calculator_price_value_label,
             self.scroll_calculator_status_label,
+            self.scroll_add_to_cart_button,
         ]
+        self.item_add_to_cart_button = self._make_button("Add to cart", (0, 0, 132, 32), "addSelectedItemToCart:")
+        self.item_add_to_cart_button.setEnabled_(False)
+        self.cart_button = self._make_button("Cart 0 - 0 Copper", (0, 0, 190, 38), "openCart:")
+        self.cart_overlay_backdrop = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, width, height))
+        style_layer(self.cart_overlay_backdrop, theme_color("app_bg", 0.72), None, 0)
+        self.cart_overlay_panel = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 560, 460))
+        style_layer(self.cart_overlay_panel, theme_color("panel"), theme_color("border"), 14, 1)
+        self.cart_title_label = make_label("Shopping Cart", (0, 0, 260, 34), 24, True)
+        self.cart_total_label = make_label("Total: 0 Copper", (0, 0, 260, 30), 20, True)
+        self.cart_total_label.setTextColor_(theme_color("dice"))
+        self.cart_empty_label = make_label("Your cart is empty.", (0, 0, 220, 24), 14)
+        self.cart_empty_label.setTextColor_(theme_color("muted"))
+        self.cart_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 500, 260))
+        self.cart_scroll.setHasVerticalScroller_(True)
+        self.cart_scroll.setAutohidesScrollers_(False)
+        self.cart_scroll.setDrawsBackground_(False)
+        self.cart_scroll.setBorderType_(0)
+        style_layer(self.cart_scroll, theme_color("surface_soft"), theme_color("border_soft"), 8, 1)
+        self.cart_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 500, 260))
+        self.cart_scroll.setDocumentView_(self.cart_content)
+        self.cart_close_button = self._make_button("Close", (0, 0, 90, 34), "closeCart:")
+        self.cart_checkout_button = self._make_button("Checkout", (0, 0, 120, 34), "checkoutCart:")
+        self.cart_checkout_button.setEnabled_(False)
+        self.cart_overlay_views = [
+            self.cart_overlay_backdrop,
+            self.cart_overlay_panel,
+            self.cart_title_label,
+            self.cart_empty_label,
+            self.cart_scroll,
+            self.cart_total_label,
+            self.cart_close_button,
+            self.cart_checkout_button,
+        ]
+        for view in self.cart_overlay_views:
+            view.setHidden_(True)
 
         self.dice_title_label = make_label("Dice Roller", (0, 0, 240, 32), 24, True)
         self.dice_hint_label = make_label("", (0, 0, 720, 24), 13)
@@ -759,8 +817,10 @@ class MainWindowController(NSObject):
             self.item_category_filter_popup,
             self.item_results_scroll,
             *self.item_detail_header_views,
+            self.item_add_to_cart_button,
             self.item_detail_scroll,
             *self.scroll_calculator_views,
+            self.cart_button,
         ):
             self.content_view.addSubview_(view)
         for view in (
@@ -787,6 +847,8 @@ class MainWindowController(NSObject):
             self.adventure_web_view,
             self.adventure_editor_scroll,
         ):
+            self.content_view.addSubview_(view)
+        for view in self.cart_overlay_views:
             self.content_view.addSubview_(view)
 
         self.initiative_views = [
@@ -816,9 +878,11 @@ class MainWindowController(NSObject):
             self.item_category_filter_popup,
             self.item_results_scroll,
             *self.item_detail_header_views,
+            self.item_add_to_cart_button,
             self.item_detail_scroll,
             self.item_scroll_calculator_panel,
             *self.scroll_calculator_views,
+            self.cart_button,
         ]
         self.dice_views = [
             self.dice_panel,

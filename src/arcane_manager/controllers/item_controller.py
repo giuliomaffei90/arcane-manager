@@ -91,6 +91,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.scroll_calculator_level_popup.removeAllItems()
         self.scroll_calculator_level_popup.addItemWithTitle_("Choose spell")
         self.scroll_calculator_level_popup.setEnabled_(False)
+        self.scroll_add_to_cart_button.setEnabled_(False)
         self.scroll_calculator_match_label.setStringValue_("")
         self.scroll_calculator_rarity_value_label.setStringValue_("-")
         self.scroll_calculator_price_value_label.setStringValue_("-")
@@ -136,10 +137,190 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.scroll_calculator_rarity_value_label.setStringValue_(result.rarity)
         self.scroll_calculator_price_value_label.setStringValue_(f"{result.price_gp:,} gp")
         self.scroll_calculator_status_label.setStringValue_(f"{scroll_level_label(result.scroll_level)} scroll")
+        self.scroll_add_to_cart_button.setEnabled_(True)
+
+    @objc.python_method
+    def cartKeys(self) -> list[str]:
+        return list(self.cart_lines.keys())
+
+    @objc.python_method
+    def cartTotalCopper(self) -> int:
+        return sum(int(line["unit_copper"]) * int(line["quantity"]) for line in self.cart_lines.values())
+
+    @objc.python_method
+    def cartItemCount(self) -> int:
+        return sum(int(line["quantity"]) for line in self.cart_lines.values())
+
+    @objc.python_method
+    def addCartLine_key_name_unitCopper_(self, key: str, name: str, unit_copper: int):
+        if unit_copper < 0:
+            return
+        if key in self.cart_lines:
+            self.cart_lines[key]["quantity"] = int(self.cart_lines[key]["quantity"]) + 1
+        else:
+            self.cart_lines[key] = {
+                "name": name,
+                "unit_copper": int(unit_copper),
+                "quantity": 1,
+            }
+        self.refreshCartDisplay()
+
+    def addSelectedItemToCart_(self, _sender):
+        if self.selected_item is None:
+            return
+        entry = self.selectedItemDisplay()
+        if entry is None:
+            return
+        unit_copper = item_effective_cost_copper(entry, self.selected_item if entry != self.selected_item else None)
+        if unit_copper is None:
+            return
+        variant = selected_item_variant(self.selected_item)
+        variant_id = variant.id if variant is not None else "base"
+        key = f"item:{self.selected_item.id}:{variant_id}"
+        self.addCartLine_key_name_unitCopper_(key, entry.name, unit_copper)
+
+    def addScrollToCart_(self, _sender):
+        spell = self.scroll_calculator_spell
+        selected_level = self.selectedScrollCalculatorLevel()
+        if spell is None or selected_level is None:
+            return
+        result = price_scroll(spell, selected_level)
+        key = f"scroll:{spell.id}:{result.scroll_level}"
+        name = f"{spell.name} ({scroll_level_label(result.scroll_level)} scroll)"
+        self.addCartLine_key_name_unitCopper_(key, name, result.price_gp * 100)
+
+    def openCart_(self, _sender):
+        self.cart_overlay_visible = True
+        self.refreshCartDisplay()
+        self.applyCurrentTab()
+
+    def closeCart_(self, _sender):
+        self.cart_overlay_visible = False
+        self.applyCurrentTab()
+
+    def checkoutCart_(self, _sender):
+        self.cart_lines.clear()
+        self.cart_overlay_visible = False
+        self.refreshCartDisplay()
+        self.applyCurrentTab()
+
+    @objc.python_method
+    def cartKeyForSender_(self, sender) -> str | None:
+        index = int(sender.tag())
+        keys = self.cartKeys()
+        if 0 <= index < len(keys):
+            return keys[index]
+        return None
+
+    def increaseCartLine_(self, sender):
+        key = self.cartKeyForSender_(sender)
+        if key is None:
+            return
+        self.cart_lines[key]["quantity"] = int(self.cart_lines[key]["quantity"]) + 1
+        self.refreshCartDisplay()
+
+    def decreaseCartLine_(self, sender):
+        key = self.cartKeyForSender_(sender)
+        if key is None:
+            return
+        quantity = int(self.cart_lines[key]["quantity"]) - 1
+        if quantity <= 0:
+            self.cart_lines.pop(key, None)
+        else:
+            self.cart_lines[key]["quantity"] = quantity
+        self.refreshCartDisplay()
+
+    def removeCartLine_(self, sender):
+        key = self.cartKeyForSender_(sender)
+        if key is None:
+            return
+        self.cart_lines.pop(key, None)
+        self.refreshCartDisplay()
+
+    @objc.python_method
+    def ensureCartRows_(self, count: int):
+        while len(self.cart_row_views) < count:
+            row = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 54))
+            style_layer(row, theme_color("surface"), theme_color("border_soft"), 8, 1)
+            name_label = make_label("", (0, 0, 160, 20), 13, True)
+            name_label.setTextColor_(theme_color("text"))
+            detail_label = make_label("", (0, 0, 160, 18), 12)
+            detail_label.setTextColor_(theme_color("muted"))
+            subtotal_label = make_label("", (0, 0, 100, 20), 13, True)
+            subtotal_label.setTextColor_(theme_color("gold"))
+            decrement_button = self._make_button("-", (0, 0, 28, 26), "decreaseCartLine:")
+            increment_button = self._make_button("+", (0, 0, 28, 26), "increaseCartLine:")
+            remove_button = self._make_button("Remove", (0, 0, 72, 26), "removeCartLine:")
+            for view in (name_label, detail_label, subtotal_label, decrement_button, increment_button, remove_button):
+                row.addSubview_(view)
+            self.cart_content.addSubview_(row)
+            self.cart_row_views.append(
+                {
+                    "row": row,
+                    "name": name_label,
+                    "detail": detail_label,
+                    "subtotal": subtotal_label,
+                    "decrement": decrement_button,
+                    "increment": increment_button,
+                    "remove": remove_button,
+                }
+            )
+        for index in range(count, len(self.cart_row_views)):
+            self.cart_row_views[index]["row"].setHidden_(True)
+
+    @objc.python_method
+    def layoutCartRows(self):
+        if self.cart_scroll is None:
+            return
+        keys = self.cartKeys()
+        self.ensureCartRows_(len(keys))
+        scroll_width = max(240, self.cart_scroll.frame().size.width)
+        row_width = max(220, scroll_width - 24)
+        row_height = 54
+        row_gap = 8
+        content_height = max(self.cart_scroll.frame().size.height, len(keys) * (row_height + row_gap) + 8)
+        self.cart_content.setFrame_(NSMakeRect(0, 0, row_width, content_height))
+        for index, key in enumerate(keys):
+            line = self.cart_lines[key]
+            views = self.cart_row_views[index]
+            row_y = index * (row_height + row_gap)
+            views["row"].setFrame_(NSMakeRect(0, row_y, row_width, row_height))
+            views["row"].setHidden_(False)
+            unit_copper = int(line["unit_copper"])
+            quantity = int(line["quantity"])
+            subtotal = unit_copper * quantity
+            controls_width = 172
+            subtotal_width = min(140, max(90, row_width * 0.22))
+            name_width = max(90, row_width - controls_width - subtotal_width - 36)
+            views["name"].setStringValue_(str(line["name"]))
+            views["detail"].setStringValue_(f"{quantity} x {copper_value_text(unit_copper)}")
+            views["subtotal"].setStringValue_(copper_value_text(subtotal))
+            views["name"].setFrame_(NSMakeRect(12, 8, name_width, 20))
+            views["detail"].setFrame_(NSMakeRect(12, 30, name_width, 18))
+            subtotal_x = 12 + name_width + 8
+            views["subtotal"].setFrame_(NSMakeRect(subtotal_x, 17, subtotal_width, 20))
+            controls_x = row_width - controls_width - 10
+            views["decrement"].setFrame_(NSMakeRect(controls_x, 14, 28, 26))
+            views["increment"].setFrame_(NSMakeRect(controls_x + 34, 14, 28, 26))
+            views["remove"].setFrame_(NSMakeRect(controls_x + 72, 14, 88, 26))
+            for control_name in ("decrement", "increment", "remove"):
+                views[control_name].setTag_(index)
+
+    @objc.python_method
+    def refreshCartDisplay(self):
+        total = self.cartTotalCopper()
+        count = self.cartItemCount()
+        self.cart_button.setTitle_(f"Cart {count} - {copper_value_text(total)}")
+        self.cart_total_label.setStringValue_(f"Total: {copper_value_text(total)}")
+        self.cart_empty_label.setHidden_(count > 0 or not self.cart_overlay_visible)
+        self.cart_checkout_button.setEnabled_(count > 0)
+        self.layoutCartRows()
+        self.layoutMainWindow()
 
     def setItemDetailHeaderHidden_(self, hidden: bool):
         for view in self.item_detail_header_views:
             view.setHidden_(hidden)
+        self.item_add_to_cart_button.setHidden_(hidden)
 
     @objc.python_method
     def configureItemVariantPopupForItem_(self, item):
@@ -225,11 +406,11 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.item_detail_meta_label.setTextColor_(theme_color("gold"))
 
         fields = []
-        if item.cost and item.cost.strip():
-            fields.append(("Cost", item_display_cost(item.cost)))
-            merchant_value = merchant_value_text(item.cost)
-            if merchant_value:
-                fields.append(("Merchant Buys", merchant_value))
+        effective_copper = item_effective_cost_copper(item, self.selected_item if item != self.selected_item else None)
+        self.item_add_to_cart_button.setEnabled_(effective_copper is not None)
+        if effective_copper is not None:
+            fields.append(("Cost", copper_value_text(effective_copper)))
+            fields.append(("Merchant Buys", copper_value_text((effective_copper * 60) // 100)))
         if item.ac:
             fields.append(("AC", item.ac))
         if item.rarity:

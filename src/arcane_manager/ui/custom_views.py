@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..platform import *
 from ..constants import *
-from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_cost_color_name, item_display_cost, item_summary
+from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_effective_cost_color_name, item_effective_value_text, item_display_name, item_summary
 from ..text_utils import normalize
 from .core import *
 
@@ -327,12 +327,12 @@ class SearchResultButton(StyledButton):
 
     def configureItemResult_(self, item: Item):
         self.row_kind = "item"
-        self.primary_text = item.name
+        self.primary_text = item_display_name(item)
         self.secondary_text = item.category
-        self.hp_text = item.cost
+        self.hp_text = item_effective_cost_color_name(item)
         self.ac_text = ""
         self.cr_text = ""
-        self.meta_text = item_display_cost(item.cost)
+        self.meta_text = item_effective_value_text(item)
         self.spell_school = ""
         self.setToolTip_(item_summary(item))
         self.setNeedsDisplay_(True)
@@ -401,7 +401,7 @@ class SearchResultButton(StyledButton):
     def _drawItemResult_(self, bounds):
         width = bounds.size.width
         primary = theme_color("text")
-        metadata_color = theme_color(item_cost_color_name(self.hp_text))
+        metadata_color = theme_color(self.hp_text)
         draw_fitted_text(self.primary_text, NSMakeRect(14, 7, width - 28, 17), 13.5, primary, True)
         if width >= 340 and self.meta_text:
             meta_w = min(130, max(82, width * 0.30))
