@@ -240,26 +240,16 @@ class MainWindowController(objc.Category(_MainWindowController)):
     @objc.python_method
     def ensureCartRows_(self, count: int):
         while len(self.cart_row_views) < count:
-            row = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 54))
-            style_layer(row, theme_color("surface"), theme_color("border_soft"), 8, 1)
-            name_label = make_label("", (0, 0, 160, 20), 13, True)
-            name_label.setTextColor_(theme_color("text"))
-            detail_label = make_label("", (0, 0, 160, 18), 12)
-            detail_label.setTextColor_(theme_color("muted"))
-            subtotal_label = make_label("", (0, 0, 100, 20), 13, True)
-            subtotal_label.setTextColor_(theme_color("gold"))
+            row = CartReceiptRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 38))
             decrement_button = self._make_button("-", (0, 0, 28, 26), "decreaseCartLine:")
             increment_button = self._make_button("+", (0, 0, 28, 26), "increaseCartLine:")
             remove_button = self._make_button("Remove", (0, 0, 72, 26), "removeCartLine:")
-            for view in (name_label, detail_label, subtotal_label, decrement_button, increment_button, remove_button):
+            for view in (decrement_button, increment_button, remove_button):
                 row.addSubview_(view)
             self.cart_content.addSubview_(row)
             self.cart_row_views.append(
                 {
                     "row": row,
-                    "name": name_label,
-                    "detail": detail_label,
-                    "subtotal": subtotal_label,
                     "decrement": decrement_button,
                     "increment": increment_button,
                     "remove": remove_button,
@@ -275,9 +265,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         keys = self.cartKeys()
         self.ensureCartRows_(len(keys))
         scroll_width = max(240, self.cart_scroll.frame().size.width)
-        row_width = max(220, scroll_width - 24)
-        row_height = 54
-        row_gap = 8
+        row_width = max(220, scroll_width - 20)
+        row_height = 38
+        row_gap = 4
         content_height = max(self.cart_scroll.frame().size.height, len(keys) * (row_height + row_gap) + 8)
         self.cart_content.setFrame_(NSMakeRect(0, 0, row_width, content_height))
         for index, key in enumerate(keys):
@@ -289,20 +279,16 @@ class MainWindowController(objc.Category(_MainWindowController)):
             unit_copper = int(line["unit_copper"])
             quantity = int(line["quantity"])
             subtotal = unit_copper * quantity
-            controls_width = 172
-            subtotal_width = min(140, max(90, row_width * 0.22))
-            name_width = max(90, row_width - controls_width - subtotal_width - 36)
-            views["name"].setStringValue_(str(line["name"]))
-            views["detail"].setStringValue_(f"{quantity} x {copper_value_text(unit_copper)}")
-            views["subtotal"].setStringValue_(copper_value_text(subtotal))
-            views["name"].setFrame_(NSMakeRect(12, 8, name_width, 20))
-            views["detail"].setFrame_(NSMakeRect(12, 30, name_width, 18))
-            subtotal_x = 12 + name_width + 8
-            views["subtotal"].setFrame_(NSMakeRect(subtotal_x, 17, subtotal_width, 20))
-            controls_x = row_width - controls_width - 10
-            views["decrement"].setFrame_(NSMakeRect(controls_x, 14, 28, 26))
-            views["increment"].setFrame_(NSMakeRect(controls_x + 34, 14, 28, 26))
-            views["remove"].setFrame_(NSMakeRect(controls_x + 72, 14, 88, 26))
+            views["row"].configureLineNumber_quantity_name_subtotalText_(
+                index + 1,
+                quantity,
+                str(line["name"]),
+                receipt_currency_text(subtotal),
+            )
+            controls_x = row_width - 158
+            views["decrement"].setFrame_(NSMakeRect(controls_x, 6, 28, 26))
+            views["increment"].setFrame_(NSMakeRect(controls_x + 34, 6, 28, 26))
+            views["remove"].setFrame_(NSMakeRect(controls_x + 70, 6, 82, 26))
             for control_name in ("decrement", "increment", "remove"):
                 views[control_name].setTag_(index)
 
@@ -310,9 +296,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def refreshCartDisplay(self):
         total = self.cartTotalCopper()
         count = self.cartItemCount()
-        self.cart_button.setTitle_(f"Cart {count} - {copper_value_text(total)}")
-        self.cart_total_label.setStringValue_(f"Total: {copper_value_text(total)}")
-        self.cart_empty_label.setHidden_(count > 0 or not self.cart_overlay_visible)
+        self.cart_button.setBadgeCount_(count)
+        if self.cart_overlay_panel is not None:
+            self.cart_overlay_panel.setTotalText_taxText_itemCount_totalTopY_(
+                receipt_currency_text(total),
+                "0",
+                count,
+                getattr(self.cart_overlay_panel, "total_top_y", 210.0),
+            )
         self.cart_checkout_button.setEnabled_(count > 0)
         self.layoutCartRows()
         self.layoutMainWindow()

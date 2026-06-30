@@ -56,7 +56,6 @@ class MainWindowController(objc.Category(_MainWindowController)):
             view.setHidden_(not show_adventure)
         for view in self.cart_overlay_views:
             view.setHidden_(not (show_items and self.cart_overlay_visible))
-        self.cart_empty_label.setHidden_(not (show_items and self.cart_overlay_visible and self.cartItemCount() == 0))
         if show_adventure:
             self.adventure_web_view.setHidden_(self.adventure_is_editing)
             self.adventure_editor_scroll.setHidden_(not self.adventure_is_editing)

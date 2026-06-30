@@ -26,6 +26,7 @@ DEFAULT_BESTIARY_FILE = bundled_resource_path("dataset/bestiary.json")
 DEFAULT_ITEMS_FILE = bundled_resource_path("dataset/items.json")
 DEFAULT_DICE_ROLLER_HTML = bundled_resource_path("assets/dice_roller/index.html")
 DEFAULT_ICON_DIR = bundled_resource_path("assets/icons")
+DEFAULT_FONT_DIR = bundled_resource_path("assets/fonts")
 LOG_FILE = Path.home() / "Library" / "Logs" / "Arcane Manager" / "arcane_manager.log"
 APP_RETAINED_OBJECTS: list[Any] = []
 MAX_SPELL_FILE_BYTES = 12 * 1024 * 1024

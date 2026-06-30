@@ -33,11 +33,8 @@ class MainWindowController(NSObject):
     cart_button: NSButton
     cart_overlay_backdrop: NSView
     cart_overlay_panel: NSView
-    cart_title_label: NSTextField
-    cart_empty_label: NSTextField
     cart_scroll: NSScrollView
     cart_content: FlippedView
-    cart_total_label: NSTextField
     cart_close_button: NSButton
     cart_checkout_button: NSButton
     dice_panel: NSView
@@ -613,16 +610,12 @@ class MainWindowController(NSObject):
         ]
         self.item_add_to_cart_button = self._make_button("Add to cart", (0, 0, 132, 32), "addSelectedItemToCart:")
         self.item_add_to_cart_button.setEnabled_(False)
-        self.cart_button = self._make_button("Cart 0 - 0 Copper", (0, 0, 190, 38), "openCart:")
+        self.cart_button = CartIconButton.alloc().initWithFrame_(NSMakeRect(0, 0, 64, 54))
+        self.cart_button.setTarget_(self)
+        self.cart_button.setAction_("openCart:")
         self.cart_overlay_backdrop = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, width, height))
-        style_layer(self.cart_overlay_backdrop, theme_color("app_bg", 0.72), None, 0)
-        self.cart_overlay_panel = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 560, 460))
-        style_layer(self.cart_overlay_panel, theme_color("panel"), theme_color("border"), 14, 1)
-        self.cart_title_label = make_label("Shopping Cart", (0, 0, 260, 34), 24, True)
-        self.cart_total_label = make_label("Total: 0 Copper", (0, 0, 260, 30), 20, True)
-        self.cart_total_label.setTextColor_(theme_color("dice"))
-        self.cart_empty_label = make_label("Your cart is empty.", (0, 0, 220, 24), 14)
-        self.cart_empty_label.setTextColor_(theme_color("muted"))
+        style_layer(self.cart_overlay_backdrop, ui_color(0.02, 0.03, 0.04, 0.72), None, 0)
+        self.cart_overlay_panel = CartReceiptPanelView.alloc().initWithFrame_(NSMakeRect(0, 0, 560, 460))
         self.cart_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 500, 260))
         self.cart_scroll.setHasVerticalScroller_(True)
         self.cart_scroll.setAutohidesScrollers_(False)
@@ -631,16 +624,14 @@ class MainWindowController(NSObject):
         style_layer(self.cart_scroll, theme_color("surface_soft"), theme_color("border_soft"), 8, 1)
         self.cart_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 500, 260))
         self.cart_scroll.setDocumentView_(self.cart_content)
-        self.cart_close_button = self._make_button("Close", (0, 0, 90, 34), "closeCart:")
+        self.cart_close_button = self._make_button("x", (0, 0, 32, 32), "closeCart:")
+        self.cart_close_button.setToolTip_("Close cart")
         self.cart_checkout_button = self._make_button("Checkout", (0, 0, 120, 34), "checkoutCart:")
         self.cart_checkout_button.setEnabled_(False)
         self.cart_overlay_views = [
             self.cart_overlay_backdrop,
             self.cart_overlay_panel,
-            self.cart_title_label,
-            self.cart_empty_label,
             self.cart_scroll,
-            self.cart_total_label,
             self.cart_close_button,
             self.cart_checkout_button,
         ]
