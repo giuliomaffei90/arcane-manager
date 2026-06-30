@@ -72,6 +72,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.refreshSpellResults()
         elif field == self.item_search_field:
             self.refreshItemResults()
+        elif field == self.scroll_calculator_spell_field:
+            self.refreshScrollCalculator()
 
     def textDidChange_(self, notification):
         if notification.object() == self.adventure_editor_view:

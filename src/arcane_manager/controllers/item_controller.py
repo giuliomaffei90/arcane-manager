@@ -61,6 +61,82 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def refreshItemResults_(self, _sender):
         self.refreshItemResults()
 
+    def selectScrollCalculatorLevel_(self, _sender):
+        self.renderScrollCalculatorPrice()
+
+    @objc.python_method
+    def selectedScrollCalculatorLevel(self) -> int | None:
+        index = int(self.scroll_calculator_level_popup.indexOfSelectedItem())
+        if 0 <= index < len(self.scroll_calculator_level_values):
+            return self.scroll_calculator_level_values[index]
+        return None
+
+    @objc.python_method
+    def configureScrollCalculatorLevelPopupForSpell_(self, spell):
+        previous_level = self.selectedScrollCalculatorLevel()
+        self.scroll_calculator_level_values = valid_scroll_levels_for_spell(spell)
+        self.scroll_calculator_level_popup.removeAllItems()
+        for level in self.scroll_calculator_level_values:
+            self.scroll_calculator_level_popup.addItemWithTitle_(scroll_level_label(level))
+        self.scroll_calculator_level_popup.setEnabled_(True)
+        if previous_level in self.scroll_calculator_level_values:
+            self.scroll_calculator_level_popup.selectItemAtIndex_(self.scroll_calculator_level_values.index(previous_level))
+        else:
+            self.scroll_calculator_level_popup.selectItemAtIndex_(0)
+
+    @objc.python_method
+    def resetScrollCalculator_(self, status: str):
+        self.scroll_calculator_spell = None
+        self.scroll_calculator_level_values = []
+        self.scroll_calculator_level_popup.removeAllItems()
+        self.scroll_calculator_level_popup.addItemWithTitle_("Choose spell")
+        self.scroll_calculator_level_popup.setEnabled_(False)
+        self.scroll_calculator_match_label.setStringValue_("")
+        self.scroll_calculator_rarity_value_label.setStringValue_("-")
+        self.scroll_calculator_price_value_label.setStringValue_("-")
+        self.scroll_calculator_status_label.setStringValue_(status)
+
+    def refreshScrollCalculator_(self, _sender):
+        self.refreshScrollCalculator()
+
+    @objc.python_method
+    def refreshScrollCalculator(self):
+        query = str(self.scroll_calculator_spell_field.stringValue()).strip()
+        if not query:
+            self.resetScrollCalculator_("Enter a spell.")
+            return
+
+        matches = search_spells(query, self.spells, limit=1)
+        if not matches:
+            self.resetScrollCalculator_("No matching spell.")
+            return
+
+        spell = matches[0]
+        previous_spell_id = self.scroll_calculator_spell.id if self.scroll_calculator_spell is not None else ""
+        self.scroll_calculator_spell = spell
+        if previous_spell_id != spell.id or not self.scroll_calculator_level_values:
+            self.configureScrollCalculatorLevelPopupForSpell_(spell)
+        self.renderScrollCalculatorPrice()
+
+    @objc.python_method
+    def renderScrollCalculatorPrice(self):
+        spell = self.scroll_calculator_spell
+        if spell is None:
+            return
+        selected_level = self.selectedScrollCalculatorLevel()
+        if selected_level is None:
+            self.configureScrollCalculatorLevelPopupForSpell_(spell)
+            selected_level = self.selectedScrollCalculatorLevel()
+        if selected_level is None:
+            self.resetScrollCalculator_("No valid scroll level.")
+            return
+
+        result = price_scroll(spell, selected_level)
+        self.scroll_calculator_match_label.setStringValue_(f"Matched: {spell.name}")
+        self.scroll_calculator_rarity_value_label.setStringValue_(result.rarity)
+        self.scroll_calculator_price_value_label.setStringValue_(f"{result.price_gp:,} gp")
+        self.scroll_calculator_status_label.setStringValue_(f"{scroll_level_label(result.scroll_level)} scroll")
+
     def setItemDetailHeaderHidden_(self, hidden: bool):
         for view in self.item_detail_header_views:
             view.setHidden_(hidden)

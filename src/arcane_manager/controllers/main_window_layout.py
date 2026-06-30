@@ -10,7 +10,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.window.setBackgroundColor_(theme_color("app_bg"))
         style_layer(self.content_view, theme_color("app_bg"), None, 0)
         style_layer(self.sidebar_panel, theme_color("app_bg"), None, 0)
-        for panel in (self.combat_panel, self.spell_panel, self.item_panel, self.dice_panel, self.adventure_panel):
+        for panel in (
+            self.combat_panel,
+            self.spell_panel,
+            self.item_panel,
+            self.item_scroll_calculator_panel,
+            self.dice_panel,
+            self.adventure_panel,
+        ):
             style_layer(panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         style_layer(self.monster_sheet_drawer, theme_color("panel_alt"), theme_color("border_soft"), 12, 1)
         style_layer(self.sidebar_logo_label, theme_color("selection"), theme_color("link"), 10, 1)
@@ -50,7 +57,12 @@ class MainWindowController(objc.Category(_MainWindowController)):
             if button is not None:
                 style_button_layer(button)
 
-        for field in (self.monster_search_field, self.spell_search_field, self.item_search_field):
+        for field in (
+            self.monster_search_field,
+            self.spell_search_field,
+            self.item_search_field,
+            self.scroll_calculator_spell_field,
+        ):
             style_text_input(field)
         for popup in (
             self.party_popup,
@@ -59,6 +71,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.spell_school_filter_popup,
             self.item_category_filter_popup,
             self.item_variant_popup,
+            self.scroll_calculator_level_popup,
         ):
             popup.setNeedsDisplay_(True)
 
@@ -70,17 +83,26 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.dice_hint_label,
             self.dice_result_label,
             self.adventure_status_label,
+            self.scroll_calculator_spell_label,
+            self.scroll_calculator_level_label,
+            self.scroll_calculator_match_label,
+            self.scroll_calculator_rarity_caption_label,
+            self.scroll_calculator_price_caption_label,
+            self.scroll_calculator_status_label,
         )
         for label in muted_labels:
             label.setTextColor_(theme_color("muted"))
         for label in (self.turn_label, self.adventure_dirty_label):
             label.setTextColor_(theme_color("gold"))
         self.item_detail_meta_label.setTextColor_(theme_color("gold"))
+        self.scroll_calculator_rarity_value_label.setTextColor_(theme_color("gold"))
+        self.scroll_calculator_price_value_label.setTextColor_(theme_color("dice"))
         for label in (
             self.spell_components_label,
             self.spell_component_material_label,
             self.spell_stats_label,
             self.item_detail_fields_label,
+            self.item_scroll_calculator_title_label,
         ):
             label.setTextColor_(theme_color("text"))
         self.applySpellDetailSchoolColor()
@@ -192,7 +214,40 @@ class MainWindowController(objc.Category(_MainWindowController)):
             )
             self.monster_sheet_body.setFrame_(NSMakeRect(0, 0, body_width, body_height))
         self.spell_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
-        self.item_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
+        item_tab_x = 20
+        item_tab_y = 20
+        item_tab_width = max(900, width - 40)
+        item_tab_height = max(520, content_height - 20)
+        item_panel_gap = 16
+        item_calculator_width = min(420, max(300, item_tab_width * 0.30))
+        item_left_width = max(560, item_tab_width - item_calculator_width - item_panel_gap)
+        self.item_panel.setFrame_(NSMakeRect(item_tab_x, item_tab_y, item_left_width, item_tab_height))
+        item_calculator_x = item_tab_x + item_left_width + item_panel_gap
+        self.item_scroll_calculator_panel.setFrame_(
+            NSMakeRect(item_calculator_x, item_tab_y, item_calculator_width, item_tab_height)
+        )
+        calculator_margin = 28
+        self.item_scroll_calculator_title_label.setFrame_(
+            NSMakeRect(
+                item_calculator_x + calculator_margin,
+                item_tab_y + item_tab_height - calculator_margin - 30,
+                max(160, item_calculator_width - calculator_margin * 2),
+                30,
+            )
+        )
+        calculator_x = item_calculator_x + calculator_margin
+        calculator_width = max(160, item_calculator_width - calculator_margin * 2)
+        calculator_top = item_tab_y + item_tab_height - calculator_margin - 46
+        self.scroll_calculator_spell_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 28, calculator_width, 18))
+        self.scroll_calculator_spell_field.setFrame_(NSMakeRect(calculator_x, calculator_top - 68, calculator_width, 34))
+        self.scroll_calculator_level_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 112, calculator_width, 18))
+        self.scroll_calculator_level_popup.setFrame_(NSMakeRect(calculator_x, calculator_top - 152, calculator_width, 34))
+        self.scroll_calculator_match_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 184, calculator_width, 22))
+        self.scroll_calculator_rarity_caption_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 238, calculator_width, 18))
+        self.scroll_calculator_rarity_value_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 270, calculator_width, 28))
+        self.scroll_calculator_price_caption_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 326, calculator_width, 18))
+        self.scroll_calculator_price_value_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 374, calculator_width, 40))
+        self.scroll_calculator_status_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 416, calculator_width, 38))
 
         y = sidebar_document_height - 52
         self.sidebar_logo_label.setFrame_(NSMakeRect(sidebar_margin, y - 2, 36, 36))
@@ -364,13 +419,13 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 NSMakeRect(0, 0, detail_width - 24, max(scroll_height, self.spell_detail_view.frame().size.height))
             )
 
-        item_margin = 44
+        item_margin = 32
         item_panel_frame = self.item_panel.frame()
         item_x = item_panel_frame.origin.x + item_margin
         item_y = item_panel_frame.origin.y + item_margin
         item_width = item_panel_frame.size.width - item_margin * 2
         item_height = item_panel_frame.size.height - item_margin * 2
-        item_list_width = min(430, max(320, item_width * 0.38))
+        item_list_width = min(430, max(300, item_width * 0.38))
         item_filter_gap = 10
         item_category_filter_w = min(170, max(134, item_list_width * 0.42))
         item_search_w = max(160, item_list_width - item_category_filter_w - item_filter_gap)
@@ -388,8 +443,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.ensureItemResultRows_(visible_item_rows)
         self.updateItemResultRows_(False)
 
-        item_detail_x = item_x + item_list_width + 28
-        item_detail_width = max(300, item_width - item_list_width - 28)
+        item_detail_gap = 24
+        item_detail_x = item_x + item_list_width + item_detail_gap
+        item_detail_width = max(240, item_width - item_list_width - item_detail_gap)
         if self.item_detail_title_label.isHidden():
             self.item_detail_scroll.setFrame_(NSMakeRect(item_detail_x, item_y, item_detail_width, item_height))
             self.item_detail_view.textContainer().setContainerSize_(NSMakeSize(max(120, item_detail_width - 24), 100000))

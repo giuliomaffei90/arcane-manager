@@ -16,6 +16,18 @@ class MainWindowController(NSObject):
     combat_panel: NSView
     spell_panel: NSView
     item_panel: NSView
+    item_scroll_calculator_panel: NSView
+    item_scroll_calculator_title_label: NSTextField
+    scroll_calculator_spell_label: NSTextField
+    scroll_calculator_spell_field: NSTextField
+    scroll_calculator_level_label: NSTextField
+    scroll_calculator_level_popup: NSPopUpButton
+    scroll_calculator_match_label: NSTextField
+    scroll_calculator_rarity_caption_label: NSTextField
+    scroll_calculator_rarity_value_label: NSTextField
+    scroll_calculator_price_caption_label: NSTextField
+    scroll_calculator_price_value_label: NSTextField
+    scroll_calculator_status_label: NSTextField
     dice_panel: NSView
     adventure_panel: NSView
     sidebar_logo_label: NSTextField
@@ -116,6 +128,9 @@ class MainWindowController(NSObject):
     item_detail_view: DiceTextView
     displayed_items: list[Item]
     selected_item: Item | None
+    scroll_calculator_spell: Spell | None
+    scroll_calculator_level_values: list[int]
+    scroll_calculator_views: list[Any]
     dice_title_label: NSTextField
     dice_hint_label: NSTextField
     dice_formula_label: NSTextField
@@ -187,6 +202,9 @@ class MainWindowController(NSObject):
         self.displayed_items = []
         self.selected_item = None
         self.item_result_buttons = []
+        self.scroll_calculator_spell = None
+        self.scroll_calculator_level_values = []
+        self.scroll_calculator_views = []
         self.dice_preset_buttons = []
         self.dice_pool = {4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0}
         self.adventure_vault_path = None
@@ -280,6 +298,8 @@ class MainWindowController(NSObject):
         style_layer(self.spell_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         self.item_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
         style_layer(self.item_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
+        self.item_scroll_calculator_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, 320, height - 74))
+        style_layer(self.item_scroll_calculator_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         self.dice_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
         style_layer(self.dice_panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         self.adventure_panel = NSView.alloc().initWithFrame_(NSMakeRect(20, 20, width - 40, height - 74))
@@ -526,6 +546,48 @@ class MainWindowController(NSObject):
         self.item_detail_view.setTextColor_(theme_color("text"))
         self.item_detail_view.setRollTarget_(self)
         self.item_detail_scroll.setDocumentView_(self.item_detail_view)
+        self.item_scroll_calculator_title_label = make_label("Magic Scroll Calculator", (0, 0, 320, 30), 22, True)
+        self.item_scroll_calculator_title_label.setTextColor_(theme_color("text"))
+        self.item_scroll_calculator_title_label.setLineBreakMode_(4)
+        self.scroll_calculator_spell_label = make_label("Spell", (0, 0, 120, 20), 12, True)
+        self.scroll_calculator_spell_label.setTextColor_(theme_color("muted"))
+        self.scroll_calculator_spell_field = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 220, 34))
+        self.scroll_calculator_spell_field.setPlaceholderString_("Search spell")
+        self.scroll_calculator_spell_field.setDelegate_(self)
+        style_text_input(self.scroll_calculator_spell_field)
+        self.scroll_calculator_level_label = make_label("Scroll level", (0, 0, 160, 20), 12, True)
+        self.scroll_calculator_level_label.setTextColor_(theme_color("muted"))
+        self.scroll_calculator_level_popup = StyledPopUpButton.alloc().initWithFrame_(NSMakeRect(0, 0, 220, 34))
+        self.scroll_calculator_level_popup.addItemWithTitle_("Choose spell")
+        self.scroll_calculator_level_popup.setEnabled_(False)
+        self.scroll_calculator_level_popup.setTarget_(self)
+        self.scroll_calculator_level_popup.setAction_("selectScrollCalculatorLevel:")
+        self.scroll_calculator_match_label = make_label("", (0, 0, 220, 22), 13)
+        self.scroll_calculator_match_label.setTextColor_(theme_color("muted"))
+        self.scroll_calculator_rarity_caption_label = make_label("Rarity", (0, 0, 120, 20), 12, True)
+        self.scroll_calculator_rarity_caption_label.setTextColor_(theme_color("muted"))
+        self.scroll_calculator_rarity_value_label = make_label("-", (0, 0, 220, 28), 18, True)
+        self.scroll_calculator_rarity_value_label.setTextColor_(theme_color("gold"))
+        self.scroll_calculator_price_caption_label = make_label("Price", (0, 0, 120, 20), 12, True)
+        self.scroll_calculator_price_caption_label.setTextColor_(theme_color("muted"))
+        self.scroll_calculator_price_value_label = make_label("-", (0, 0, 220, 40), 30, True)
+        self.scroll_calculator_price_value_label.setTextColor_(theme_color("dice"))
+        self.scroll_calculator_status_label = make_label("Enter a spell.", (0, 0, 220, 40), 13)
+        self.scroll_calculator_status_label.setTextColor_(theme_color("muted"))
+        self.scroll_calculator_status_label.setLineBreakMode_(4)
+        self.scroll_calculator_views = [
+            self.item_scroll_calculator_title_label,
+            self.scroll_calculator_spell_label,
+            self.scroll_calculator_spell_field,
+            self.scroll_calculator_level_label,
+            self.scroll_calculator_level_popup,
+            self.scroll_calculator_match_label,
+            self.scroll_calculator_rarity_caption_label,
+            self.scroll_calculator_rarity_value_label,
+            self.scroll_calculator_price_caption_label,
+            self.scroll_calculator_price_value_label,
+            self.scroll_calculator_status_label,
+        ]
 
         self.dice_title_label = make_label("Dice Roller", (0, 0, 240, 32), 24, True)
         self.dice_hint_label = make_label("", (0, 0, 720, 24), 13)
@@ -632,6 +694,7 @@ class MainWindowController(NSObject):
         self.content_view.addSubview_(self.monster_sheet_drawer)
         self.content_view.addSubview_(self.spell_panel)
         self.content_view.addSubview_(self.item_panel)
+        self.content_view.addSubview_(self.item_scroll_calculator_panel)
         self.content_view.addSubview_(self.dice_panel)
         self.content_view.addSubview_(self.adventure_panel)
         self.content_view.addSubview_(self.initiative_tab_button)
@@ -697,6 +760,7 @@ class MainWindowController(NSObject):
             self.item_results_scroll,
             *self.item_detail_header_views,
             self.item_detail_scroll,
+            *self.scroll_calculator_views,
         ):
             self.content_view.addSubview_(view)
         for view in (
@@ -753,6 +817,8 @@ class MainWindowController(NSObject):
             self.item_results_scroll,
             *self.item_detail_header_views,
             self.item_detail_scroll,
+            self.item_scroll_calculator_panel,
+            *self.scroll_calculator_views,
         ]
         self.dice_views = [
             self.dice_panel,
