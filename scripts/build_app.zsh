@@ -9,6 +9,14 @@ APP_NAME="Arcane Manager"
 APP_ICON_PNG="assets/ArcaneManager.png"
 APP_ICON_ICNS="assets/ArcaneManager.icns"
 
+stop_running_app() {
+  osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+  sleep 1
+  pkill -f "$APP_NAME.app/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+  pkill -f "$APP_NAME.app/Contents/MacOS/ArcaneManager" 2>/dev/null || true
+  pkill -f "$ROOT_DIR/main.py" 2>/dev/null || true
+}
+
 if [ ! -x "$PYTHON_BIN" ]; then
   PYTHON_BIN="$(command -v python3)"
 fi
@@ -40,6 +48,8 @@ if [ -f "$APP_ICON_PNG" ]; then
   iconutil -c icns "$ICONSET_DIR" -o "$APP_ICON_ICNS"
   rm -rf "${ICONSET_DIR:h}"
 fi
+
+stop_running_app
 
 rm -rf build dist "$APP_NAME.app" "$APP_NAME.spec" "$APP_NAME.zip" "$APP_NAME"*.dmg(N) pyinstaller_build.log
 
@@ -80,3 +90,4 @@ codesign --force --deep --sign - "$APP_NAME.app"
 rm -rf build dist "$APP_NAME.spec" pyinstaller_build.log
 
 du -sh "$APP_NAME.app"
+open -n "$ROOT_DIR/$APP_NAME.app"
