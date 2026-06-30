@@ -173,6 +173,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def spellResultsBoundsDidChange_(self, _notification):
         self.clearHoverStatesForViews_(self.spell_result_buttons)
         self.updateSpellResultRows_(False)
+        self.spell_results_indicator.setNeedsDisplay_(True)
 
     def refreshSpellResults_(self, _sender):
         self.refreshSpellResults()
@@ -208,6 +209,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.spell_results_scroll.contentView().scrollToPoint_(NSMakePoint(0, 0))
             self.spell_results_scroll.reflectScrolledClipView_(self.spell_results_scroll.contentView())
             self.updateSpellResultRows_(True)
+            self.spell_results_indicator.setNeedsDisplay_(True)
         if self.displayed_spells:
             self.showSpellInDetail_(self.displayed_spells[0])
         else:

@@ -106,6 +106,7 @@ class MainWindowController(NSObject):
     spell_school_filter_popup: NSPopUpButton
     spell_results_scroll: NSScrollView
     spell_results_content: FlippedView
+    spell_results_indicator: PersistentScrollIndicator
     spell_detail_title_label: NSTextField
     spell_detail_italian_label: NSTextField
     spell_detail_meta_label: NSTextField
@@ -127,6 +128,7 @@ class MainWindowController(NSObject):
     item_category_filter_popup: NSPopUpButton
     item_results_scroll: NSScrollView
     item_results_content: FlippedView
+    item_results_indicator: PersistentScrollIndicator
     item_detail_title_label: NSTextField
     item_detail_meta_label: NSTextField
     item_variant_popup: NSPopUpButton
@@ -447,13 +449,15 @@ class MainWindowController(NSObject):
         self.spell_school_filter_popup.setTarget_(self)
         self.spell_school_filter_popup.setAction_("refreshSpellResults:")
         self.spell_results_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
-        self.spell_results_scroll.setHasVerticalScroller_(True)
+        self.spell_results_scroll.setHasVerticalScroller_(False)
         self.spell_results_scroll.setAutohidesScrollers_(False)
         self.spell_results_scroll.setDrawsBackground_(False)
         self.spell_results_scroll.setBorderType_(0)
         self.spell_results_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
         self.spell_results_scroll.setDocumentView_(self.spell_results_content)
         self.spell_results_scroll.contentView().setPostsBoundsChangedNotifications_(True)
+        self.spell_results_indicator = PersistentScrollIndicator.alloc().initWithFrame_(NSMakeRect(0, 0, 8, 100))
+        self.spell_results_indicator.setScrollView_(self.spell_results_scroll)
         NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
             self,
             "spellResultsBoundsDidChange:",
@@ -523,13 +527,15 @@ class MainWindowController(NSObject):
         self.item_category_filter_popup.setTarget_(self)
         self.item_category_filter_popup.setAction_("refreshItemResults:")
         self.item_results_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
-        self.item_results_scroll.setHasVerticalScroller_(True)
+        self.item_results_scroll.setHasVerticalScroller_(False)
         self.item_results_scroll.setAutohidesScrollers_(False)
         self.item_results_scroll.setDrawsBackground_(False)
         self.item_results_scroll.setBorderType_(0)
         self.item_results_content = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
         self.item_results_scroll.setDocumentView_(self.item_results_content)
         self.item_results_scroll.contentView().setPostsBoundsChangedNotifications_(True)
+        self.item_results_indicator = PersistentScrollIndicator.alloc().initWithFrame_(NSMakeRect(0, 0, 8, 100))
+        self.item_results_indicator.setScrollView_(self.item_results_scroll)
         NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
             self,
             "itemResultsBoundsDidChange:",
@@ -799,6 +805,7 @@ class MainWindowController(NSObject):
             self.spell_level_filter_popup,
             self.spell_school_filter_popup,
             self.spell_results_scroll,
+            self.spell_results_indicator,
             *self.spell_detail_header_views,
             self.spell_detail_scroll,
         ):
@@ -807,6 +814,7 @@ class MainWindowController(NSObject):
             self.item_search_field,
             self.item_category_filter_popup,
             self.item_results_scroll,
+            self.item_results_indicator,
             *self.item_detail_header_views,
             self.item_add_to_cart_button,
             self.item_detail_scroll,
@@ -860,6 +868,7 @@ class MainWindowController(NSObject):
             self.spell_level_filter_popup,
             self.spell_school_filter_popup,
             self.spell_results_scroll,
+            self.spell_results_indicator,
             *self.spell_detail_header_views,
             self.spell_detail_scroll,
         ]
@@ -868,6 +877,7 @@ class MainWindowController(NSObject):
             self.item_search_field,
             self.item_category_filter_popup,
             self.item_results_scroll,
+            self.item_results_indicator,
             *self.item_detail_header_views,
             self.item_add_to_cart_button,
             self.item_detail_scroll,

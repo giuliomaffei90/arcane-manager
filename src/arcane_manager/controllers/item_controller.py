@@ -57,6 +57,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def itemResultsBoundsDidChange_(self, _notification):
         self.clearHoverStatesForViews_(self.item_result_buttons)
         self.updateItemResultRows_(False)
+        self.item_results_indicator.setNeedsDisplay_(True)
 
     def refreshItemResults_(self, _sender):
         self.refreshItemResults()
@@ -366,6 +367,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.item_results_scroll.contentView().scrollToPoint_(NSMakePoint(0, 0))
             self.item_results_scroll.reflectScrolledClipView_(self.item_results_scroll.contentView())
             self.updateItemResultRows_(True)
+            self.item_results_indicator.setNeedsDisplay_(True)
         if self.displayed_items:
             self.showItemInDetail_(self.displayed_items[0])
         else:
