@@ -8,6 +8,7 @@ from ..data import *
 from ..dice import *
 from ..logging_utils import log
 from ..resources import *
+from ..scroll_pricing import *
 from ..spell_format import *
 from ..spell_search import *
 from ..text_rendering import *

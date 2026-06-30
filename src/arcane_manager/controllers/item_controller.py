@@ -61,9 +61,257 @@ class MainWindowController(objc.Category(_MainWindowController)):
     def refreshItemResults_(self, _sender):
         self.refreshItemResults()
 
+    def selectScrollCalculatorLevel_(self, _sender):
+        self.renderScrollCalculatorPrice()
+
+    @objc.python_method
+    def selectedScrollCalculatorLevel(self) -> int | None:
+        index = int(self.scroll_calculator_level_popup.indexOfSelectedItem())
+        if 0 <= index < len(self.scroll_calculator_level_values):
+            return self.scroll_calculator_level_values[index]
+        return None
+
+    @objc.python_method
+    def configureScrollCalculatorLevelPopupForSpell_(self, spell):
+        previous_level = self.selectedScrollCalculatorLevel()
+        self.scroll_calculator_level_values = valid_scroll_levels_for_spell(spell)
+        self.scroll_calculator_level_popup.removeAllItems()
+        for level in self.scroll_calculator_level_values:
+            self.scroll_calculator_level_popup.addItemWithTitle_(scroll_level_label(level))
+        self.scroll_calculator_level_popup.setEnabled_(True)
+        if previous_level in self.scroll_calculator_level_values:
+            self.scroll_calculator_level_popup.selectItemAtIndex_(self.scroll_calculator_level_values.index(previous_level))
+        else:
+            self.scroll_calculator_level_popup.selectItemAtIndex_(0)
+
+    @objc.python_method
+    def resetScrollCalculator_(self, status: str):
+        self.scroll_calculator_spell = None
+        self.scroll_calculator_level_values = []
+        self.scroll_calculator_level_popup.removeAllItems()
+        self.scroll_calculator_level_popup.addItemWithTitle_("Choose spell")
+        self.scroll_calculator_level_popup.setEnabled_(False)
+        self.scroll_add_to_cart_button.setEnabled_(False)
+        self.scroll_calculator_match_label.setStringValue_("")
+        self.scroll_calculator_rarity_value_label.setStringValue_("-")
+        self.scroll_calculator_price_value_label.setStringValue_("-")
+        self.scroll_calculator_status_label.setStringValue_(status)
+
+    def refreshScrollCalculator_(self, _sender):
+        self.refreshScrollCalculator()
+
+    @objc.python_method
+    def refreshScrollCalculator(self):
+        query = str(self.scroll_calculator_spell_field.stringValue()).strip()
+        if not query:
+            self.resetScrollCalculator_("Enter a spell.")
+            return
+
+        matches = search_spells(query, self.spells, limit=1)
+        if not matches:
+            self.resetScrollCalculator_("No matching spell.")
+            return
+
+        spell = matches[0]
+        previous_spell_id = self.scroll_calculator_spell.id if self.scroll_calculator_spell is not None else ""
+        self.scroll_calculator_spell = spell
+        if previous_spell_id != spell.id or not self.scroll_calculator_level_values:
+            self.configureScrollCalculatorLevelPopupForSpell_(spell)
+        self.renderScrollCalculatorPrice()
+
+    @objc.python_method
+    def renderScrollCalculatorPrice(self):
+        spell = self.scroll_calculator_spell
+        if spell is None:
+            return
+        selected_level = self.selectedScrollCalculatorLevel()
+        if selected_level is None:
+            self.configureScrollCalculatorLevelPopupForSpell_(spell)
+            selected_level = self.selectedScrollCalculatorLevel()
+        if selected_level is None:
+            self.resetScrollCalculator_("No valid scroll level.")
+            return
+
+        result = price_scroll(spell, selected_level)
+        self.scroll_calculator_match_label.setStringValue_(f"Matched: {spell.name}")
+        self.scroll_calculator_rarity_value_label.setStringValue_(result.rarity)
+        self.scroll_calculator_price_value_label.setStringValue_(f"{result.price_gp:,} gp")
+        self.scroll_calculator_status_label.setStringValue_(f"{scroll_level_label(result.scroll_level)} scroll")
+        self.scroll_add_to_cart_button.setEnabled_(True)
+
+    @objc.python_method
+    def cartKeys(self) -> list[str]:
+        return list(self.cart_lines.keys())
+
+    @objc.python_method
+    def cartTotalCopper(self) -> int:
+        return sum(int(line["unit_copper"]) * int(line["quantity"]) for line in self.cart_lines.values())
+
+    @objc.python_method
+    def cartItemCount(self) -> int:
+        return sum(int(line["quantity"]) for line in self.cart_lines.values())
+
+    @objc.python_method
+    def addCartLine_key_name_unitCopper_(self, key: str, name: str, unit_copper: int):
+        if unit_copper < 0:
+            return
+        if key in self.cart_lines:
+            self.cart_lines[key]["quantity"] = int(self.cart_lines[key]["quantity"]) + 1
+        else:
+            self.cart_lines[key] = {
+                "name": name,
+                "unit_copper": int(unit_copper),
+                "quantity": 1,
+            }
+        self.refreshCartDisplay()
+
+    def addSelectedItemToCart_(self, _sender):
+        if self.selected_item is None:
+            return
+        entry = self.selectedItemDisplay()
+        if entry is None:
+            return
+        unit_copper = item_effective_cost_copper(entry, self.selected_item if entry != self.selected_item else None)
+        if unit_copper is None:
+            return
+        variant = selected_item_variant(self.selected_item)
+        variant_id = variant.id if variant is not None else "base"
+        key = f"item:{self.selected_item.id}:{variant_id}"
+        self.addCartLine_key_name_unitCopper_(key, entry.name, unit_copper)
+
+    def addScrollToCart_(self, _sender):
+        spell = self.scroll_calculator_spell
+        selected_level = self.selectedScrollCalculatorLevel()
+        if spell is None or selected_level is None:
+            return
+        result = price_scroll(spell, selected_level)
+        key = f"scroll:{spell.id}:{result.scroll_level}"
+        name = f"{spell.name} ({scroll_level_label(result.scroll_level)} scroll)"
+        self.addCartLine_key_name_unitCopper_(key, name, result.price_gp * 100)
+
+    def openCart_(self, _sender):
+        self.cart_overlay_visible = True
+        self.refreshCartDisplay()
+        self.applyCurrentTab()
+
+    def closeCart_(self, _sender):
+        self.cart_overlay_visible = False
+        self.applyCurrentTab()
+
+    def checkoutCart_(self, _sender):
+        self.cart_lines.clear()
+        self.cart_overlay_visible = False
+        self.refreshCartDisplay()
+        self.applyCurrentTab()
+
+    @objc.python_method
+    def cartKeyForSender_(self, sender) -> str | None:
+        index = int(sender.tag())
+        keys = self.cartKeys()
+        if 0 <= index < len(keys):
+            return keys[index]
+        return None
+
+    def increaseCartLine_(self, sender):
+        key = self.cartKeyForSender_(sender)
+        if key is None:
+            return
+        self.cart_lines[key]["quantity"] = int(self.cart_lines[key]["quantity"]) + 1
+        self.refreshCartDisplay()
+
+    def decreaseCartLine_(self, sender):
+        key = self.cartKeyForSender_(sender)
+        if key is None:
+            return
+        quantity = int(self.cart_lines[key]["quantity"]) - 1
+        if quantity <= 0:
+            self.cart_lines.pop(key, None)
+        else:
+            self.cart_lines[key]["quantity"] = quantity
+        self.refreshCartDisplay()
+
+    def removeCartLine_(self, sender):
+        key = self.cartKeyForSender_(sender)
+        if key is None:
+            return
+        self.cart_lines.pop(key, None)
+        self.refreshCartDisplay()
+
+    @objc.python_method
+    def ensureCartRows_(self, count: int):
+        while len(self.cart_row_views) < count:
+            row = CartReceiptRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 38))
+            decrement_button = self._make_button("-", (0, 0, 28, 26), "decreaseCartLine:")
+            increment_button = self._make_button("+", (0, 0, 28, 26), "increaseCartLine:")
+            remove_button = self._make_button("Remove", (0, 0, 72, 26), "removeCartLine:")
+            for view in (decrement_button, increment_button, remove_button):
+                row.addSubview_(view)
+            self.cart_content.addSubview_(row)
+            self.cart_row_views.append(
+                {
+                    "row": row,
+                    "decrement": decrement_button,
+                    "increment": increment_button,
+                    "remove": remove_button,
+                }
+            )
+        for index in range(count, len(self.cart_row_views)):
+            self.cart_row_views[index]["row"].setHidden_(True)
+
+    @objc.python_method
+    def layoutCartRows(self):
+        if self.cart_scroll is None:
+            return
+        keys = self.cartKeys()
+        self.ensureCartRows_(len(keys))
+        scroll_width = max(240, self.cart_scroll.frame().size.width)
+        row_width = max(220, scroll_width - 20)
+        row_height = 38
+        row_gap = 4
+        content_height = max(self.cart_scroll.frame().size.height, len(keys) * (row_height + row_gap) + 8)
+        self.cart_content.setFrame_(NSMakeRect(0, 0, row_width, content_height))
+        for index, key in enumerate(keys):
+            line = self.cart_lines[key]
+            views = self.cart_row_views[index]
+            row_y = index * (row_height + row_gap)
+            views["row"].setFrame_(NSMakeRect(0, row_y, row_width, row_height))
+            views["row"].setHidden_(False)
+            unit_copper = int(line["unit_copper"])
+            quantity = int(line["quantity"])
+            subtotal = unit_copper * quantity
+            views["row"].configureLineNumber_quantity_name_subtotalText_(
+                index + 1,
+                quantity,
+                str(line["name"]),
+                receipt_currency_text(subtotal),
+            )
+            controls_x = row_width - 158
+            views["decrement"].setFrame_(NSMakeRect(controls_x, 6, 28, 26))
+            views["increment"].setFrame_(NSMakeRect(controls_x + 34, 6, 28, 26))
+            views["remove"].setFrame_(NSMakeRect(controls_x + 70, 6, 82, 26))
+            for control_name in ("decrement", "increment", "remove"):
+                views[control_name].setTag_(index)
+
+    @objc.python_method
+    def refreshCartDisplay(self):
+        total = self.cartTotalCopper()
+        count = self.cartItemCount()
+        self.cart_button.setBadgeCount_(count)
+        if self.cart_overlay_panel is not None:
+            self.cart_overlay_panel.setTotalText_taxText_itemCount_totalTopY_(
+                receipt_currency_text(total),
+                "0",
+                count,
+                getattr(self.cart_overlay_panel, "total_top_y", 210.0),
+            )
+        self.cart_checkout_button.setEnabled_(count > 0)
+        self.layoutCartRows()
+        self.layoutMainWindow()
+
     def setItemDetailHeaderHidden_(self, hidden: bool):
         for view in self.item_detail_header_views:
             view.setHidden_(hidden)
+        self.item_add_to_cart_button.setHidden_(hidden)
 
     @objc.python_method
     def configureItemVariantPopupForItem_(self, item):
@@ -149,11 +397,11 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.item_detail_meta_label.setTextColor_(theme_color("gold"))
 
         fields = []
-        if item.cost and item.cost.strip():
-            fields.append(("Cost", item_display_cost(item.cost)))
-            merchant_value = merchant_value_text(item.cost)
-            if merchant_value:
-                fields.append(("Merchant Buys", merchant_value))
+        effective_copper = item_effective_cost_copper(item, self.selected_item if item != self.selected_item else None)
+        self.item_add_to_cart_button.setEnabled_(effective_copper is not None)
+        if effective_copper is not None:
+            fields.append(("Cost", copper_value_text(effective_copper)))
+            fields.append(("Merchant Buys", copper_value_text((effective_copper * 60) // 100)))
         if item.ac:
             fields.append(("AC", item.ac))
         if item.rarity:

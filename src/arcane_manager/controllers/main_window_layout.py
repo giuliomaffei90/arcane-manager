@@ -10,7 +10,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.window.setBackgroundColor_(theme_color("app_bg"))
         style_layer(self.content_view, theme_color("app_bg"), None, 0)
         style_layer(self.sidebar_panel, theme_color("app_bg"), None, 0)
-        for panel in (self.combat_panel, self.spell_panel, self.item_panel, self.dice_panel, self.adventure_panel):
+        for panel in (
+            self.combat_panel,
+            self.spell_panel,
+            self.item_panel,
+            self.item_scroll_calculator_panel,
+            self.dice_panel,
+            self.adventure_panel,
+        ):
             style_layer(panel, theme_color("panel"), theme_color("border_soft"), 14, 1)
         style_layer(self.monster_sheet_drawer, theme_color("panel_alt"), theme_color("border_soft"), 12, 1)
         style_layer(self.sidebar_logo_label, theme_color("selection"), theme_color("link"), 10, 1)
@@ -19,6 +26,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
         for scroll in (self.dice_history_scroll, self.adventure_tree_scroll, self.adventure_editor_scroll):
             style_layer(scroll, theme_color("surface_soft"), theme_color("border_soft"), 8, 1)
         style_layer(self.adventure_web_view, theme_color("adventure_reader_bg"), theme_color("border_soft"), 8, 1)
+        style_layer(self.cart_scroll, ui_color(0.99, 0.98, 0.93, 1.0), None, 0, 0)
+        style_layer(self.cart_overlay_backdrop, ui_color(0.02, 0.03, 0.04, 0.72), None, 0)
 
         for button in (
             self.initiative_tab_button,
@@ -45,12 +54,21 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.clear_tracker_button,
             self.monster_sheet_close_button,
             self.monster_sheet_save_button,
+            self.item_add_to_cart_button,
+            self.scroll_add_to_cart_button,
+            self.cart_close_button,
+            self.cart_checkout_button,
             *self.dice_preset_buttons,
         ):
             if button is not None:
                 style_button_layer(button)
 
-        for field in (self.monster_search_field, self.spell_search_field, self.item_search_field):
+        for field in (
+            self.monster_search_field,
+            self.spell_search_field,
+            self.item_search_field,
+            self.scroll_calculator_spell_field,
+        ):
             style_text_input(field)
         for popup in (
             self.party_popup,
@@ -59,6 +77,7 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.spell_school_filter_popup,
             self.item_category_filter_popup,
             self.item_variant_popup,
+            self.scroll_calculator_level_popup,
         ):
             popup.setNeedsDisplay_(True)
 
@@ -70,17 +89,26 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.dice_hint_label,
             self.dice_result_label,
             self.adventure_status_label,
+            self.scroll_calculator_spell_label,
+            self.scroll_calculator_level_label,
+            self.scroll_calculator_match_label,
+            self.scroll_calculator_rarity_caption_label,
+            self.scroll_calculator_price_caption_label,
+            self.scroll_calculator_status_label,
         )
         for label in muted_labels:
             label.setTextColor_(theme_color("muted"))
         for label in (self.turn_label, self.adventure_dirty_label):
             label.setTextColor_(theme_color("gold"))
         self.item_detail_meta_label.setTextColor_(theme_color("gold"))
+        self.scroll_calculator_rarity_value_label.setTextColor_(theme_color("gold"))
+        self.scroll_calculator_price_value_label.setTextColor_(theme_color("dice"))
         for label in (
             self.spell_components_label,
             self.spell_component_material_label,
             self.spell_stats_label,
             self.item_detail_fields_label,
+            self.item_scroll_calculator_title_label,
         ):
             label.setTextColor_(theme_color("text"))
         self.applySpellDetailSchoolColor()
@@ -192,7 +220,82 @@ class MainWindowController(objc.Category(_MainWindowController)):
             )
             self.monster_sheet_body.setFrame_(NSMakeRect(0, 0, body_width, body_height))
         self.spell_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
-        self.item_panel.setFrame_(NSMakeRect(20, 20, width - 40, max(520, content_height - 20)))
+        item_tab_x = 20
+        item_tab_y = 20
+        item_tab_width = max(900, width - 40)
+        item_tab_height = max(520, content_height - 20)
+        item_panel_gap = 16
+        item_calculator_width = min(420, max(300, item_tab_width * 0.30))
+        item_left_width = max(560, item_tab_width - item_calculator_width - item_panel_gap)
+        self.item_panel.setFrame_(NSMakeRect(item_tab_x, item_tab_y, item_left_width, item_tab_height))
+        item_calculator_x = item_tab_x + item_left_width + item_panel_gap
+        self.item_scroll_calculator_panel.setFrame_(
+            NSMakeRect(item_calculator_x, item_tab_y, item_calculator_width, item_tab_height)
+        )
+        calculator_margin = 28
+        self.item_scroll_calculator_title_label.setFrame_(
+            NSMakeRect(
+                item_calculator_x + calculator_margin,
+                item_tab_y + item_tab_height - calculator_margin - 30,
+                max(160, item_calculator_width - calculator_margin * 2),
+                30,
+            )
+        )
+        calculator_x = item_calculator_x + calculator_margin
+        calculator_width = max(160, item_calculator_width - calculator_margin * 2)
+        calculator_top = item_tab_y + item_tab_height - calculator_margin - 46
+        self.scroll_calculator_spell_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 28, calculator_width, 18))
+        self.scroll_calculator_spell_field.setFrame_(NSMakeRect(calculator_x, calculator_top - 68, calculator_width, 34))
+        self.scroll_calculator_level_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 112, calculator_width, 18))
+        self.scroll_calculator_level_popup.setFrame_(NSMakeRect(calculator_x, calculator_top - 152, calculator_width, 34))
+        self.scroll_calculator_match_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 184, calculator_width, 22))
+        self.scroll_calculator_rarity_caption_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 238, calculator_width, 18))
+        self.scroll_calculator_rarity_value_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 270, calculator_width, 28))
+        self.scroll_calculator_price_caption_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 326, calculator_width, 18))
+        self.scroll_calculator_price_value_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 374, calculator_width, 40))
+        self.scroll_calculator_status_label.setFrame_(NSMakeRect(calculator_x, calculator_top - 416, calculator_width, 38))
+        self.scroll_add_to_cart_button.setFrame_(NSMakeRect(calculator_x, calculator_top - 464, min(160, calculator_width), 34))
+        cart_button_width = 64
+        cart_button_height = 54
+        self.cart_button.setFrame_(
+            NSMakeRect(
+                item_calculator_x + item_calculator_width - calculator_margin - cart_button_width,
+                item_tab_y + calculator_margin,
+                cart_button_width,
+                cart_button_height,
+            )
+        )
+
+        overlay_panel_width = min(820, max(720, width * 0.58))
+        overlay_panel_height = min(700, max(560, height * 0.76))
+        overlay_x = (width - overlay_panel_width) / 2
+        overlay_y = (height - overlay_panel_height) / 2
+        self.cart_overlay_backdrop.setFrame_(NSMakeRect(0, 0, width, height))
+        self.cart_overlay_panel.setFrame_(NSMakeRect(overlay_x, overlay_y, overlay_panel_width, overlay_panel_height))
+        close_size = 32
+        self.cart_close_button.setFrame_(NSMakeRect(overlay_x + overlay_panel_width - 54 - close_size, overlay_y + overlay_panel_height - 62, close_size, close_size))
+
+        checkout_width = 150
+        self.cart_checkout_button.setFrame_(NSMakeRect(overlay_x + overlay_panel_width - 56 - checkout_width, overlay_y + 42, checkout_width, 38))
+
+        item_count = self.cartItemCount()
+        line_count = len(self.cartKeys())
+        row_step = 42
+        rows_top_local = overlay_panel_height - 202
+        desired_rows_height = 0 if line_count == 0 else min(210, line_count * row_step + 6)
+        total_top_local = max(190, rows_top_local - desired_rows_height - 26)
+        scroll_y_local = total_top_local + 26
+        scroll_height = max(0, rows_top_local - scroll_y_local)
+        scroll_x = overlay_x + 48
+        scroll_width = overlay_panel_width - 96
+        self.cart_scroll.setFrame_(NSMakeRect(scroll_x, overlay_y + scroll_y_local, scroll_width, scroll_height))
+        self.cart_overlay_panel.setTotalText_taxText_itemCount_totalTopY_(
+            receipt_currency_text(self.cartTotalCopper()),
+            "0",
+            item_count,
+            total_top_local,
+        )
+        self.layoutCartRows()
 
         y = sidebar_document_height - 52
         self.sidebar_logo_label.setFrame_(NSMakeRect(sidebar_margin, y - 2, 36, 36))
@@ -364,13 +467,13 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 NSMakeRect(0, 0, detail_width - 24, max(scroll_height, self.spell_detail_view.frame().size.height))
             )
 
-        item_margin = 44
+        item_margin = 32
         item_panel_frame = self.item_panel.frame()
         item_x = item_panel_frame.origin.x + item_margin
         item_y = item_panel_frame.origin.y + item_margin
         item_width = item_panel_frame.size.width - item_margin * 2
         item_height = item_panel_frame.size.height - item_margin * 2
-        item_list_width = min(430, max(320, item_width * 0.38))
+        item_list_width = min(430, max(300, item_width * 0.38))
         item_filter_gap = 10
         item_category_filter_w = min(170, max(134, item_list_width * 0.42))
         item_search_w = max(160, item_list_width - item_category_filter_w - item_filter_gap)
@@ -388,8 +491,9 @@ class MainWindowController(objc.Category(_MainWindowController)):
         self.ensureItemResultRows_(visible_item_rows)
         self.updateItemResultRows_(False)
 
-        item_detail_x = item_x + item_list_width + 28
-        item_detail_width = max(300, item_width - item_list_width - 28)
+        item_detail_gap = 24
+        item_detail_x = item_x + item_list_width + item_detail_gap
+        item_detail_width = max(240, item_width - item_list_width - item_detail_gap)
         if self.item_detail_title_label.isHidden():
             self.item_detail_scroll.setFrame_(NSMakeRect(item_detail_x, item_y, item_detail_width, item_height))
             self.item_detail_view.textContainer().setContainerSize_(NSMakeSize(max(120, item_detail_width - 24), 100000))
@@ -404,10 +508,14 @@ class MainWindowController(objc.Category(_MainWindowController)):
                 popup_width = min(280, max(180, item_detail_width * 0.42))
                 self.item_variant_popup.setFrame_(NSMakeRect(item_detail_x, item_top - 106, popup_width, 28))
                 popup_bottom = item_top - 110
+            action_bottom = popup_bottom
+            if not self.item_add_to_cart_button.isHidden():
+                self.item_add_to_cart_button.setFrame_(NSMakeRect(item_detail_x, popup_bottom - 38, 132, 32))
+                action_bottom = popup_bottom - 42
             fields_text = str(self.item_detail_fields_label.stringValue())
             field_lines = len([line for line in fields_text.splitlines() if line.strip()])
             fields_height = 0 if field_lines == 0 else min(156, max(24, field_lines * 20))
-            fields_y = popup_bottom - 8 - fields_height
+            fields_y = action_bottom - 8 - fields_height
             self.item_detail_fields_label.setFrame_(NSMakeRect(item_detail_x, fields_y, item_detail_width, fields_height))
             scroll_top = fields_y - 14 if fields_height > 0 else item_top - 82
             scroll_height = max(160, scroll_top - item_y)

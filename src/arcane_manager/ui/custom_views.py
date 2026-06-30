@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from ..platform import *
 from ..constants import *
-from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_cost_color_name, item_display_cost, item_summary
+from ..data import Creature, Item, Spell, creature_summary, display_ac, display_cr, display_hp, item_effective_cost_color_name, item_effective_value_text, item_display_name, item_summary
+from ..resources import DEFAULT_FONT_DIR, DEFAULT_ICON_DIR
 from ..text_utils import normalize
 from .core import *
 
@@ -51,6 +52,580 @@ class PersistentScrollIndicator(NSView):
         thumb_y = offset / max_offset * max(0.0, float(bounds.size.height) - thumb_height)
         thumb_rect = NSMakeRect(track_x, thumb_y, track_width, thumb_height)
         draw_rounded_rect(thumb_rect, theme_color("muted", 0.95), None, track_width / 2.0, 0)
+
+
+CART_ICON_FALLBACK_PATH = (
+    "M24 48C10.7 48 0 58.7 0 72C0 85.3 10.7 96 24 96L69.3 96C73.2 96 76.5 98.8 77.2 102.6"
+    "L129.3 388.9C135.5 423.1 165.3 448 200.1 448L456 448C469.3 448 480 437.3 480 424"
+    "C480 410.7 469.3 400 456 400L200.1 400C188.5 400 178.6 391.7 176.5 380.3L171.4 352"
+    "L475 352C505.8 352 532.2 330.1 537.9 299.8L568.9 133.9C572.6 114.2 557.5 96 537.4 96"
+    "L124.7 96L124.3 94C119.5 67.4 96.3 48 69.2 48L24 48z"
+    "M208 576C234.5 576 256 554.5 256 528C256 501.5 234.5 480 208 480C181.5 480 160 501.5 160 528"
+    "C160 554.5 181.5 576 208 576z"
+    "M432 576C458.5 576 480 554.5 480 528C480 501.5 458.5 480 432 480C405.5 480 384 501.5 384 528"
+    "C384 554.5 405.5 576 432 576z"
+)
+_CART_ICON_PATH_DATA = None
+_SVG_ASSET_CACHE = {}
+_RECEIPT_LOGO_IMAGE = None
+_RECEIPT_FONTS_REGISTERED = False
+
+
+def register_receipt_fonts():
+    global _RECEIPT_FONTS_REGISTERED
+    if _RECEIPT_FONTS_REGISTERED:
+        return
+    _RECEIPT_FONTS_REGISTERED = True
+    if CTFontManagerRegisterFontsForURL is None:
+        return
+    for filename in ("typewcond_regular.otf", "typewcond_bold.otf"):
+        font_path = DEFAULT_FONT_DIR / filename
+        if not font_path.exists():
+            continue
+        try:
+            CTFontManagerRegisterFontsForURL(
+                NSURL.fileURLWithPath_(str(font_path)),
+                kCTFontManagerScopeProcess,
+                None,
+            )
+        except Exception:
+            pass
+
+
+def receipt_font(size: float, bold: bool = False):
+    register_receipt_fonts()
+    candidates = (
+        ("Typewriter_Condensed-Bold", "Typewriter_Condensed Bold")
+        if bold
+        else ("Typewriter_Condensed", "Typewriter_CondensedNormal")
+    )
+    for font_name in candidates:
+        font = NSFont.fontWithName_size_(font_name, size)
+        if font is not None:
+            return font
+    fallback_name = "Menlo-Bold" if bold else "Menlo"
+    fallback = NSFont.fontWithName_size_(fallback_name, size)
+    if fallback is not None:
+        return fallback
+    return NSFont.boldSystemFontOfSize_(size) if bold else NSFont.userFixedPitchFontOfSize_(size)
+
+
+def receipt_currency_text(copper: int) -> str:
+    value = int(copper)
+    if value == 0:
+        return "0"
+    sign = "-" if value < 0 else ""
+    value = abs(value)
+    gold = value // 100
+    silver = (value % 100) // 10
+    copper_part = value % 10
+    parts = []
+    if gold:
+        parts.append(f"{gold} gp")
+    if silver:
+        parts.append(f"{silver} sp")
+    if copper_part:
+        parts.append(f"{copper_part} cp")
+    return sign + " ".join(parts)
+
+
+def _svg_asset_path_and_viewbox(filename: str, fallback_path: str = "", fallback_viewbox=(0.0, 0.0, 640.0, 640.0)):
+    if filename in _SVG_ASSET_CACHE:
+        return _SVG_ASSET_CACHE[filename]
+    svg_path = DEFAULT_ICON_DIR / filename
+    path_data = fallback_path
+    viewbox = tuple(float(value) for value in fallback_viewbox)
+    try:
+        svg = svg_path.read_text(encoding="utf-8")
+        path_match = re.search(r'<path[^>]+d="([^"]+)"', svg)
+        viewbox_match = re.search(r'viewBox="([^"]+)"', svg)
+        if path_match is not None:
+            path_data = path_match.group(1)
+        if viewbox_match is not None:
+            values = [float(value) for value in re.findall(r"-?(?:\d+(?:\.\d*)?|\.\d+)", viewbox_match.group(1))]
+            if len(values) == 4:
+                viewbox = tuple(values)
+    except OSError:
+        pass
+    result = (path_data, viewbox)
+    _SVG_ASSET_CACHE[filename] = result
+    return result
+
+
+def _cart_icon_path_data() -> str:
+    global _CART_ICON_PATH_DATA
+    if _CART_ICON_PATH_DATA is not None:
+        return _CART_ICON_PATH_DATA
+    icon_path = DEFAULT_ICON_DIR / "cart-shopping-solid.svg"
+    try:
+        svg = icon_path.read_text(encoding="utf-8")
+        match = re.search(r'<path[^>]+d="([^"]+)"', svg)
+        _CART_ICON_PATH_DATA = match.group(1) if match is not None else CART_ICON_FALLBACK_PATH
+    except OSError:
+        _CART_ICON_PATH_DATA = CART_ICON_FALLBACK_PATH
+    return _CART_ICON_PATH_DATA
+
+
+def _svg_bezier_path(path_data: str, viewbox, rect, preserve_aspect: bool = True) -> NSBezierPath:
+    tokens = re.findall(r"[MmLlHhVvCcZz]|-?(?:\d+(?:\.\d*)?|\.\d+)", path_data)
+    path = NSBezierPath.bezierPath()
+    if hasattr(path, "setWindingRule_"):
+        path.setWindingRule_(NSEvenOddWindingRule)
+    index = 0
+    command = ""
+    cursor_x = 0.0
+    cursor_y = 0.0
+    start_x = 0.0
+    start_y = 0.0
+    view_x, view_y, view_w, view_h = [float(value) for value in viewbox]
+    if preserve_aspect:
+        scale = min(rect.size.width / max(1.0, view_w), rect.size.height / max(1.0, view_h))
+        scale_x = scale
+        scale_y = scale
+        draw_w = view_w * scale
+        draw_h = view_h * scale
+        offset_x = rect.origin.x + (rect.size.width - draw_w) / 2.0
+        offset_y = rect.origin.y + (rect.size.height - draw_h) / 2.0
+    else:
+        scale_x = rect.size.width / max(1.0, view_w)
+        scale_y = rect.size.height / max(1.0, view_h)
+        offset_x = rect.origin.x
+        offset_y = rect.origin.y
+
+    def point(svg_x: float, svg_y: float):
+        return NSMakePoint(
+            offset_x + (svg_x - view_x) * scale_x,
+            offset_y + (view_h - (svg_y - view_y)) * scale_y,
+        )
+
+    while index < len(tokens):
+        if re.match(r"[A-Za-z]", tokens[index]):
+            command = tokens[index]
+            index += 1
+        if command in ("M", "m"):
+            while index + 1 < len(tokens) and not re.match(r"[A-Za-z]", tokens[index]):
+                x = float(tokens[index])
+                y = float(tokens[index + 1])
+                if command == "m":
+                    x += cursor_x
+                    y += cursor_y
+                path.moveToPoint_(point(x, y))
+                cursor_x, cursor_y = x, y
+                start_x, start_y = x, y
+                index += 2
+                command = "L" if command == "M" else "l"
+        elif command in ("L", "l"):
+            while index + 1 < len(tokens) and not re.match(r"[A-Za-z]", tokens[index]):
+                x = float(tokens[index])
+                y = float(tokens[index + 1])
+                if command == "l":
+                    x += cursor_x
+                    y += cursor_y
+                path.lineToPoint_(point(x, y))
+                cursor_x, cursor_y = x, y
+                index += 2
+        elif command in ("H", "h"):
+            while index < len(tokens) and not re.match(r"[A-Za-z]", tokens[index]):
+                x = float(tokens[index])
+                if command == "h":
+                    x += cursor_x
+                path.lineToPoint_(point(x, cursor_y))
+                cursor_x = x
+                index += 1
+        elif command in ("V", "v"):
+            while index < len(tokens) and not re.match(r"[A-Za-z]", tokens[index]):
+                y = float(tokens[index])
+                if command == "v":
+                    y += cursor_y
+                path.lineToPoint_(point(cursor_x, y))
+                cursor_y = y
+                index += 1
+        elif command in ("C", "c"):
+            while index + 5 < len(tokens) and not re.match(r"[A-Za-z]", tokens[index]):
+                x1, y1, x2, y2, x, y = [float(value) for value in tokens[index : index + 6]]
+                if command == "c":
+                    x1 += cursor_x
+                    y1 += cursor_y
+                    x2 += cursor_x
+                    y2 += cursor_y
+                    x += cursor_x
+                    y += cursor_y
+                path.curveToPoint_controlPoint1_controlPoint2_(point(x, y), point(x1, y1), point(x2, y2))
+                cursor_x, cursor_y = x, y
+                index += 6
+        elif command in ("Z", "z"):
+            path.closePath()
+            cursor_x, cursor_y = start_x, start_y
+        else:
+            break
+    return path
+
+
+def _cart_icon_bezier_path(rect) -> NSBezierPath:
+    return _svg_bezier_path(_cart_icon_path_data(), (0.0, 0.0, 640.0, 640.0), rect)
+
+
+def _fit_bezier_path_to_rect(path: NSBezierPath, rect) -> NSBezierPath:
+    bounds = path.bounds()
+    if bounds.size.width <= 0 or bounds.size.height <= 0:
+        return path
+    scale = min(rect.size.width / bounds.size.width, rect.size.height / bounds.size.height)
+    fitted_width = bounds.size.width * scale
+    fitted_height = bounds.size.height * scale
+    transform = NSAffineTransform.transform()
+    transform.translateXBy_yBy_(
+        rect.origin.x + (rect.size.width - fitted_width) / 2.0,
+        rect.origin.y + (rect.size.height - fitted_height) / 2.0,
+    )
+    transform.scaleBy_(scale)
+    transform.translateXBy_yBy_(-bounds.origin.x, -bounds.origin.y)
+    fitted = path.copy()
+    fitted.transformUsingAffineTransform_(transform)
+    return fitted
+
+
+def _receipt_logo_bezier_path(rect) -> NSBezierPath:
+    path_data, viewbox = _svg_asset_path_and_viewbox("arcane_receipt_logo_transparente.svg", "", (0.0, 0.0, 1562.0, 825.0))
+    base_path = _svg_bezier_path(path_data, viewbox, NSMakeRect(0, 0, viewbox[2], viewbox[3]), False)
+    return _fit_bezier_path_to_rect(base_path, rect)
+
+
+def _receipt_logo_image():
+    global _RECEIPT_LOGO_IMAGE
+    if _RECEIPT_LOGO_IMAGE is not None:
+        return _RECEIPT_LOGO_IMAGE
+    image_path = DEFAULT_ICON_DIR / "arcane_receipt_logo_horizontal.png"
+    image = NSImage.alloc().initWithContentsOfFile_(str(image_path))
+    _RECEIPT_LOGO_IMAGE = image
+    return image
+
+
+class CartIconButton(NSButton):
+    badge_count = objc.ivar()
+    hovered = objc.ivar()
+    tracking_area = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(CartIconButton, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.badge_count = 0
+        self.hovered = False
+        self.tracking_area = None
+        self.setTitle_("")
+        self.setBordered_(False)
+        self.setToolTip_("Shopping cart")
+        return self
+
+    def isFlipped(self):
+        return False
+
+    def setBadgeCount_(self, count):
+        self.badge_count = max(0, int(count))
+        self.setNeedsDisplay_(True)
+
+    @objc.python_method
+    def clearHoverState(self):
+        if self.hovered:
+            self.hovered = False
+            self.setNeedsDisplay_(True)
+
+    def updateTrackingAreas(self):
+        if self.tracking_area is not None:
+            self.removeTrackingArea_(self.tracking_area)
+        self.tracking_area = NSTrackingArea.alloc().initWithRect_options_owner_userInfo_(
+            self.bounds(),
+            NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways | NSTrackingInVisibleRect,
+            self,
+            None,
+        )
+        self.addTrackingArea_(self.tracking_area)
+        objc.super(CartIconButton, self).updateTrackingAreas()
+
+    def mouseEntered_(self, _event):
+        if self.isEnabled():
+            self.hovered = True
+            self.setNeedsDisplay_(True)
+
+    def mouseExited_(self, _event):
+        self.hovered = False
+        self.setNeedsDisplay_(True)
+
+    def highlight_(self, flag):
+        objc.super(CartIconButton, self).highlight_(flag)
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        pressed = bool(self.isHighlighted())
+        fill = theme_color("surface_hover" if self.hovered or pressed else "surface")
+        stroke = theme_color("muted" if self.hovered or pressed else "border_soft")
+        draw_rounded_rect(
+            NSMakeRect(0.5, 0.5, max(1, bounds.size.width - 1), max(1, bounds.size.height - 1)),
+            fill,
+            stroke,
+            min(14, bounds.size.height / 2),
+            1.2,
+        )
+
+        width = bounds.size.width
+        height = bounds.size.height
+        icon_size = min(width * 0.60, height * 0.58)
+        icon_rect = NSMakeRect(width * 0.18, height * 0.18, icon_size, icon_size)
+        icon_path = _cart_icon_bezier_path(icon_rect)
+        shadow_path = _cart_icon_bezier_path(NSMakeRect(icon_rect.origin.x, icon_rect.origin.y - 1, icon_rect.size.width, icon_rect.size.height))
+        ui_color(0.0, 0.0, 0.0, 0.20).set()
+        shadow_path.fill()
+        icon_color = theme_color("text_strong")
+        icon_color.set()
+        icon_path.fill()
+
+        if self.badge_count > 0:
+            badge_text = "99+" if int(self.badge_count) > 99 else str(int(self.badge_count))
+            badge_w = max(22, 13 + len(badge_text) * 7)
+            badge_h = 22
+            badge_x = width - badge_w - 2
+            badge_y = height - badge_h - 2
+            draw_rounded_rect(
+                NSMakeRect(badge_x, badge_y, badge_w, badge_h),
+                ui_color(1.0, 0.17, 0.20, 1.0),
+                ui_color(1.0, 0.88, 0.88, 1.0),
+                badge_h / 2,
+                1.5,
+            )
+            draw_centered_text_in_rect(
+                badge_text,
+                NSMakeRect(badge_x + 2, badge_y + 3, badge_w - 4, badge_h - 5),
+                11,
+                ui_color(1, 1, 1, 1),
+                True,
+            )
+
+
+def _receipt_attributes(size: float, bold: bool = False, color=None):
+    return {
+        NSFontAttributeName: receipt_font(size, bold),
+        NSForegroundColorAttributeName: color or ui_color(0.12, 0.13, 0.14, 1.0),
+    }
+
+
+def _draw_receipt_text(text: str, rect, size: float, bold: bool = False, color=None, alignment: str = "left"):
+    attributes = _receipt_attributes(size, bold, color)
+    string = NSString.stringWithString_(str(text))
+    text_size = string.sizeWithAttributes_(attributes)
+    draw_width = min(rect.size.width, text_size.width)
+    if alignment == "center":
+        x = rect.origin.x + (rect.size.width - draw_width) / 2
+    elif alignment == "right":
+        x = rect.origin.x + rect.size.width - draw_width
+    else:
+        x = rect.origin.x
+    draw_rect = NSMakeRect(
+        x,
+        rect.origin.y + (rect.size.height - text_size.height) / 2,
+        draw_width,
+        text_size.height,
+    )
+    string.drawInRect_withAttributes_(draw_rect, attributes)
+
+
+def _draw_receipt_text_fit(text: str, rect, size: float, minimum_size: float, bold: bool = False, color=None, alignment: str = "left"):
+    draw_size = float(size)
+    string = NSString.stringWithString_(str(text))
+    while draw_size > minimum_size:
+        attributes = _receipt_attributes(draw_size, bold, color)
+        if string.sizeWithAttributes_(attributes).width <= rect.size.width:
+            break
+        draw_size -= 1.0
+    _draw_receipt_text(text, rect, draw_size, bold, color, alignment)
+
+
+def _receipt_separator(width: float, size: float = 24, bold: bool = True) -> str:
+    attributes = _receipt_attributes(size, bold, ui_color(0.12, 0.12, 0.11, 1.0))
+    dash_width = max(1.0, NSString.stringWithString_("-").sizeWithAttributes_(attributes).width)
+    return "-" * max(8, int(width / dash_width) + 1)
+
+
+def _receipt_header_metrics(width: float):
+    line_width = min(520.0, max(420.0, width - 160.0))
+    line_x = (width - line_width) / 2.0
+    return line_x, line_width
+
+
+def _receipt_row_text_metrics(width: float):
+    line_x = 48.0
+    line_width = max(340.0, width - 288.0)
+    return line_x, line_width
+
+
+def _receipt_full_lane_metrics(width: float):
+    line_x = 48.0
+    scroll_width = max(240.0, width - 96.0)
+    row_width = max(220.0, scroll_width - 20.0)
+    remove_right_x = line_x + row_width - 6.0
+    return line_x, max(340.0, remove_right_x - line_x)
+
+
+class CartReceiptPanelView(NSView):
+    total_text = objc.ivar()
+    tax_text = objc.ivar()
+    item_count = objc.ivar()
+    total_top_y = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(CartReceiptPanelView, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.total_text = "0 Copper"
+        self.tax_text = "0"
+        self.item_count = 0
+        self.total_top_y = 210.0
+        return self
+
+    def setTotalText_taxText_itemCount_totalTopY_(self, total_text, tax_text, item_count, total_top_y):
+        self.total_text = str(total_text)
+        self.tax_text = str(tax_text)
+        self.item_count = max(0, int(item_count))
+        self.total_top_y = float(total_top_y)
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        shadow_color = ui_color(0.0, 0.0, 0.0, 0.28)
+        paper_color = ui_color(0.99, 0.98, 0.93, 1.0)
+        stroke_color = ui_color(0.58, 0.56, 0.48, 1.0)
+        ink_color = ui_color(0.16, 0.19, 0.27, 1.0)
+        soft_ink = ui_color(0.32, 0.32, 0.30, 1.0)
+
+        draw_rounded_rect(NSMakeRect(7, 15, bounds.size.width - 14, bounds.size.height - 18), shadow_color, None, 8, 0)
+
+        bottom_wave = 14
+        paper = NSBezierPath.bezierPath()
+        paper.moveToPoint_(NSMakePoint(18, bounds.size.height - 1))
+        paper.lineToPoint_(NSMakePoint(bounds.size.width - 18, bounds.size.height - 1))
+        paper.curveToPoint_controlPoint1_controlPoint2_(
+            NSMakePoint(bounds.size.width - 8, bounds.size.height - 11),
+            NSMakePoint(bounds.size.width - 8, bounds.size.height - 1),
+            NSMakePoint(bounds.size.width - 8, bounds.size.height - 4),
+        )
+        paper.lineToPoint_(NSMakePoint(bounds.size.width - 8, bottom_wave))
+        x = bounds.size.width - 8
+        wave = 8
+        while x > 8:
+            paper.curveToPoint_controlPoint1_controlPoint2_(
+                NSMakePoint(max(8, x - wave), bottom_wave),
+                NSMakePoint(x - wave * 0.25, 4),
+                NSMakePoint(x - wave * 0.75, bottom_wave + 10),
+            )
+            x -= wave
+        paper.lineToPoint_(NSMakePoint(8, bounds.size.height - 11))
+        paper.curveToPoint_controlPoint1_controlPoint2_(
+            NSMakePoint(18, bounds.size.height - 1),
+            NSMakePoint(8, bounds.size.height - 4),
+            NSMakePoint(8, bounds.size.height - 1),
+        )
+        paper.closePath()
+        paper_color.set()
+        paper.fill()
+        stroke_color.set()
+        paper.setLineWidth_(1.2)
+        paper.stroke()
+
+        header_x, header_width = _receipt_header_metrics(bounds.size.width)
+        row_text_x, row_text_width = _receipt_row_text_metrics(bounds.size.width)
+        line_x, line_width = _receipt_full_lane_metrics(bounds.size.width)
+        logo_image = _receipt_logo_image()
+        logo_width = min(bounds.size.width - 230.0, 500.0)
+        logo_height = min(116.0, logo_width * 486.0 / 2087.0)
+        logo_rect = NSMakeRect((bounds.size.width - logo_width) / 2.0, bounds.size.height - 132.0, logo_width, logo_height)
+        if logo_image is not None:
+            logo_image.drawInRect_fromRect_operation_fraction_(
+                logo_rect,
+                NSMakeRect(0, 0, 0, 0),
+                NSCompositingOperationSourceOver,
+                1.0,
+            )
+        else:
+            logo_path = _receipt_logo_bezier_path(logo_rect)
+            if logo_path.elementCount() > 0:
+                ink_color.set()
+                logo_path.fill()
+            else:
+                _draw_receipt_text("ARCANE RECEIPT", NSMakeRect(header_x, bounds.size.height - 88, header_width, 44), 34, True, ink_color, "center")
+
+        _draw_receipt_text("*** SHOPPING CART ***", NSMakeRect(header_x, bounds.size.height - 160, header_width, 30), 22, True, ink_color, "center")
+        _draw_receipt_text(_receipt_separator(line_width, 22, True), NSMakeRect(line_x, bounds.size.height - 190, line_width, 26), 22, True, ink_color, "center")
+
+        if int(self.item_count) == 0:
+            _draw_receipt_text("YOUR CART IS EMPTY", NSMakeRect(row_text_x, bounds.size.height - 245, row_text_width, 28), 20, False, soft_ink, "center")
+
+        total_y = max(150.0, min(float(self.total_top_y), bounds.size.height - 225.0))
+        _draw_receipt_text(_receipt_separator(line_width, 24, True), NSMakeRect(line_x, total_y, line_width, 24), 24, True, soft_ink, "center")
+        amount_width = min(330.0, line_width * 0.58)
+        label_width = line_width - amount_width
+        _draw_receipt_text("TOTAL", NSMakeRect(line_x, total_y - 40, label_width, 34), 29, False, ui_color(0.10, 0.11, 0.12, 1.0), "left")
+        _draw_receipt_text_fit(str(self.total_text), NSMakeRect(line_x + label_width, total_y - 40, amount_width, 34), 29, 21, False, ui_color(0.10, 0.11, 0.12, 1.0), "right")
+        _draw_receipt_text("TAX", NSMakeRect(line_x, total_y - 67, label_width, 26), 23, False, soft_ink, "left")
+        _draw_receipt_text(str(self.tax_text), NSMakeRect(line_x + label_width, total_y - 67, amount_width, 26), 23, False, soft_ink, "right")
+        _draw_receipt_text(_receipt_separator(line_width, 24, True), NSMakeRect(line_x, total_y - 94, line_width, 24), 24, True, soft_ink, "center")
+        _draw_receipt_text("THANK YOU!", NSMakeRect(line_x, 30, line_width, 22), 17, True, ink_color.colorWithAlphaComponent_(0.45), "center")
+
+
+class CartReceiptRowView(NSView):
+    line_number = objc.ivar()
+    quantity = objc.ivar()
+    name = objc.ivar()
+    subtotal_text = objc.ivar()
+
+    def initWithFrame_(self, frame):
+        self = objc.super(CartReceiptRowView, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.line_number = 0
+        self.quantity = 0
+        self.name = ""
+        self.subtotal_text = ""
+        return self
+
+    def configureLineNumber_quantity_name_subtotalText_(self, line_number, quantity, name, subtotal_text):
+        self.line_number = int(line_number)
+        self.quantity = int(quantity)
+        self.name = str(name)
+        self.subtotal_text = str(subtotal_text)
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, _rect):
+        bounds = self.bounds()
+        ink = ui_color(0.12, 0.12, 0.11, 1.0)
+        muted = ui_color(0.42, 0.40, 0.35, 1.0)
+        lane_width = max(120.0, bounds.size.width - 172.0)
+        left_x = 0.0
+        line_height = bounds.size.height
+        number_text = f"{int(self.line_number)}."
+        item_text = f"{int(self.quantity)}x {self.name}"
+        price_text = str(self.subtotal_text)
+
+        number_attrs = _receipt_attributes(22, False, muted)
+        item_attrs = _receipt_attributes(22, False, ink)
+        price_attrs = _receipt_attributes(22, False, ink)
+        leader_attrs = _receipt_attributes(22, False, ink)
+        number_width = NSString.stringWithString_(number_text).sizeWithAttributes_(number_attrs).width + 12.0
+        price_width = min(150.0, NSString.stringWithString_(price_text).sizeWithAttributes_(price_attrs).width + 6.0)
+        min_leader_width = 42.0
+        item_max_width = max(56.0, lane_width - number_width - price_width - min_leader_width - 24.0)
+        fitted_item = fit_text_to_width(item_text, item_max_width, item_attrs)
+        item_width = NSString.stringWithString_(fitted_item).sizeWithAttributes_(item_attrs).width
+        price_x = left_x + lane_width - price_width
+        leader_x = left_x + number_width + item_width + 8.0
+        leader_width = max(14.0, price_x - leader_x - 8.0)
+        dot_width = max(1.0, NSString.stringWithString_(".").sizeWithAttributes_(leader_attrs).width)
+        leader_text = "." * max(3, int(leader_width / dot_width))
+        text_y = (line_height - 28.0) / 2.0
+
+        NSString.stringWithString_(number_text).drawInRect_withAttributes_(NSMakeRect(left_x, text_y, number_width, 28), number_attrs)
+        NSString.stringWithString_(fitted_item).drawInRect_withAttributes_(NSMakeRect(left_x + number_width, text_y, item_width + 4, 28), item_attrs)
+        NSString.stringWithString_(leader_text).drawInRect_withAttributes_(NSMakeRect(leader_x, text_y, leader_width, 28), leader_attrs)
+        NSString.stringWithString_(price_text).drawInRect_withAttributes_(NSMakeRect(price_x, text_y, price_width, 28), price_attrs)
 
 
 class DiceTextView(NSTextView):
@@ -327,12 +902,12 @@ class SearchResultButton(StyledButton):
 
     def configureItemResult_(self, item: Item):
         self.row_kind = "item"
-        self.primary_text = item.name
+        self.primary_text = item_display_name(item)
         self.secondary_text = item.category
-        self.hp_text = item.cost
+        self.hp_text = item_effective_cost_color_name(item)
         self.ac_text = ""
         self.cr_text = ""
-        self.meta_text = item_display_cost(item.cost)
+        self.meta_text = item_effective_value_text(item)
         self.spell_school = ""
         self.setToolTip_(item_summary(item))
         self.setNeedsDisplay_(True)
@@ -401,7 +976,7 @@ class SearchResultButton(StyledButton):
     def _drawItemResult_(self, bounds):
         width = bounds.size.width
         primary = theme_color("text")
-        metadata_color = theme_color(item_cost_color_name(self.hp_text))
+        metadata_color = theme_color(self.hp_text)
         draw_fitted_text(self.primary_text, NSMakeRect(14, 7, width - 28, 17), 13.5, primary, True)
         if width >= 340 and self.meta_text:
             meta_w = min(130, max(82, width * 0.30))

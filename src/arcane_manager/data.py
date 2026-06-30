@@ -388,11 +388,12 @@ def item_category_values(items: list[Item]) -> list[str]:
 
 
 def item_summary(item: Item) -> str:
-    parts = [item.name]
+    parts = [item_display_name(item)]
     if item.category:
         parts.append(item.category)
-    if item.cost:
-        parts.append(item.cost)
+    cost = item_effective_value_text(item)
+    if cost and cost != "-":
+        parts.append(cost)
     return " - ".join(parts)
 
 
@@ -418,6 +419,46 @@ def item_cost_to_copper(cost: str) -> int | None:
     return int(total)
 
 
+def item_enhancement_bonus_copper(name: str) -> int:
+    match = re.match(r"\s*\+([123])\b", str(name or ""))
+    if match is None:
+        return 0
+    return {1: 400, 2: 4000, 3: 40000}[int(match.group(1))] * 100
+
+
+def selected_item_variant(item: Item) -> ItemVariant | None:
+    if not item.selected_variant_id:
+        return None
+    for variant in item.variants:
+        if variant.id == item.selected_variant_id:
+            return variant
+    return None
+
+
+def item_display_entry(item: Item) -> Item | ItemVariant:
+    return selected_item_variant(item) or item
+
+
+def item_display_name(item: Item) -> str:
+    return item_display_entry(item).name
+
+
+def item_effective_cost_copper(item: Item | ItemVariant, base_item: Item | None = None) -> int | None:
+    bonus = item_enhancement_bonus_copper(item.name)
+    if bonus and base_item is not None:
+        base_copper = item_cost_to_copper(base_item.cost)
+        if base_copper is None:
+            return None
+        return base_copper + bonus
+    return item_cost_to_copper(item.cost)
+
+
+def item_effective_cost_copper_for_item(item: Item) -> int | None:
+    entry = item_display_entry(item)
+    base_item = item if isinstance(entry, ItemVariant) else None
+    return item_effective_cost_copper(entry, base_item)
+
+
 def copper_value_text(copper: int) -> str:
     copper = max(0, int(copper))
     gold, remainder = divmod(copper, 100)
@@ -434,6 +475,25 @@ def copper_value_text(copper: int) -> str:
 
 def item_value_text(cost: str) -> str:
     return item_display_cost(cost)
+
+
+def item_effective_value_text(item: Item | ItemVariant, base_item: Item | None = None) -> str:
+    if isinstance(item, Item):
+        copper = item_effective_cost_copper_for_item(item)
+    else:
+        copper = item_effective_cost_copper(item, base_item)
+    return copper_value_text(copper) if copper is not None else "-"
+
+
+def item_effective_cost_color_name(item: Item) -> str:
+    copper = item_effective_cost_copper_for_item(item)
+    if copper is None:
+        return "no_cost"
+    if copper >= 100:
+        return "gold"
+    if copper >= 10:
+        return "muted"
+    return "copper"
 
 
 def item_display_properties(properties: str, description: str) -> str:

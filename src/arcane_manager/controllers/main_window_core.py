@@ -54,6 +54,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
             view.setHidden_(not show_dice)
         for view in self.adventure_views:
             view.setHidden_(not show_adventure)
+        for view in self.cart_overlay_views:
+            view.setHidden_(not (show_items and self.cart_overlay_visible))
         if show_adventure:
             self.adventure_web_view.setHidden_(self.adventure_is_editing)
             self.adventure_editor_scroll.setHidden_(not self.adventure_is_editing)
@@ -72,6 +74,8 @@ class MainWindowController(objc.Category(_MainWindowController)):
             self.refreshSpellResults()
         elif field == self.item_search_field:
             self.refreshItemResults()
+        elif field == self.scroll_calculator_spell_field:
+            self.refreshScrollCalculator()
 
     def textDidChange_(self, notification):
         if notification.object() == self.adventure_editor_view:

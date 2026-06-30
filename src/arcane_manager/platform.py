@@ -34,6 +34,7 @@ try:
         NSApplication,
         NSApplicationActivationPolicyRegular,
         NSAlert,
+        NSAffineTransform,
         NSBackingStoreBuffered,
         NSBezierPath,
         NSButton,
@@ -55,6 +56,7 @@ try:
         NSMenu,
         NSMenuItem,
         NSOpenPanel,
+        NSEvenOddWindingRule,
         NSMutableParagraphStyle,
         NSPanel,
         NSParagraphStyleAttributeName,
@@ -106,6 +108,11 @@ try:
         NSTimer,
         NSUserDefaults,
     )
+    try:
+        from CoreText import CTFontManagerRegisterFontsForURL, kCTFontManagerScopeProcess
+    except ImportError:  # pragma: no cover - bundled fallback fonts keep UI usable
+        CTFontManagerRegisterFontsForURL = None
+        kCTFontManagerScopeProcess = None
 except ImportError as exc:  # pragma: no cover - helpful startup error
     raise SystemExit(
         "Missing macOS dependency. Run:\n"
