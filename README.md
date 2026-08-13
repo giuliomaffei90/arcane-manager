@@ -211,33 +211,10 @@ either one data type at a time or all six at once from a single folder.
   card, and `package_info_plus` + `http` for the GitHub‑release update
   check.
 
-## Build & run
-
-```bash
-flutter pub get
-flutter run -d macos     # or -d windows / -d linux
-```
-
-Run the tests:
-
-```bash
-flutter test
-```
-
-## Known limitations
-
-- The Windows build is compiled by CI (`windows-latest`) but not manually
-  tested on real Windows hardware - it may have platform-specific bugs.
-  Please report issues.
-
 ## Credits
 
-SRD data and the original application design are from the upstream
-[arcane-manager](https://github.com/giuliomaffei90/arcane-manager) project. The
-3D dice roller bundles three.js and cannon‑es (see `assets/web/three-dice/`).
-
-*This started life as a native macOS app; this repo is its Flutter rewrite -
-see the original [Arcane Manager](https://github.com/giuliomaffei90/arcane-manager).*
+For the third‑party libraries this app bundles and their licenses, see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 *Fully vibecoded, zero shame about it - I designed every feature and
 personally beat on every corner of this app until it held up. AI were
