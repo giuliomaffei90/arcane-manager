@@ -19,6 +19,39 @@ becoming *the* one-stop app for running a 5e table.
 
 Everything runs locally; there is no backend.
 
+## Installation
+
+Download the latest build from the
+[Releases page](https://github.com/giuliomaffei90/arcane-manager/releases/latest).
+
+### macOS
+
+1. Open the `.dmg` and drag **Arcane Manager** into your **Applications**
+   folder.
+2. Remove the quarantine flag. Open Terminal and run:
+
+   ```bash
+   xattr -cr "/Applications/Arcane Manager.app"
+   ```
+
+3. Launch **Arcane Manager** from Applications.
+
+> [!NOTE]
+> **Why is this needed?** Arcane Manager is distributed outside the Mac App
+> Store and isn't notarized by Apple yet. macOS marks every downloaded file
+> with a quarantine attribute, and for an app that isn't notarized Gatekeeper
+> then refuses to open it with an "Arcane Manager is damaged" or
+> "unidentified developer" message. `xattr -cr` clears that attribute (`-c`
+> clears, `-r` applies recursively) so macOS lets the app run; it doesn't
+> modify the app itself.
+
+### Windows
+
+Run the `-windows-setup.exe` installer (recommended - it adds Start
+Menu/desktop shortcuts and an uninstaller), or unzip the portable
+`-windows.zip`. SmartScreen may show an "unknown publisher" warning - choose
+*More info → Run anyway*.
+
 ## Features
 
 Sixteen tabs, all backed by local SRD data and local files - no accounts, no
