@@ -305,7 +305,7 @@ once from a single folder.
 ## Credits
 
 For the third‑party libraries this app bundles and their licenses, see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[LICENSE.md](LICENSE.md), which also holds the Arcane Manager license.
 
 *Fully vibecoded, zero shame about it - I designed every feature and
 personally beat on every corner of this app until it held up. AI were
